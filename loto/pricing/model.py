@@ -5,10 +5,10 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from pandas import Series as PriceSeries
 
 from .providers import _prepare_series
 
-PriceSeries = pd.Series
 __all__ = ["PriceSeries", "normalize", "PriceModel"]
 
 
