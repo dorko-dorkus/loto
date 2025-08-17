@@ -1,10 +1,8 @@
 """Pytest configuration for the loto package."""
 
-from __future__ import annotations
-
 import sys
 from pathlib import Path
 
-# Ensure the project root is on ``sys.path`` so that ``import loto`` works when
-# tests are executed without installing the package.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+# Ensure project root is on the import path so ``import loto`` works during
+# test collection even when ``pytest`` changes the working directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
