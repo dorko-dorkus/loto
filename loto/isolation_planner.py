@@ -13,7 +13,7 @@ these signatures as a starting point for a full implementation.
 
 from __future__ import annotations
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import networkx as nx  # type: ignore
 

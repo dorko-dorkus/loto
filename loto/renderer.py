@@ -12,7 +12,7 @@ serialize plan data to JSON.
 
 from __future__ import annotations
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 from .isolation_planner import IsolationPlan
 from .sim_engine import SimReport
@@ -47,7 +47,12 @@ class Renderer:
         """
         raise NotImplementedError("Renderer.pdf() is not implemented yet")
 
-    def to_json(self, plan: IsolationPlan, sim_report: SimReport, impact: Dict[str, Any] | None = None) -> Dict[str, Any]:
+    def to_json(
+        self,
+        plan: IsolationPlan,
+        sim_report: SimReport,
+        impact: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
         """Serialize the plan and simulation report to a JSON-friendly dict.
 
         Parameters

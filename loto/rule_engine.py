@@ -21,10 +21,9 @@ method stubs. Detailed logic will be implemented in future iterations.
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 @dataclass
