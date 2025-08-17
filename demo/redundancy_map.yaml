@@ -1,0 +1,4 @@
+UnitA: SPOF
+UnitB:
+  scheme: N+1
+  nplus: 2
