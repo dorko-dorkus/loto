@@ -62,27 +62,70 @@ class SimEngine:
     def apply(
         self, plan: IsolationPlan, graphs: Dict[str, nx.MultiDiGraph]
     ) -> Dict[str, nx.MultiDiGraph]:
-        """Return a new set of graphs with isolation edges removed.
+        """Return isolated copies of each domain graph.
+
+        The method performs a pure transformation of ``graphs`` by cloning
+        each :class:`~networkx.MultiDiGraph` and applying the actions from the
+        isolation ``plan``.  Edges listed in the plan are removed, drains and
+        vents are opened, and components with a fail-open (``FO``) or
+        fail-closed (``FC``) designation have their default ``state`` set
+        accordingly.  The original ``graphs`` are not modified.
 
         Parameters
         ----------
-        plan: IsolationPlan
+        plan:
             The isolation plan produced by the planner.
-        graphs: Dict[str, nx.MultiDiGraph]
-            The original domain graphs.
+        graphs:
+            Mapping of domain names to their connectivity graphs.
 
         Returns
         -------
         Dict[str, nx.MultiDiGraph]
-            A copy of the graphs with isolation actions applied.
-
-        Notes
-        -----
-        This stub does not implement the actual edge removal. A real
-        implementation should iterate over isolation actions and remove
-        the corresponding edges or mark nodes/edges inactive.
+            New graphs with isolation actions applied.
         """
-        raise NotImplementedError("SimEngine.apply() is not implemented yet")
+
+        isolated: Dict[str, nx.MultiDiGraph] = {}
+
+        for domain, graph in graphs.items():
+            # Clone the graph to maintain purity
+            g = graph.copy()
+
+            # Remove isolation edges for this domain.  Plan entries may be of
+            # the form (u, v) or (u, v, key).
+            for edge in plan.plan.get(domain, []):
+                if len(edge) == 3:
+                    u, v, k = edge  # type: ignore[misc]
+                    if g.has_edge(u, v, k):
+                        g.remove_edge(u, v, k)
+                elif len(edge) == 2:
+                    u, v = edge  # type: ignore[misc]
+                    if g.has_edge(u, v):
+                        keys = list(g[u][v].keys())
+                        for k in keys:
+                            g.remove_edge(u, v, k)
+
+            # Apply default states for edges and nodes
+            for u, v, k, data in g.edges(data=True, keys=True):
+                kind = data.get("kind")
+                if kind in {"drain", "vent"}:
+                    data["state"] = "open"
+
+                fail = data.get("fail_state")
+                if "state" not in data and fail in {"FO", "FC"}:
+                    data["state"] = "open" if fail == "FO" else "closed"
+
+            for node, data in g.nodes(data=True):
+                kind = data.get("kind")
+                if kind in {"drain", "vent"}:
+                    data["state"] = "open"
+
+                fail = data.get("fail_state")
+                if "state" not in data and fail in {"FO", "FC"}:
+                    data["state"] = "open" if fail == "FO" else "closed"
+
+            isolated[domain] = g
+
+        return isolated
 
     def run_stimuli(
         self,
