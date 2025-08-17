@@ -1,4 +1,4 @@
-"""Pytest configuration for the ``loto`` package."""
+"""Pytest configuration for the loto package."""
 
 import sys
 from pathlib import Path
