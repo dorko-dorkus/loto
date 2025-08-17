@@ -14,7 +14,7 @@ and must not control real hardware.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 import networkx as nx  # type: ignore
 
@@ -59,7 +59,9 @@ class SimReport:
 class SimEngine:
     """Apply isolation plans and run stimulus tests."""
 
-    def apply(self, plan: IsolationPlan, graphs: Dict[str, nx.MultiDiGraph]) -> Dict[str, nx.MultiDiGraph]:
+    def apply(
+        self, plan: IsolationPlan, graphs: Dict[str, nx.MultiDiGraph]
+    ) -> Dict[str, nx.MultiDiGraph]:
         """Return a new set of graphs with isolation edges removed.
 
         Parameters

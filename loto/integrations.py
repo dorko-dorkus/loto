@@ -12,7 +12,7 @@ Only method signatures are provided here, to be fleshed out later.
 
 from __future__ import annotations
 
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 from .isolation_planner import IsolationPlan
 from .sim_engine import SimReport

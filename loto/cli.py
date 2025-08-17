@@ -9,14 +9,13 @@ producing outputs. Only a skeleton structure is provided here.
 from __future__ import annotations
 
 import argparse
-from pathlib import Path
 from typing import Optional
 
-from .rule_engine import RuleEngine
 from .graph_builder import GraphBuilder
 from .isolation_planner import IsolationPlanner
-from .sim_engine import SimEngine, Stimulus
 from .renderer import Renderer
+from .rule_engine import RuleEngine
+from .sim_engine import SimEngine
 
 
 def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
@@ -34,12 +33,16 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     """
     parser = argparse.ArgumentParser(description="LOTO planner CLI")
     parser.add_argument("--asset", required=True, help="Asset tag to isolate")
-    parser.add_argument("--rules", required=True, help="Path to rule pack file (YAML/JSON)")
+    parser.add_argument(
+        "--rules", required=True, help="Path to rule pack file (YAML/JSON)"
+    )
     parser.add_argument("--line-list", required=True, help="Path to line list CSV")
     parser.add_argument("--valves", required=True, help="Path to valves CSV")
     parser.add_argument("--drains", required=True, help="Path to drains/vents CSV")
     parser.add_argument("--sources", help="Path to energy sources CSV", default=None)
-    parser.add_argument("--air-map", help="Path to instrument air map CSV", default=None)
+    parser.add_argument(
+        "--air-map", help="Path to instrument air map CSV", default=None
+    )
     parser.add_argument("--output", help="Directory for outputs", default="./out")
     parser.add_argument("--no-sim", action="store_true", help="Skip simulation testing")
     return parser.parse_args(args)
@@ -52,13 +55,13 @@ def main(argv: Optional[list[str]] = None) -> None:
     graphs, compute the isolation plan, optionally run simulations,
     and render outputs. Method bodies are left as placeholders.
     """
-    args = parse_args(argv)
+    _args = parse_args(argv)
     # Instantiate engine components
-    rule_engine = RuleEngine()
-    graph_builder = GraphBuilder()
-    planner = IsolationPlanner()
-    sim = SimEngine()
-    renderer = Renderer()
+    RuleEngine()
+    GraphBuilder()
+    IsolationPlanner()
+    SimEngine()
+    Renderer()
 
     # TODO: Load the rule pack
     # rule_pack = rule_engine.load(args.rules)
