@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 from .model import PriceSeries, normalize
 
+__all__ = ["Hedge"]
+
 
 @dataclass
 class Hedge:
