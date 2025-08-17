@@ -13,7 +13,7 @@ these signatures as a starting point for a full implementation.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Set, Tuple
 
 import networkx as nx  # type: ignore
 
@@ -67,9 +67,59 @@ class IsolationPlanner:
 
         Notes
         -----
-        This stub does not contain the actual algorithm for computing
-        minimal cut sets. Developers should implement graph search
-        algorithms (e.g., max-flow/min-cut) and apply domain rules
-        accordingly.
+        This implementation performs a basic minimum cut computation.  For
+        each domain graph it identifies all source nodes (``is_source``) and
+        target nodes whose ``tag`` matches ``asset_tag``.  Candidate edges are
+        those marked with ``is_isolation_point``.  A min-cut is computed between
+        a super source aggregating all sources and each target individually with
+        unit capacity on candidate edges and infinite capacity elsewhere.  The
+        union of all edges in these cut sets forms the raw isolation plan for
+        that domain.
         """
-        raise NotImplementedError("IsolationPlanner.compute() is not implemented yet")
+
+        plan: Dict[str, List[Tuple[str, str]]] = {}
+
+        for domain, graph in graphs.items():
+            sources = [n for n, data in graph.nodes(data=True) if data.get("is_source")]
+            targets = [n for n, data in graph.nodes(data=True) if data.get("tag") == asset_tag]
+
+            if not sources or not targets:
+                plan[domain] = []
+                continue
+
+            # Build weighted graph for min-cut computations
+            weighted = nx.DiGraph()
+            for u, v, data in graph.edges(data=True):
+                cap = 1.0 if data.get("is_isolation_point") else float("inf")
+                if weighted.has_edge(u, v):
+                    # Keep the lowest capacity if multiple edges exist
+                    weighted[u][v]["capacity"] = min(weighted[u][v]["capacity"], cap)
+                else:
+                    weighted.add_edge(u, v, capacity=cap)
+
+            super_source = "__super_source__"
+            weighted.add_node(super_source)
+            for s in sources:
+                weighted.add_edge(super_source, s, capacity=float("inf"))
+
+            cut_edges: Set[Tuple[str, str]] = set()
+
+            for target in targets:
+                _, (reachable, non_reachable) = nx.minimum_cut(
+                    weighted, super_source, target, capacity="capacity"
+                )
+
+                for u in reachable:
+                    if u == super_source:
+                        continue
+                    for v in graph.successors(u):
+                        if v in non_reachable:
+                            edge_data = graph.get_edge_data(u, v)
+                            for attrs in edge_data.values():
+                                if attrs.get("is_isolation_point"):
+                                    cut_edges.add((u, v))
+                                    break
+
+            plan[domain] = list(cut_edges)
+
+        return IsolationPlan(plan=plan, verifications=[])
