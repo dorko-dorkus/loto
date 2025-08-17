@@ -18,6 +18,7 @@ dependencies = [
     "requests",
     "typer",
     "python-dotenv",
+    "pandas",
 ]
 
 [project.optional-dependencies]
