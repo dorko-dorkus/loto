@@ -1,0 +1,16 @@
+units:
+  UnitA:
+    rated: 100
+    area: North
+    assets:
+      - uA
+  UnitB:
+    rated: 90
+    area: North
+    assets:
+      - uB1
+      - uB2
+penalties:
+  local1:
+    mw: 5
+    area: South
