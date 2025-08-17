@@ -157,4 +157,64 @@ class SimEngine:
         should add reachability checks and, optionally, simple cause &
         effect evaluation.
         """
-        raise NotImplementedError("SimEngine.run_stimuli() is not implemented yet")
+        supported = {
+            "REMOTE_OPEN",
+            "LOCAL_OPEN",
+            "AIR_RETURN",
+            "ESD_RESET",
+            "PUMP_START",
+        }
+
+        results: List[StimulusResult] = []
+        unknowns: List[str] = []
+
+        def shortest_path(g: nx.MultiDiGraph) -> List[str] | None:
+            """Return shortest open path from any source to an asset."""
+
+            # Build graph of traversable edges (state != 'closed')
+            open_graph = nx.DiGraph()
+            open_graph.add_nodes_from(g.nodes())
+            for u, v, data in g.edges(data=True):
+                if data.get("state") != "closed":
+                    open_graph.add_edge(u, v)
+
+            sources = [n for n, d in g.nodes(data=True) if d.get("is_source")]
+            targets = [n for n, d in g.nodes(data=True) if d.get("tag") == "asset"]
+
+            best: List[str] | None = None
+            for s in sources:
+                for t in targets:
+                    try:
+                        path = nx.shortest_path(open_graph, s, t)
+                    except nx.NetworkXNoPath:
+                        continue
+
+                    if best is None or len(path) < len(best):
+                        best = path
+
+            return best
+
+        for stim in stimuli:
+            if stim.id not in supported:
+                unknowns.append(stim.id)
+                continue
+
+            offending: List[str] | None = None
+            for graph in applied_graphs.values():
+                path = shortest_path(graph)
+                if path is not None:
+                    if offending is None or len(path) < len(offending):
+                        offending = path
+
+            if offending:
+                details = {
+                    "path": offending,
+                    "suggestion": "Apply extra isolation",
+                }
+                results.append(
+                    StimulusResult(stimulus_id=stim.id, result="FAIL", details=details)
+                )
+            else:
+                results.append(StimulusResult(stimulus_id=stim.id, result="PASS"))
+
+        return SimReport(results, unknowns)
