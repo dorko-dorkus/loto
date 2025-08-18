@@ -12,10 +12,11 @@ Only method signatures are provided here, to be fleshed out later.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
-from .isolation_planner import IsolationPlan
-from .models import SimReport
+if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
+    from ..isolation_planner import IsolationPlan
+    from ..models import SimReport
 
 
 class IntegrationAdapter:
