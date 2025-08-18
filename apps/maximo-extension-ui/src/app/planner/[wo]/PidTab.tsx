@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import PidViewer from '../../../components/PidViewer';
 import { useBlueprint } from '../../../lib/hooks';
@@ -10,14 +10,6 @@ interface OverlayResponse {
   highlight: string[];
   badges: unknown[];
   paths: unknown[];
-}
-
-async function fetchPidSvg(drawingId: string): Promise<string> {
-  const res = await fetch(`/pid/${drawingId}/svg`);
-  if (!res.ok) {
-    throw new Error('Failed to fetch PID SVG');
-  }
-  return res.text();
 }
 
 async function fetchOverlay(
@@ -56,27 +48,11 @@ export default function PidTab({ wo }: { wo: string }) {
 
   const { data: blueprint } = useBlueprint(wo);
 
-  const { data: svg } = useQuery({
-    queryKey: ['pidSvg', wo],
-    queryFn: () => fetchPidSvg(wo),
-  });
-
   const { data: overlay } = useQuery({
-    queryKey: ['pidOverlay', wo],
+    queryKey: ['pidOverlay', wo, showSimFails, showPath],
     enabled: !!blueprint,
     queryFn: () => fetchOverlay(wo, showSimFails, showPath, blueprint?.steps),
   });
-
-  const viewerOverlay = useMemo(() => {
-    if (!overlay) return overlay;
-    const filtered = { ...overlay };
-    if (!showSimFails && !showPath) {
-      filtered.paths = [];
-    }
-    return filtered;
-  }, [overlay, showSimFails, showPath]);
-
-  if (!svg) return null;
 
   return (
     <div className="h-full flex flex-col">
@@ -99,7 +75,7 @@ export default function PidTab({ wo }: { wo: string }) {
         </label>
       </div>
       <div className="flex-1 border border-[var(--mxc-border)]">
-        {svg && <PidViewer svg={svg} overlay={viewerOverlay} />}
+        <PidViewer src={`/pid/${wo}/svg`} overlay={overlay} />
       </div>
     </div>
   );
