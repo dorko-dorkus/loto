@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
 import Exports from '../../../components/Exports';
 import CommitPanel from './CommitPanel';
+import PidTab from './PidTab';
 
 const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact', 'Commit'];
 
@@ -62,26 +63,7 @@ function PlannerContent({ wo }: { wo: string }) {
               </tbody>
             </table>
           )}
-          {activeTab === 'P&ID' && (
-            <table className="min-w-full border border-[var(--mxc-border)]">
-              <thead className="bg-[var(--mxc-nav-bg)] text-left">
-                <tr>
-                  <th className="px-4 py-2">Step</th>
-                  <th className="px-4 py-2">Component</th>
-                  <th className="px-4 py-2">Method</th>
-                </tr>
-              </thead>
-              <tbody>
-                {plan.map((p, idx) => (
-                  <tr key={idx}>
-                    <td className="px-4 py-2">{idx + 1}</td>
-                    <td className="px-4 py-2">{p.component_id}</td>
-                    <td className="px-4 py-2">{p.method}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {activeTab === 'P&ID' && <PidTab wo={wo} />}
           {activeTab === 'Simulation' && (
             <table className="min-w-full border border-[var(--mxc-border)]">
               <thead className="bg-[var(--mxc-nav-bg)] text-left">
