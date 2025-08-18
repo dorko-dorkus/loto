@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, Tuple
+from pathlib import Path
+from typing import Dict, IO, Iterable, Tuple
 
 from ..graph_builder import GraphBuilder
 from ..impact import ImpactEngine, ImpactResult
@@ -12,10 +13,10 @@ from ..sim_engine import SimEngine
 
 
 def plan_and_evaluate(
-    line_csv: object,
-    valve_csv: object,
-    drain_csv: object,
-    source_csv: object,
+    line_csv: str | Path | IO[str],
+    valve_csv: str | Path | IO[str],
+    drain_csv: str | Path | IO[str],
+    source_csv: str | Path | IO[str] | None = None,
     *,
     asset_tag: str,
     rule_pack: RulePack,

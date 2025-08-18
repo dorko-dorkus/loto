@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, IO, List, Optional
 
 import networkx as nx  # type: ignore
 import pandas as pd
@@ -41,26 +41,26 @@ class GraphBuilder:
 
     def from_csvs(
         self,
-        line_list_path: str | Path,
-        valves_path: str | Path,
-        drains_path: str | Path,
-        sources_path: Optional[str | Path] = None,
-        air_map_path: Optional[str | Path] = None,
+        line_list_path: str | Path | IO[str],
+        valves_path: str | Path | IO[str],
+        drains_path: str | Path | IO[str],
+        sources_path: Optional[str | Path | IO[str]] = None,
+        air_map_path: Optional[str | Path | IO[str]] = None,
     ) -> Dict[str, nx.MultiDiGraph]:
         """Load CSV data and return graphs keyed by domain.
 
         Parameters
         ----------
-        line_list_path: str | Path
-            Path to the line list CSV file.
-        valves_path: str | Path
-            Path to the valve register CSV file.
-        drains_path: str | Path
-            Path to the drains/vents CSV file.
-        sources_path: Optional[str | Path]
-            Path to the energy sources CSV file; optional.
-        air_map_path: Optional[str | Path]
-            Path to the instrument air map CSV file; optional.
+        line_list_path: str | Path | IO[str]
+            Path or file-like object for the line list CSV.
+        valves_path: str | Path | IO[str]
+            Path or file-like object for the valve register CSV.
+        drains_path: str | Path | IO[str]
+            Path or file-like object for the drains/vents CSV.
+        sources_path: Optional[str | Path | IO[str]]
+            Path or file-like object for the energy sources CSV; optional.
+        air_map_path: Optional[str | Path | IO[str]]
+            Path or file-like object for the instrument air map CSV; optional.
 
         Returns
         -------
