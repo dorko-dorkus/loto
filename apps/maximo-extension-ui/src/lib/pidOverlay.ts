@@ -14,6 +14,10 @@ export interface Overlay {
   paths: OverlayPath[];
 }
 
+function uniq(values: string[]): string[] {
+  return Array.from(new Set(values));
+}
+
 /**
  * Apply overlay information to an SVG diagram.
  *
@@ -22,7 +26,13 @@ export interface Overlay {
  * elements so that HTML can be positioned relative to the graphic.
  */
 export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): void {
-  overlay.highlight.forEach((selector) => {
+  const highlight = uniq(overlay.highlight);
+  overlay.paths = overlay.paths.map((p) => ({
+    ...p,
+    selectors: uniq(p.selectors),
+  }));
+
+  highlight.forEach((selector) => {
     svg.querySelectorAll<SVGElement>(selector).forEach((el) => {
       el.classList.add('hl-primary');
     });
