@@ -1,27 +1,33 @@
 'use client';
 
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import KpiCards, { KpiItem } from '../../components/KpiCards';
+import KpiCards from '../../components/KpiCards';
+import { fetchPortfolio, PortfolioData } from '../../mocks/portfolio';
 
-const kpis: KpiItem[] = [
-  { label: 'Blueprints', value: 3 },
-  { label: 'Active', value: 2 },
-  { label: 'Completed', value: 1 }
-];
-
-const blueprints = [
-  { name: 'Pump replacement', status: 'Active', owner: 'Jane' },
-  { name: 'Motor upgrade', status: 'Draft', owner: 'John' },
-  { name: 'Energy audit', status: 'Completed', owner: 'Ben' }
-];
+const queryClient = new QueryClient();
 
 export default function PortfolioPage() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Content />
+    </QueryClientProvider>
+  );
+}
+
+function Content() {
   const [dense, setDense] = useState(false);
+  const { data } = useQuery<PortfolioData>({
+    queryKey: ['portfolio'],
+    queryFn: fetchPortfolio
+  });
+
+  if (!data) return null;
 
   return (
     <main>
       <h1 className="mb-4 text-xl font-semibold">Portfolio</h1>
-      <KpiCards items={kpis} />
+      <KpiCards items={data.kpis} />
       <div className="mb-2 text-sm">
         <label className="inline-flex items-center gap-2">
           <input
@@ -41,7 +47,7 @@ export default function PortfolioPage() {
           </tr>
         </thead>
         <tbody>
-          {blueprints.map((bp) => (
+          {data.blueprints.map((bp) => (
             <tr key={bp.name} className={dense ? 'text-sm' : undefined}>
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{bp.name}</td>
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{bp.status}</td>
