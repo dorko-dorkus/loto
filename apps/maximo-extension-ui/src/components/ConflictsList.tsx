@@ -43,7 +43,9 @@ export default function ConflictsList({ candidates }: ConflictsListProps) {
           </li>
         ))}
       </ul>
-      <button onClick={handleRecommend}>Select recommended set</button>
+      <button type="button" aria-label="Select recommended set" onClick={handleRecommend}>
+        Select recommended set
+      </button>
     </div>
   );
 }

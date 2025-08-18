@@ -1,4 +1,7 @@
-:root {
+/* Light theme (default) */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
   /* Palette */
   --mxc-bg: #f4f4f4;
   --mxc-fg: #161616;
@@ -16,9 +19,9 @@
   --mxc-radius-lg: 8px;
 
   /* Shadows */
-  --mxc-shadow-sm: 0 1px 2px rgba(0,0,0,0.1);
-  --mxc-shadow-md: 0 2px 4px rgba(0,0,0,0.1);
-  --mxc-shadow-lg: 0 4px 8px rgba(0,0,0,0.1);
+  --mxc-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --mxc-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --mxc-shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.1);
 
   /* Chips */
   --mxc-chip-bg: #e0e0e0;
@@ -26,7 +29,10 @@
   --mxc-chip-radius: 16px;
 }
 
+/* Dark theme */
+[data-theme="dark"],
 .dark {
+  color-scheme: dark;
   --mxc-bg: #161616;
   --mxc-fg: #f4f4f4;
   --mxc-topbar-bg: #393939;
@@ -38,4 +44,22 @@
   --mxc-border: #525252;
   --mxc-chip-bg: #393939;
   --mxc-chip-fg: #f4f4f4;
+}
+
+/* Respect system preference unless explicitly set */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --mxc-bg: #161616;
+    --mxc-fg: #f4f4f4;
+    --mxc-topbar-bg: #393939;
+    --mxc-topbar-fg: #f4f4f4;
+    --mxc-nav-bg: #262626;
+    --mxc-nav-fg: #f4f4f4;
+    --mxc-drawer-bg: #393939;
+    --mxc-drawer-fg: #f4f4f4;
+    --mxc-border: #525252;
+    --mxc-chip-bg: #393939;
+    --mxc-chip-fg: #f4f4f4;
+  }
 }

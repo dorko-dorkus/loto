@@ -16,7 +16,11 @@ export default function MaterialsPanel({ items }: MaterialsPanelProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-hidden rounded-[var(--mxc-radius-md)] border border-[var(--mxc-border)]">
-        <table className="min-w-full divide-y divide-[var(--mxc-border)] text-sm">
+        <table
+          aria-label="Materials"
+          tabIndex={0}
+          className="min-w-full divide-y divide-[var(--mxc-border)] text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mxc-border)]"
+        >
           <thead className="bg-[var(--mxc-bg)]">
             <tr>
               <th scope="col" className="px-4 py-2 text-left font-medium">

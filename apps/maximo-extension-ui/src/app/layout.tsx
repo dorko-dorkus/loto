@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="h-full">
       <body className="min-h-screen">
         <div className="flex min-h-screen flex-col">
-          <header className="flex h-12 items-center bg-[var(--mxc-topbar-bg)] px-4 text-[var(--mxc-topbar-fg)]">
+          <header className="flex h-12 items-center justify-between bg-[var(--mxc-topbar-bg)] px-4 text-[var(--mxc-topbar-fg)]">
             <span className="font-semibold">Maximo Extension</span>
+            <ThemeToggle />
           </header>
           <div className="flex flex-1 overflow-hidden">
             <nav className="w-56 shrink-0 border-r border-[var(--mxc-border)] bg-[var(--mxc-nav-bg)] p-4 text-[var(--mxc-nav-fg)]">
