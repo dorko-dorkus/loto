@@ -116,5 +116,35 @@ class IsolationPlanner:
                         duration_s=0.0,
                     )
                 )
+        verifications: List[str] = []
+        for domain, edges in plan.items():
+            if not edges:
+                continue
+            branch_graph = nx.Graph()
+            branch_graph.add_edges_from(edges)
+            for component in nx.connected_components(branch_graph):
+                branch_label = f"{domain}:{'-'.join(sorted(component))}"
+                verifications.append(f"{branch_label} PT=0")
+                verifications.append(f"{branch_label} no-movement")
 
-        return IsolationPlan(plan_id=asset_tag, actions=actions)
+                ddbb_found = False
+                for node in component:
+                    has_upstream_iso = any(
+                        any(data.get("is_isolation_point") for data in graphs[domain].get_edge_data(pred, node).values())
+                        for pred in graphs[domain].predecessors(node)
+                    )
+                    has_downstream_iso = any(
+                        any(data.get("is_isolation_point") for data in graphs[domain].get_edge_data(node, succ).values())
+                        for succ in graphs[domain].successors(node)
+                    )
+                    has_bleed = any(
+                        data.get("is_bleed") for _, _, data in graphs[domain].out_edges(node, data=True)
+                    )
+                    if has_upstream_iso and has_downstream_iso and has_bleed:
+                        verifications.append(f"{branch_label} DDBB")
+                        ddbb_found = True
+                        break
+                if ddbb_found:
+                    continue
+
+        return IsolationPlan(plan_id=asset_tag, actions=actions, verifications=verifications)
