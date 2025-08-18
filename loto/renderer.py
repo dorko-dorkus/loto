@@ -122,7 +122,7 @@ class Renderer:
         self,
         plan: IsolationPlan,
         sim_report: SimReport,
-        impact: Dict[str, Any] | None = None,
+        impact: Mapping[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Serialize the plan and simulation report to a JSON-friendly dict.
 
@@ -132,7 +132,7 @@ class Renderer:
             The isolation plan to serialize.
         sim_report: SimReport
             The simulation report to serialize.
-        impact: Dict[str, Any] | None
+        impact: Mapping[str, Any] | None
             Optional impact information (e.g., unavailable assets, unit
             derates) to include in the JSON output.
 
@@ -150,7 +150,7 @@ class Renderer:
         stable order for snapshot tests.
         """
 
-        def _sorted_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+        def _sorted_dict(data: Mapping[str, Any]) -> Dict[str, Any]:
             """Recursively sort dictionary keys for deterministic output."""
 
             items: list[tuple[str, Any]] = []
