@@ -1,20 +1,11 @@
 import React from 'react';
-
-export type MaterialStatus = 'ready' | 'short' | 'ordered';
-
-export interface MaterialItem {
-  item: string;
-  required: number;
-  onHand: number;
-  eta?: string;
-  status: MaterialStatus;
-}
+import { InventoryItem, InventoryStatus } from '../types/api';
 
 interface MaterialsPanelProps {
-  items: MaterialItem[];
+  items: InventoryItem[];
 }
 
-const statusStyles: Record<MaterialStatus, { icon: string; label: string; color: string }> = {
+const statusStyles: Record<InventoryStatus, { icon: string; label: string; color: string }> = {
   ready: { icon: '✓', label: 'Ready', color: 'text-green-600' },
   short: { icon: '⚠️', label: 'Short', color: 'text-red-600' },
   ordered: { icon: '⏳', label: 'Ordered', color: 'text-blue-600' }
