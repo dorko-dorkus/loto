@@ -7,6 +7,7 @@ identifiers to CSS selectors using a ``pid_map.yaml`` file.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Set
 
@@ -14,11 +15,16 @@ import yaml
 
 from ..models import IsolationPlan
 
+_MAP_PARSES = 0
 
-def _load_map(map_path: Path) -> Dict[str, List[str]]:
-    """Return mapping from component tags to CSS selectors."""
 
-    with map_path.open("r") as fh:
+def _parse_map(path: str) -> Dict[str, List[str]]:
+    """Read and normalize the raw YAML map."""
+
+    global _MAP_PARSES
+    _MAP_PARSES += 1
+
+    with Path(path).open("r") as fh:
         raw = yaml.safe_load(fh) or {}
 
     mapping: Dict[str, List[str]] = {}
@@ -28,6 +34,21 @@ def _load_map(map_path: Path) -> Dict[str, List[str]]:
         elif isinstance(selector, Iterable):
             mapping[tag] = [s for s in selector if isinstance(s, str)]
     return mapping
+
+
+@lru_cache(maxsize=32)
+def _load_map_cached(path: str, mtime: float) -> Dict[str, List[str]]:
+    """LRU cached loader keyed by path and modification time."""
+
+    return _parse_map(path)
+
+
+def _load_map(map_path: Path) -> Dict[str, List[str]]:
+    """Return mapping from component tags to CSS selectors."""
+
+    abs_path = Path(map_path).resolve()
+    mtime = abs_path.stat().st_mtime
+    return _load_map_cached(str(abs_path), mtime)
 
 
 def _selectors(tag: str, mapping: Dict[str, List[str]]) -> List[str]:
