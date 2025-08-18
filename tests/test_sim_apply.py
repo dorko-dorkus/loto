@@ -1,6 +1,6 @@
 import networkx as nx
 
-from loto.isolation_planner import IsolationPlan
+from loto.models import IsolationAction, IsolationPlan
 from loto.sim_engine import SimEngine
 
 
@@ -27,7 +27,10 @@ def build_graph():
 
 def test_apply_removes_edges_and_sets_states():
     original = build_graph()
-    plan = IsolationPlan(plan={"steam": [("source", "valve1")]}, verifications=[])
+    plan = IsolationPlan(
+        plan_id="demo",
+        actions=[IsolationAction(component_id="source->valve1", method="isolate")],
+    )
 
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": original})
