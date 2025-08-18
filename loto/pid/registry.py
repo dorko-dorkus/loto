@@ -14,6 +14,8 @@ from typing import Dict
 import yaml
 from pydantic import BaseModel, Field
 
+from .schema import load_tag_map
+
 
 class PidEntry(BaseModel):
     """Metadata for a single P&ID document."""
@@ -41,8 +43,23 @@ class PidRegistry(BaseModel):
 
 
 def load_registry(path: str | Path) -> PidRegistry:
-    """Load a :class:`PidRegistry` from a YAML file."""
+    """Load a :class:`PidRegistry` from a YAML file.
 
-    with Path(path).open("r") as fh:
+    The function validates each referenced tag map against
+    :func:`loto.pid.schema.load_tag_map`.
+    """
+
+    path = Path(path)
+    with path.open("r") as fh:
         data = yaml.safe_load(fh) or {}
-    return PidRegistry(**data)
+    registry = PidRegistry(**data)
+
+    base = path.parent
+    for entry in registry.pids.values():
+        tag_map_path = entry.tag_map
+        if not tag_map_path.is_absolute():
+            tag_map_path = (base / tag_map_path).resolve()
+        load_tag_map(tag_map_path)
+        entry.tag_map = tag_map_path
+
+    return registry
