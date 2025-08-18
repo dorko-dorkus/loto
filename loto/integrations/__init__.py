@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from .coupa_adapter import CoupaAdapter, DemoCoupaAdapter
 from .stores_adapter import StoresAdapter, DemoStoresAdapter
+from .wapr_adapter import WaprAdapter, DemoWaprAdapter
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from ..isolation_planner import IsolationPlan
@@ -107,4 +108,6 @@ __all__ = [
     "DemoCoupaAdapter",
     "StoresAdapter",
     "DemoStoresAdapter",
+    "WaprAdapter",
+    "DemoWaprAdapter",
 ]
