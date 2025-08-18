@@ -11,9 +11,11 @@ from loto.impact_config import load_impact_config
 from loto.models import RulePack
 from loto.service import plan_and_evaluate
 
+from .pid_endpoints import router as pid_router
 from .schemas import BlueprintRequest, BlueprintResponse, Step
 
 app = FastAPI(title="loto API")
+app.include_router(pid_router, prefix="/pid")
 
 
 class ProposeRequest(BaseModel):
