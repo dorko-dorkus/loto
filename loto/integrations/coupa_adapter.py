@@ -31,10 +31,26 @@ class CoupaAdapter(abc.ABC):
             Identifier of the raised RFQ.
         """
 
+    @abc.abstractmethod
+    def get_po_status(self, po_number: str) -> str:
+        """Return the status of a purchase order."""
+
 
 class DemoCoupaAdapter(CoupaAdapter):
     """Dry-run Coupa adapter that fabricates RFQ identifiers."""
 
+    _PO_STATUSES = {
+        "PO-1": "OPEN",
+        "PO-2": "CLOSED",
+    }
+
     def raise_urgent_enquiry(self, part_number: str, quantity: int) -> str:
         """Simulate raising an RFQ and return its identifier."""
         return f"RFQ-{uuid.uuid4().hex[:8]}"
+
+    def get_po_status(self, po_number: str) -> str:
+        """Return a fixture status for the given purchase order."""
+        try:
+            return self._PO_STATUSES[po_number]
+        except KeyError as exc:  # pragma: no cover - simple error path
+            raise KeyError(f"Unknown purchase order {po_number}") from exc
