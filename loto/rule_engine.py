@@ -21,7 +21,12 @@ method stubs. Detailed logic will be implemented in future iterations.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
+
+import yaml
+from pydantic import ValidationError
 
 from .models import RulePack
 
@@ -51,11 +56,40 @@ class RuleEngine:
 
         Notes
         -----
-        This stub does not implement actual file parsing or validation.
-        Instead, it raises ``NotImplementedError`` so that developers
-        remember to provide a real implementation in the future.
+        The function supports both YAML and JSON files.  The top level of the
+        parsed document must contain the keys ``domain_rules`` and
+        ``verification_rules``.  ``risk_policies`` is optional.  A ``ValueError``
+        is raised if the file cannot be parsed or the expected keys are
+        missing.
         """
-        raise NotImplementedError("RuleEngine.load() is not implemented yet")
+
+        path = Path(filepath)
+        if not path.exists():
+            raise FileNotFoundError(path)
+
+        suffix = path.suffix.lower()
+        text = path.read_text(encoding="utf-8")
+        if suffix in {".yaml", ".yml"}:
+            data = yaml.safe_load(text)
+        elif suffix == ".json":
+            data = json.loads(text)
+        else:
+            raise ValueError(f"Unsupported rule file format: {suffix}")
+
+        if not isinstance(data, dict):
+            raise ValueError("Rule pack file must contain a mapping/object")
+
+        required_keys = {"domain_rules", "verification_rules"}
+        missing = required_keys - set(data)
+        if missing:
+            raise ValueError(
+                "Missing required keys in rule pack: " + ", ".join(sorted(missing))
+            )
+
+        try:
+            return RulePack(**data)
+        except ValidationError as exc:  # pragma: no cover - propagated as ValueError
+            raise ValueError("Invalid rule pack") from exc
 
     def hash(self, rule_pack: RulePack) -> str:
         """Compute a stable hash for the given rule pack.
@@ -72,9 +106,12 @@ class RuleEngine:
 
         Notes
         -----
-        In this stub implementation the method body is left empty. A
-        proper implementation should produce a deterministic hash from
-        the rule contents (e.g., using SHA-256 on a canonical
-        serialization of the rules).
+        The hash is computed using SHA-256 over a canonical JSON
+        representation of the rule pack.  Keys are sorted to ensure that
+        semantically equivalent rule packs produce identical hashes
+        regardless of dictionary key order.
         """
-        raise NotImplementedError("RuleEngine.hash() is not implemented yet")
+
+        data = rule_pack.model_dump(exclude_none=True)
+        canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
