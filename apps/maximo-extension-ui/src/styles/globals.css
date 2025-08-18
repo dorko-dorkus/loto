@@ -1,32 +1,10 @@
+@import './theme-maximo.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --mxc-bg: #f4f4f4;
-    --mxc-fg: #161616;
-    --mxc-topbar-bg: #0f62fe;
-    --mxc-topbar-fg: #ffffff;
-    --mxc-nav-bg: #ffffff;
-    --mxc-nav-fg: #161616;
-    --mxc-drawer-bg: #e0e0e0;
-    --mxc-drawer-fg: #161616;
-    --mxc-border: #e0e0e0;
-  }
-
-  .dark {
-    --mxc-bg: #161616;
-    --mxc-fg: #f4f4f4;
-    --mxc-topbar-bg: #393939;
-    --mxc-topbar-fg: #f4f4f4;
-    --mxc-nav-bg: #262626;
-    --mxc-nav-fg: #f4f4f4;
-    --mxc-drawer-bg: #393939;
-    --mxc-drawer-fg: #f4f4f4;
-    --mxc-border: #525252;
-  }
-
   body {
     background-color: var(--mxc-bg);
     color: var(--mxc-fg);

@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`matches snapshot 1`] = `
+<button
+  class="rounded-[var(--mxc-radius-sm)] bg-[var(--mxc-topbar-bg)] px-4 py-2 text-[var(--mxc-topbar-fg)] shadow-[var(--mxc-shadow-sm)]"
+>
+  Click
+</button>
+`;

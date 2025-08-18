@@ -1,0 +1,36 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`matches snapshot 1`] = `
+<div
+  class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3"
+>
+  <div
+    class="rounded-[var(--mxc-radius-md)] border border-[var(--mxc-border)] p-4 text-center shadow-[var(--mxc-shadow-sm)]"
+  >
+    <div
+      class="text-2xl font-semibold"
+    >
+      1
+    </div>
+    <div
+      class="mt-2 text-sm"
+    >
+      Active
+    </div>
+  </div>
+  <div
+    class="rounded-[var(--mxc-radius-md)] border border-[var(--mxc-border)] p-4 text-center shadow-[var(--mxc-shadow-sm)]"
+  >
+    <div
+      class="text-2xl font-semibold"
+    >
+      2
+    </div>
+    <div
+      class="mt-2 text-sm"
+    >
+      Completed
+    </div>
+  </div>
+</div>
+`;
