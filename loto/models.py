@@ -109,6 +109,9 @@ class IsolationPlan(BaseModel):
     actions: List[IsolationAction] = Field(
         default_factory=list, description="Ordered isolation actions"
     )
+    verifications: List[str] = Field(
+        default_factory=list, description="Optional verification checks"
+    )
 
     class Config:
         extra = "forbid"
