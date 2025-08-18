@@ -149,6 +149,13 @@ class GraphBuilder:
     def validate(self, graphs: Dict[str, nx.MultiDiGraph]) -> List[Issue]:
         """Validate the constructed graphs.
 
+        Checks include:
+
+        * dangling nodes (no incident edges)
+        * graphs with missing domain names
+        * edges missing a ``line_tag`` attribute
+        * optional cycle detection
+
         Parameters
         ----------
         graphs: Dict[str, nx.MultiDiGraph]
@@ -159,11 +166,39 @@ class GraphBuilder:
         List[Issue]
             A list of issues detected during validation. If the list is
             empty, the graphs are considered valid.
-
-        Notes
-        -----
-        This stub does not perform any validation and raises a
-        NotImplementedError to signal that validation logic must be
-        added later.
         """
-        raise NotImplementedError("GraphBuilder.validate() is not implemented yet")
+        issues: List[Issue] = []
+
+        def _is_missing(value: object) -> bool:
+            if value is None:
+                return True
+            if isinstance(value, float) and pd.isna(value):
+                return True
+            if isinstance(value, str) and value.strip() == "":
+                return True
+            return False
+
+        for domain, graph in graphs.items():
+            if _is_missing(domain):
+                issues.append(Issue("Graph with missing domain"))
+            for u, v, data in graph.edges(data=True):
+                if _is_missing(data.get("line_tag")):
+                    issues.append(
+                        Issue(f"Edge {u}->{v} in domain {domain} missing line tag")
+                    )
+                if _is_missing(u) or _is_missing(v):
+                    issues.append(
+                        Issue(f"Edge with unknown node in domain {domain}: {u}->{v}")
+                    )
+            for node in graph.nodes():
+                if graph.degree(node) == 0:
+                    issues.append(Issue(f"Dangling node {node} in domain {domain}"))
+            try:
+                if not nx.is_directed_acyclic_graph(graph):
+                    issues.append(
+                        Issue(f"Cycle detected in domain {domain}", severity="warning")
+                    )
+            except Exception:
+                pass
+
+        return issues
