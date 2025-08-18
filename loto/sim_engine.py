@@ -87,41 +87,46 @@ class SimEngine:
         isolated: Dict[str, nx.MultiDiGraph] = {}
 
         for domain, graph in graphs.items():
-            # Clone the graph to maintain purity
+            # ``nx.Graph.copy`` performs a shallow copy where the adjacency
+            # structure and attribute dictionaries are duplicated.  Mutating
+            # the returned graph therefore leaves ``graph`` untouched, which
+            # keeps ``apply`` a pure function.
             g = graph.copy()
 
-            # Remove isolation edges for this domain.  Plan entries may be of
-            # the form (u, v) or (u, v, key).
+            # Remove edges specified in the isolation plan.  Each entry can
+            # either specify an explicit key (u, v, k) or an edge pair (u, v)
+            # in which case all multi-edges between the nodes are removed.
             for edge in plan.plan.get(domain, []):
-                if len(edge) == 3:
-                    u, v, k = edge  # type: ignore[misc]
+                u, v, *rest = edge  # type: ignore[misc]
+                if rest:  # A specific key is provided
+                    k = rest[0]
                     if g.has_edge(u, v, k):
                         g.remove_edge(u, v, k)
-                elif len(edge) == 2:
-                    u, v = edge  # type: ignore[misc]
-                    if g.has_edge(u, v):
-                        keys = list(g[u][v].keys())
-                        for k in keys:
-                            g.remove_edge(u, v, k)
+                elif g.has_edge(u, v):
+                    g.remove_edges_from([(u, v, k) for k in list(g[u][v])])
 
-            # Apply default states for edges and nodes
-            for u, v, k, data in g.edges(data=True, keys=True):
-                kind = data.get("kind")
-                if kind in {"drain", "vent"}:
+            # Set states for edges and nodes.  Drains and vents are always
+            # opened while other components fall back to their fail state if
+            # one is supplied.
+            for _, _, _, data in g.edges(data=True, keys=True):
+                if data.get("kind") in {"drain", "vent"}:
                     data["state"] = "open"
+                elif "state" not in data:
+                    fail = data.get("fail_state")
+                    if fail == "FO":
+                        data["state"] = "open"
+                    elif fail == "FC":
+                        data["state"] = "closed"
 
-                fail = data.get("fail_state")
-                if "state" not in data and fail in {"FO", "FC"}:
-                    data["state"] = "open" if fail == "FO" else "closed"
-
-            for node, data in g.nodes(data=True):
-                kind = data.get("kind")
-                if kind in {"drain", "vent"}:
+            for _, data in g.nodes(data=True):
+                if data.get("kind") in {"drain", "vent"}:
                     data["state"] = "open"
-
-                fail = data.get("fail_state")
-                if "state" not in data and fail in {"FO", "FC"}:
-                    data["state"] = "open" if fail == "FO" else "closed"
+                elif "state" not in data:
+                    fail = data.get("fail_state")
+                    if fail == "FO":
+                        data["state"] = "open"
+                    elif fail == "FC":
+                        data["state"] = "closed"
 
             isolated[domain] = g
 
