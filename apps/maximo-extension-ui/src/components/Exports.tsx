@@ -40,6 +40,27 @@ export default function Exports({ wo }: ExportProps) {
     URL.revokeObjectURL(url);
   }
 
+  async function handlePidA3() {
+    const res = await fetch('/pid/pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/pdf'
+      },
+      body: JSON.stringify({ workorder_id: wo })
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `WO-${wo}_pid_a3.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="mb-4 flex items-center space-x-2">
       <Button aria-label="Export PDF" onClick={() => handleExport('pdf')}>
@@ -53,6 +74,9 @@ export default function Exports({ wo }: ExportProps) {
         onClick={() => exportPid(`WO-${wo}_pid.pdf`)}
       >
         Export P&ID
+      </Button>
+      <Button aria-label="Export P&ID (A3)" onClick={handlePidA3}>
+        Export P&ID (A3)
       </Button>
       {hash && <span>Hash: {hash}</span>}
       {seed && <span>Seed: {seed}</span>}
