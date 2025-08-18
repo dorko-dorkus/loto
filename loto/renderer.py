@@ -13,7 +13,13 @@ serialize plan data to JSON.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from io import BytesIO
 from typing import Any, Dict
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from .isolation_planner import IsolationPlan
 from .models import SimReport
@@ -41,12 +47,76 @@ class Renderer:
 
         Notes
         -----
-        This stub does not implement PDF generation; it simply raises
-        NotImplementedError. A real implementation should lay out the
-        plan details in tables, embed QR codes, and include the
-        simulation results.
+        The implementation intentionally keeps layout simple and
+        deterministic so tests can reliably parse the output.  A
+        minimal set of fields are rendered: a title containing the
+        plan identifier, the rule hash for traceability, a table of
+        isolation actions and a summary of simulation stimuli.  ReportLab
+        is used directly with basic fonts (Helvetica) to avoid any
+        environment specific variability.
         """
-        raise NotImplementedError("Renderer.pdf() is not implemented yet")
+
+        buffer = BytesIO()
+        # ``SimpleDocTemplate`` provides a deterministic page layout using
+        # standard letter size and Helvetica fonts.
+        doc = SimpleDocTemplate(buffer, pagesize=letter)
+        styles = getSampleStyleSheet()
+
+        story = [Paragraph(f"Isolation Plan: {plan.plan_id}", styles["Title"])]
+        story.append(Paragraph(f"Rule Pack Hash: {rule_hash}", styles["Normal"]))
+        story.append(Spacer(1, 12))
+
+        if plan.actions:
+            action_rows: list[list[str]] = [
+                ["Component", "Method", "Duration (s)"],
+            ]
+            for action in plan.actions:
+                duration = "" if action.duration_s is None else f"{action.duration_s:g}"
+                action_rows.append([action.component_id, action.method, duration])
+
+            action_table = Table(action_rows, hAlign="LEFT")
+            action_table.setStyle(
+                TableStyle(
+                    [
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ]
+                )
+            )
+            story.append(action_table)
+            story.append(Spacer(1, 12))
+
+        if sim_report.results:
+            story.append(Paragraph("Simulation Stimuli", styles["Heading2"]))
+            stim_rows: list[list[str]] = [["Stimulus", "Success", "Impact"]]
+            for item in sim_report.results:
+                stim_rows.append(
+                    [
+                        item.stimulus.name,
+                        "yes" if item.success else "no",
+                        f"{item.impact:g}",
+                    ]
+                )
+
+            stim_table = Table(stim_rows, hAlign="LEFT")
+            stim_table.setStyle(
+                TableStyle(
+                    [
+                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+                        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                    ]
+                )
+            )
+            story.append(stim_table)
+
+        doc.build(story)
+        pdf_bytes = buffer.getvalue()
+        buffer.close()
+        return pdf_bytes
 
     def to_json(
         self,
