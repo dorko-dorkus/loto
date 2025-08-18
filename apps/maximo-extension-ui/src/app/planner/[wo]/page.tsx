@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { PlanStep, SimulationResult, ImpactRecord } from '../../../types/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useWorkOrder } from '../../../lib/hooks';
+import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
 
 const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact'];
 
@@ -12,26 +11,13 @@ const queryClient = new QueryClient();
 function PlannerContent({ wo }: { wo: string }) {
   const [activeTab, setActiveTab] = useState('Plan');
   const { data: workOrder } = useWorkOrder(wo);
+  const { data: blueprint } = useBlueprint(wo);
 
   if (!workOrder) return null;
 
-  const plan: PlanStep[] = [
-    { step: 1, description: 'Example step', resources: 'None' }
-  ];
-
-  const simulations: SimulationResult[] = [
-    {
-      id: 1,
-      deltaTime: '+1d',
-      deltaCost: '+$100',
-      readiness: 'High',
-      isolation: true
-    }
-  ];
-
-  const impact: ImpactRecord[] = [
-    { metric: 'Downtime (hrs)', before: 10, after: 8, delta: -2 }
-  ];
+  const plan = blueprint?.steps ?? [];
+  const unavailable = blueprint?.unavailable_assets ?? [];
+  const impact = blueprint?.unit_mw_delta ?? {};
 
   return (
     <main className="h-full">
@@ -58,39 +44,52 @@ function PlannerContent({ wo }: { wo: string }) {
               <thead className="bg-[var(--mxc-nav-bg)] text-left">
                 <tr>
                   <th className="px-4 py-2">Step</th>
-                  <th className="px-4 py-2">Description</th>
-                  <th className="px-4 py-2">Resources</th>
+                  <th className="px-4 py-2">Component</th>
+                  <th className="px-4 py-2">Method</th>
                 </tr>
               </thead>
               <tbody>
-                {plan.map((p) => (
-                  <tr key={p.step}>
-                    <td className="px-4 py-2">{p.step}</td>
-                    <td className="px-4 py-2">{p.description}</td>
-                    <td className="px-4 py-2">{p.resources}</td>
+                {plan.map((p, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2">{idx + 1}</td>
+                    <td className="px-4 py-2">{p.component_id}</td>
+                    <td className="px-4 py-2">{p.method}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
-          {activeTab === 'P&ID' && <div>P&amp;ID placeholder</div>}
+          {activeTab === 'P&ID' && (
+            <table className="min-w-full border border-[var(--mxc-border)]">
+              <thead className="bg-[var(--mxc-nav-bg)] text-left">
+                <tr>
+                  <th className="px-4 py-2">Step</th>
+                  <th className="px-4 py-2">Component</th>
+                  <th className="px-4 py-2">Method</th>
+                </tr>
+              </thead>
+              <tbody>
+                {plan.map((p, idx) => (
+                  <tr key={idx}>
+                    <td className="px-4 py-2">{idx + 1}</td>
+                    <td className="px-4 py-2">{p.component_id}</td>
+                    <td className="px-4 py-2">{p.method}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
           {activeTab === 'Simulation' && (
             <table className="min-w-full border border-[var(--mxc-border)]">
               <thead className="bg-[var(--mxc-nav-bg)] text-left">
                 <tr>
-                  <th className="px-4 py-2">ΔTime</th>
-                  <th className="px-4 py-2">ΔCost</th>
-                  <th className="px-4 py-2">Readiness</th>
-                  <th className="px-4 py-2">Isolation subset?</th>
+                  <th className="px-4 py-2">Unavailable Asset</th>
                 </tr>
               </thead>
               <tbody>
-                {simulations.map((s) => (
-                  <tr key={s.id}>
-                    <td className="px-4 py-2">{s.deltaTime}</td>
-                    <td className="px-4 py-2">{s.deltaCost}</td>
-                    <td className="px-4 py-2">{s.readiness}</td>
-                    <td className="px-4 py-2">{s.isolation ? 'Yes' : 'No'}</td>
+                {unavailable.map((u) => (
+                  <tr key={u}>
+                    <td className="px-4 py-2">{u}</td>
                   </tr>
                 ))}
               </tbody>
@@ -100,19 +99,15 @@ function PlannerContent({ wo }: { wo: string }) {
             <table className="min-w-full border border-[var(--mxc-border)]">
               <thead className="bg-[var(--mxc-nav-bg)] text-left">
                 <tr>
-                  <th className="px-4 py-2">Metric</th>
-                  <th className="px-4 py-2">Before</th>
-                  <th className="px-4 py-2">After</th>
-                  <th className="px-4 py-2">Δ</th>
+                  <th className="px-4 py-2">Unit</th>
+                  <th className="px-4 py-2">ΔMW</th>
                 </tr>
               </thead>
               <tbody>
-                {impact.map((i) => (
-                  <tr key={i.metric}>
-                    <td className="px-4 py-2">{i.metric}</td>
-                    <td className="px-4 py-2">{i.before}</td>
-                    <td className="px-4 py-2">{i.after}</td>
-                    <td className="px-4 py-2">{i.delta}</td>
+                {Object.entries(impact).map(([unit, delta]) => (
+                  <tr key={unit}>
+                    <td className="px-4 py-2">{unit}</td>
+                    <td className="px-4 py-2">{delta}</td>
                   </tr>
                 ))}
               </tbody>

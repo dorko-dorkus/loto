@@ -7,6 +7,17 @@ export interface WorkOrderSummary {
   plannedFinish?: string;
 }
 
+export interface BlueprintStep {
+  component_id: string;
+  method: string;
+}
+
+export interface BlueprintData {
+  steps: BlueprintStep[];
+  unavailable_assets: string[];
+  unit_mw_delta: Record<string, number>;
+}
+
 export interface PlanStep {
   step: number;
   description: string;

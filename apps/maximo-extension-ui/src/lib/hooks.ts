@@ -1,7 +1,8 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { fetchPortfolio, type PortfolioData } from '../mocks/portfolio';
 import { fetchWorkOrder } from '../mocks/workorder';
-import type { WorkOrderSummary } from '../types/api';
+import { fetchBlueprint } from '../mocks/blueprint';
+import type { WorkOrderSummary, BlueprintData } from '../types/api';
 
 /**
  * Fetch portfolio data from the API.
@@ -37,4 +38,12 @@ export const usePortfolio = usePortfolioApi;
  */
 export function useWorkOrder(id: string): UseQueryResult<WorkOrderSummary> {
   return useQuery({ queryKey: ['workOrder', id], queryFn: () => fetchWorkOrder(id) });
+}
+
+/**
+ * Query hook for blueprint data of a work order.
+ * @param id Work order identifier
+ */
+export function useBlueprint(id: string): UseQueryResult<BlueprintData> {
+  return useQuery({ queryKey: ['blueprint', id], queryFn: () => fetchBlueprint(id) });
 }
