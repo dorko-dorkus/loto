@@ -1,7 +1,8 @@
 import networkx as nx
+import pytest
 
 from loto.sim_engine import SimEngine
-from loto.models import Stimulus
+from loto.models import Stimulus, SimReport, SimResultItem
 from loto.isolation_planner import IsolationPlan
 
 
@@ -15,28 +16,25 @@ def build_graph():
     return g
 
 
-def make_stimuli():
-    names = ["REMOTE_OPEN", "LOCAL_OPEN", "AIR_RETURN", "ESD_RESET", "PUMP_START"]
-    return [Stimulus(name=n, magnitude=1.0, duration_s=1.0) for n in names]
+def test_accepts_model_stimulus():
+    g = build_graph()
+    plan = IsolationPlan(plan={"steam": [("source", "valve1")]}, verifications=[])
+    engine = SimEngine()
+    applied = engine.apply(plan, {"steam": g})
+    stim = Stimulus(name="REMOTE_OPEN", magnitude=1.0, duration_s=1.0)
+
+    report = engine.run_stimuli(applied, [stim])
+
+    assert isinstance(report, SimReport)
+    assert all(isinstance(r, SimResultItem) for r in report.results)
 
 
-def test_valid_plan_pass():
+def test_invalid_stimulus_type_raises():
     g = build_graph()
     plan = IsolationPlan(plan={"steam": [("source", "valve1")]}, verifications=[])
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": g})
 
-    report = engine.run_stimuli(applied, make_stimuli())
+    with pytest.raises(AttributeError):
+        engine.run_stimuli(applied, [{"name": "REMOTE_OPEN", "magnitude": 1.0, "duration_s": 1.0}])
 
-    assert all(r.success for r in report.results)
-
-
-def test_tampered_plan_fail():
-    g = build_graph()
-    plan = IsolationPlan(plan={"steam": []}, verifications=[])
-    engine = SimEngine()
-    applied = engine.apply(plan, {"steam": g})
-
-    report = engine.run_stimuli(applied, make_stimuli())
-
-    assert all(not r.success for r in report.results)

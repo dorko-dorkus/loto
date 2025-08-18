@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 from .isolation_planner import IsolationPlan
-from .sim_engine import SimReport
+from .models import SimReport
 
 
 class IntegrationAdapter:

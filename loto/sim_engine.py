@@ -13,47 +13,13 @@ and must not control real hardware.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import networkx as nx  # type: ignore
 
 from .isolation_planner import IsolationPlan
 from .rule_engine import RulePack
-
-
-@dataclass
-class Stimulus:
-    """Represents a stimulus applied during simulation testing.
-
-    Attributes
-    ----------
-    id: str
-        A unique identifier for the stimulus (e.g., 'REMOTE_OPEN').
-    parameters: Dict[str, Any]
-        Optional parameters required for the stimulus (e.g., which
-        actuator to toggle). The structure is currently undefined.
-    """
-
-    id: str
-    parameters: Dict[str, Any] | None = None
-
-
-@dataclass
-class StimulusResult:
-    """Holds the result of applying a stimulus during simulation."""
-
-    stimulus_id: str
-    result: str  # expected values: 'PASS' or 'FAIL'
-    details: Dict[str, Any] | None = None
-
-
-class SimReport:
-    """Represents the outcome of a simulation run."""
-
-    def __init__(self, results: List[StimulusResult], unknowns: List[str]):
-        self.results = results
-        self.unknowns = unknowns
+from .models import Stimulus, SimReport, SimResultItem
 
 
 class SimEngine:
@@ -153,8 +119,7 @@ class SimEngine:
         Returns
         -------
         SimReport
-            The simulation report containing results per stimulus and
-            a list of unknowns encountered during the process.
+            The simulation report containing results for each processed stimulus.
 
         Notes
         -----
@@ -170,8 +135,7 @@ class SimEngine:
             "PUMP_START",
         }
 
-        results: List[StimulusResult] = []
-        unknowns: List[str] = []
+        results: List[SimResultItem] = []
 
         def shortest_path(g: nx.MultiDiGraph) -> List[str] | None:
             """Return shortest open path from any source to an asset."""
@@ -199,9 +163,9 @@ class SimEngine:
 
             return best
 
+        total_time = 0.0
         for stim in stimuli:
-            if stim.id not in supported:
-                unknowns.append(stim.id)
+            if stim.name not in supported:
                 continue
 
             offending: List[str] | None = None
@@ -211,15 +175,9 @@ class SimEngine:
                     if offending is None or len(path) < len(offending):
                         offending = path
 
-            if offending:
-                details = {
-                    "path": offending,
-                    "suggestion": "Apply extra isolation",
-                }
-                results.append(
-                    StimulusResult(stimulus_id=stim.id, result="FAIL", details=details)
-                )
-            else:
-                results.append(StimulusResult(stimulus_id=stim.id, result="PASS"))
+            success = offending is None
+            impact = 0.0 if success else 1.0
+            results.append(SimResultItem(stimulus=stim, success=success, impact=impact))
+            total_time += getattr(stim, "duration_s", 0.0)
 
-        return SimReport(results, unknowns)
+        return SimReport(results=results, total_time_s=total_time)
