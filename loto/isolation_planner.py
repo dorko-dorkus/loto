@@ -17,8 +17,8 @@ from typing import Dict, List, Set, Tuple
 
 import networkx as nx  # type: ignore
 
-from .rule_engine import RulePack
 from .models import IsolationAction, IsolationPlan
+from .rule_engine import RulePack
 
 
 class IsolationPlanner:
@@ -63,7 +63,9 @@ class IsolationPlanner:
 
         for domain, graph in graphs.items():
             sources = [n for n, data in graph.nodes(data=True) if data.get("is_source")]
-            targets = [n for n, data in graph.nodes(data=True) if data.get("tag") == asset_tag]
+            targets = [
+                n for n, data in graph.nodes(data=True) if data.get("tag") == asset_tag
+            ]
 
             if not sources or not targets:
                 plan[domain] = []
@@ -109,7 +111,9 @@ class IsolationPlanner:
             for u, v in edges:
                 actions.append(
                     IsolationAction(
-                        component_id=f"{domain}:{u}->{v}", method="lock"
+                        component_id=f"{domain}:{u}->{v}",
+                        method="lock",
+                        duration_s=0.0,
                     )
                 )
 
