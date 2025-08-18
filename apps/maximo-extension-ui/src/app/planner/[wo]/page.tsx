@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
+import Exports from '../../../components/Exports';
 
 const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact'];
 
@@ -24,6 +25,7 @@ function PlannerContent({ wo }: { wo: string }) {
       <h1 className="mb-4 text-xl font-semibold">
         WO Planner: {workOrder.id}
       </h1>
+      <Exports wo={workOrder.id} />
       <div className="flex h-full">
         <div className="flex-1 pr-4">
           <div role="tablist" className="mb-4 border-b">

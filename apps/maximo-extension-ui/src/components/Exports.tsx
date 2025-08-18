@@ -1,0 +1,50 @@
+'use client';
+
+import React, { useState } from 'react';
+import Button from './Button';
+
+interface ExportProps {
+  wo: string;
+}
+
+export default function Exports({ wo }: ExportProps) {
+  const [hash, setHash] = useState<string | null>(null);
+  const [seed, setSeed] = useState<string | null>(null);
+
+  async function handleExport(format: 'pdf' | 'json') {
+    const res = await fetch('/blueprint', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: format === 'pdf' ? 'application/pdf' : 'application/json'
+      },
+      body: JSON.stringify({ workorder_id: wo })
+    });
+    if (!res.ok) return;
+
+    const h = res.headers.get('x-loto-hash');
+    const s = res.headers.get('x-loto-seed');
+    if (h) setHash(h);
+    if (s) setSeed(s);
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const ext = format === 'pdf' ? 'pdf' : 'json';
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `WO-${wo}_${h ?? 'unknown'}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="mb-4 flex items-center space-x-2">
+      <Button onClick={() => handleExport('pdf')}>Export PDF</Button>
+      <Button onClick={() => handleExport('json')}>Export JSON</Button>
+      {hash && <span>Hash: {hash}</span>}
+      {seed && <span>Seed: {seed}</span>}
+    </div>
+  );
+}
