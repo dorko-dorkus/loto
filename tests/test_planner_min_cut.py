@@ -18,7 +18,7 @@ def test_min_cut_blocks_targets():
     g.add_edge('A', 't2', is_isolation_point=True)
 
     planner = IsolationPlanner()
-    pack = RulePack(version='1', metadata={}, domains={})
+    pack = RulePack()
     plan = planner.compute({'process': g}, asset_tag='asset', rule_pack=pack)
 
     assert set(plan.plan['process']) == {('A', 't1'), ('A', 't2')}
