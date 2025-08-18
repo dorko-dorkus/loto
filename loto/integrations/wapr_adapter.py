@@ -61,7 +61,12 @@ class DemoWaprAdapter(WaprAdapter):
         "WO-200": {"applied_isolations": ["ISO-3"]},
     }
     _FIXTURE_CURVES: Dict[str, List[Tuple[int, float]]] = {
-        "ASSET-1": [(0, 100.0), (1, 110.0)],
+        "ASSET-1": [
+            (0, 100.0),
+            (1, 110.0),
+            (2, 120.0),
+            (3, 130.0),
+        ],
     }
 
     def fetch_permit(self, work_order_id: str) -> Dict[str, Any]:

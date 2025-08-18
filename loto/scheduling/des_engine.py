@@ -61,7 +61,10 @@ def run(
     tasks: Mapping[str, Task],
     resource_caps: Mapping[str, int],
     state: Mapping[str, Any] | None = None,
+    *,
+    resource_calendars: Mapping[str, Callable[[int], bool]] | None = None,
     seed: int | None = None,
+    max_time: int | None = None,
 ) -> RunResult:
     """Run a simple discrete-event schedule.
 
@@ -80,6 +83,8 @@ def run(
     rng = random.Random(seed)
     seed = seed if seed is not None else 0
     state = state or {}
+    resource_calendars = resource_calendars or {}
+    max_time = 10_000 if max_time is None else max_time
 
     time = 0
     starts: Dict[str, int] = {}
@@ -89,16 +94,38 @@ def run(
     available = dict(resource_caps)
     queues: dict[str, list[str]] = defaultdict(list)
     violations: list[str] = []
+    durations: Dict[str, int] = {}
 
     while remaining or running:
         started: list[str] = []
+        violated: list[str] = []
         for tid in sorted(remaining):
             task = tasks[tid]
+            dur = durations.setdefault(tid, _duration(task, rng))
             if any(pred not in ends for pred in task.predecessors):
                 continue
             if task.gate and not task.gate(state):
                 continue
-            if task.calendar and not task.calendar(time):
+            if task.calendar and not all(task.calendar(time + dt) for dt in range(dur)):
+                continue
+
+            over_cap = [
+                res
+                for res, req in task.resources.items()
+                if req > resource_caps.get(res, 0)
+            ]
+            if over_cap:
+                violations.append(tid)
+                violated.append(tid)
+                continue
+
+            blocked = False
+            for res in task.resources:
+                cal = resource_calendars.get(res)
+                if cal and not all(cal(time + dt) for dt in range(dur)):
+                    blocked = True
+                    break
+            if blocked:
                 continue
 
             missing = [
@@ -112,16 +139,14 @@ def run(
                         queues[res].append(tid)
                 continue
 
-            # start task
             starts[tid] = time
-            dur = _duration(task, rng)
             end_time = time + dur
             heapq.heappush(running, (end_time, tid))
             for res, req in task.resources.items():
                 available[res] = available.get(res, 0) - req
             started.append(tid)
 
-        for tid in started:
+        for tid in started + violated:
             remaining.remove(tid)
 
         if running:
@@ -140,6 +165,9 @@ def run(
                     available[res] = available.get(res, 0) + req
         elif remaining:
             # No tasks running; advance time.  If all tasks are gated, stop.
+            if time >= max_time:
+                violations.extend(sorted(remaining))
+                break
             gated: list[str] = []
             for tid in remaining:
                 gate = tasks[tid].gate
