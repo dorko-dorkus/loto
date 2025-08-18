@@ -27,19 +27,31 @@ def _load_map(map_path: Path) -> Dict[str, List[str]]:
             mapping[tag] = [selector]
         elif isinstance(selector, Iterable):
             mapping[tag] = [s for s in selector if isinstance(s, str)]
+        # Ensure selectors for a given tag are unique while preserving order
+        mapping[tag] = list(dict.fromkeys(mapping.get(tag, [])))
     return mapping
 
 
 def _selectors(tag: str, mapping: Dict[str, List[str]]) -> List[str]:
-    return list(mapping.get(tag, []))
+    """Return unique selectors for ``tag`` from ``mapping``."""
+
+    selectors = mapping.get(tag, [])
+    # Return a copy to avoid mutating the underlying mapping
+    return list(dict.fromkeys(selectors))
 
 
 def _selectors_from_path(
     path: Iterable[str], mapping: Dict[str, List[str]]
 ) -> List[str]:
+    """Return unique selectors for all nodes in ``path``."""
+
     selectors: List[str] = []
+    seen: Set[str] = set()
     for node in path:
-        selectors.extend(_selectors(node, mapping))
+        for sel in _selectors(node, mapping):
+            if sel not in seen:
+                seen.add(sel)
+                selectors.append(sel)
     return selectors
 
 
@@ -71,19 +83,25 @@ def build_overlay(
     highlight: Set[str] = set()
     badges: List[Dict[str, str]] = []
     paths: List[Dict[str, object]] = []
+    missing: Set[str] = set()
 
-    # Asset badge
-    for sel in _selectors(asset, mapping):
-        highlight.add(sel)
-        badges.append({"selector": sel, "type": "asset"})
-
-    # Source badges
-    for src in sources:
-        for sel in _selectors(src, mapping):
+    asset_selectors = _selectors(asset, mapping)
+    if asset_selectors:
+        for sel in asset_selectors:
             highlight.add(sel)
-            badges.append({"selector": sel, "type": "source"})
+            badges.append({"selector": sel, "type": "asset"})
+    else:
+        missing.add(asset)
 
-    # Isolation actions highlight
+    for src in sources:
+        src_selectors = _selectors(src, mapping)
+        if src_selectors:
+            for sel in src_selectors:
+                highlight.add(sel)
+                badges.append({"selector": sel, "type": "source"})
+        else:
+            missing.add(src)
+
     for action in plan.actions:
         try:
             edge = action.component_id.split(":", 1)[1]
@@ -91,14 +109,25 @@ def build_overlay(
         except ValueError:
             continue
         for tag in (u, v):
-            highlight.update(_selectors(tag, mapping))
+            sels = _selectors(tag, mapping)
+            if sels:
+                highlight.update(sels)
+            else:
+                missing.add(tag)
 
-    # Simulation failing paths
     for idx, path_nodes in enumerate(sim_fail_paths):
         selectors = _selectors_from_path(path_nodes, mapping)
         if selectors:
             paths.append({"id": f"path{idx}", "selectors": selectors})
             highlight.update(selectors)
+        else:
+            for node in path_nodes:
+                if not _selectors(node, mapping):
+                    missing.add(node)
+
+    if missing and asset_selectors:
+        for sel in asset_selectors:
+            badges.append({"selector": sel, "type": "warning"})
 
     return {
         "highlight": sorted(highlight),
