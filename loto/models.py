@@ -131,6 +131,15 @@ class SimResultItem(BaseModel):
     stimulus: Stimulus = Field(..., description="Stimulus that was simulated")
     success: bool = Field(..., description="Whether the simulation succeeded")
     impact: float = Field(..., description="Impact score (unitless)")
+    domain: Optional[str] = Field(
+        None, description="Domain containing any invariant violation"
+    )
+    path: Optional[List[str]] = Field(
+        None, description="Shortest offending path if a violation occurred"
+    )
+    hint: Optional[str] = Field(
+        None, description="Suggested remediation for the violation"
+    )
 
     class Config:
         extra = "forbid"
