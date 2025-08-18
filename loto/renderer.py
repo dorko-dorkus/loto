@@ -123,6 +123,8 @@ class Renderer:
         plan: IsolationPlan,
         sim_report: SimReport,
         impact: Mapping[str, Any] | None = None,
+        bundling_picks: list[str] | None = None,
+        bundling_params: Mapping[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Serialize the plan and simulation report to a JSON-friendly dict.
 
@@ -135,6 +137,12 @@ class Renderer:
         impact: Mapping[str, Any] | None
             Optional impact information (e.g., unavailable assets, unit
             derates) to include in the JSON output.
+        bundling_picks: list[str] | None
+            Optional list of bundle pick identifiers. The list is sorted to
+            ensure deterministic output.
+        bundling_params: Mapping[str, Any] | None
+            Optional bundle parameters. Keys are recursively sorted for
+            deterministic output.
 
         Returns
         -------
@@ -168,5 +176,13 @@ class Renderer:
 
         if impact:
             payload["impact"] = _sorted_dict(dict(impact))
+
+        if bundling_picks or bundling_params:
+            bundle_payload: Dict[str, Any] = {}
+            if bundling_picks:
+                bundle_payload["picks"] = sorted(bundling_picks)
+            if bundling_params:
+                bundle_payload["params"] = _sorted_dict(dict(bundling_params))
+            payload["bundling"] = bundle_payload
 
         return payload
