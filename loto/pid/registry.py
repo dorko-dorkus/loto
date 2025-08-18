@@ -8,6 +8,7 @@ identifier with the SVG document and corresponding tag map used by
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict
 
@@ -42,19 +43,23 @@ class PidRegistry(BaseModel):
         extra = "forbid"
 
 
-def load_registry(path: str | Path) -> PidRegistry:
-    """Load a :class:`PidRegistry` from a YAML file.
+@lru_cache(maxsize=32)
+def _load_registry_cached(path: str, mtime: float) -> PidRegistry:
+    """Internal helper that parses a registry file.
 
-    The function validates each referenced tag map against
-    :func:`loto.pid.schema.load_tag_map`.
+    Parameters
+    ----------
+    path:
+        Absolute path to the registry file.
+    mtime:
+        Modification time used solely for cache invalidation.
     """
 
-    path = Path(path)
-    with path.open("r") as fh:
+    with Path(path).open("r") as fh:
         data = yaml.safe_load(fh) or {}
     registry = PidRegistry(**data)
 
-    base = path.parent
+    base = Path(path).parent
     for entry in registry.pids.values():
         tag_map_path = entry.tag_map
         if not tag_map_path.is_absolute():
@@ -63,3 +68,16 @@ def load_registry(path: str | Path) -> PidRegistry:
         entry.tag_map = tag_map_path
 
     return registry
+
+
+def load_registry(path: str | Path) -> PidRegistry:
+    """Load a :class:`PidRegistry` from a YAML file.
+
+    The function validates each referenced tag map against
+    :func:`loto.pid.schema.load_tag_map`.
+    """
+
+    abs_path = Path(path).resolve()
+    mtime = abs_path.stat().st_mtime
+    # Return a copy so callers cannot mutate the cached instance
+    return _load_registry_cached(str(abs_path), mtime).model_copy()

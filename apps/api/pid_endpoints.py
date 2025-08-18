@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, cast
 
@@ -59,13 +60,27 @@ class OverlayResponse(BaseModel):
         extra = "forbid"
 
 
+def _mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except FileNotFoundError:
+        return -1.0
+
+
+@lru_cache(maxsize=64)
+def _svg_exists(path: str, mtime: float) -> bool:
+    """Cache-aware check for SVG existence."""
+
+    return Path(path).exists()
+
+
 @router.get("/{drawing_id}/svg")
 async def get_pid_svg(drawing_id: str) -> StreamingResponse:
     """Stream the raw SVG for a given drawing identifier."""
 
     base = Path(__file__).resolve().parents[2] / "demo"
     svg_path = base / f"{drawing_id}.svg"
-    if not svg_path.exists():
+    if not _svg_exists(str(svg_path), _mtime(svg_path)):
         raise HTTPException(status_code=404, detail="Drawing not found")
     return StreamingResponse(svg_path.open("rb"), media_type="image/svg+xml")
 
