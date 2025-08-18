@@ -28,7 +28,15 @@ from .models import SimReport
 class Renderer:
     """Render isolation plans and simulation reports to various formats."""
 
-    def pdf(self, plan: IsolationPlan, sim_report: SimReport, rule_hash: str) -> bytes:
+    def pdf(
+        self,
+        plan: IsolationPlan,
+        sim_report: SimReport,
+        rule_hash: str,
+        *,
+        seed: int | None = None,
+        timezone: str = "UTC",
+    ) -> bytes:
         """Generate a PDF representation of the plan and simulation report.
 
         Parameters
@@ -39,6 +47,10 @@ class Renderer:
             The simulation report to render.
         rule_hash: str
             A hash of the rule pack used, included for traceability.
+        seed: int | None
+            Optional random seed recorded for determinism.
+        timezone: str
+            Timezone identifier for provenance information.
 
         Returns
         -------
@@ -63,7 +75,21 @@ class Renderer:
         styles = getSampleStyleSheet()
 
         story = [Paragraph(f"Isolation Plan: {plan.plan_id}", styles["Title"])]
+        story.append(Paragraph(f"Work Order ID: {plan.plan_id}", styles["Normal"]))
         story.append(Paragraph(f"Rule Pack Hash: {rule_hash}", styles["Normal"]))
+        story.append(
+            Paragraph(f"Seed: {seed if seed is not None else 'N/A'}", styles["Normal"])
+        )
+        story.append(Paragraph(f"Timezone: {timezone}", styles["Normal"]))
+        story.append(Spacer(1, 12))
+        story.append(Paragraph("Legend", styles["Heading2"]))
+        story.append(
+            Paragraph(
+                "Because footnotes explain why each isolation is required."
+                " 'DDBB' denotes double block and bleed.",
+                styles["Normal"],
+            )
+        )
         story.append(Spacer(1, 12))
 
         if plan.actions:
@@ -112,6 +138,12 @@ class Renderer:
                 )
             )
             story.append(stim_table)
+            story.append(Spacer(1, 12))
+
+        if plan.verifications:
+            story.append(Paragraph("Footnotes", styles["Heading2"]))
+            for note in plan.verifications:
+                story.append(Paragraph(f"Because {note}", styles["Normal"]))
 
         doc.build(story)
         pdf_bytes = buffer.getvalue()

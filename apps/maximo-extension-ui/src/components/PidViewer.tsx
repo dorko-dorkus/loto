@@ -24,6 +24,7 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
         if (svgContainerRef.current) {
           svgContainerRef.current.innerHTML = txt;
           svgRef.current = svgContainerRef.current.querySelector('svg');
+          enhanceAccessibility();
           applyHighlight();
           fitToScreen();
         }
@@ -47,6 +48,19 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
     svg.classList.remove('hl-primary', 'hl-warning');
     if (highlight === 'primary') svg.classList.add('hl-primary');
     if (highlight === 'warning') svg.classList.add('hl-warning');
+  }
+
+  function enhanceAccessibility() {
+    const svg = svgRef.current;
+    if (!svg) return;
+    svg.setAttribute('role', 'img');
+    svg.querySelectorAll('title').forEach((t) => {
+      const parent = t.parentElement;
+      if (parent && t.textContent) {
+        parent.setAttribute('aria-label', t.textContent);
+        parent.setAttribute('tabindex', '0');
+      }
+    });
   }
 
   function fitToScreen() {
@@ -131,6 +145,28 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
         <button className="badge" onClick={resetView} type="button">
           Reset
         </button>
+      </div>
+      <div
+        className="legend absolute bottom-2 left-2 text-xs bg-white bg-opacity-80 p-2 rounded shadow"
+        role="note"
+        aria-label="Legend"
+      >
+        <div className="flex items-center">
+          <span
+            aria-hidden="true"
+            className="mr-1 inline-block h-1 w-4"
+            style={{ background: 'var(--mxc-topbar-bg)' }}
+          />
+          Primary
+        </div>
+        <div className="flex items-center">
+          <span
+            aria-hidden="true"
+            className="mr-1 inline-block h-1 w-4"
+            style={{ background: '#fbbf24' }}
+          />
+          Warning
+        </div>
       </div>
     </div>
   );
