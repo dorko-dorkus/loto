@@ -37,3 +37,8 @@ export interface InventoryItem {
   eta?: string;
   status: InventoryStatus;
 }
+
+export interface BlueprintSummary {
+  id: string;
+  name: string;
+}

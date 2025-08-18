@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { PlanStep, SimulationResult, ImpactRecord } from '../../../types/api';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useWorkOrder } from '../../../lib/hooks';
+import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
 import Exports from '../../../components/Exports';
 
 const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact'];
@@ -13,6 +13,7 @@ const queryClient = new QueryClient();
 function PlannerContent({ wo }: { wo: string }) {
   const [activeTab, setActiveTab] = useState('Plan');
   const { data: workOrder } = useWorkOrder(wo);
+  useBlueprint(wo);
 
   if (!workOrder) return null;
 
