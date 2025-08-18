@@ -17,7 +17,7 @@ management systems.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Any, Set
+from typing import Any, Dict, Set
 
 import networkx as nx  # type: ignore
 
@@ -162,10 +162,39 @@ class ImpactEngine:
             if asset not in asset_units:
                 area = asset_areas.get(asset)
                 if area is not None:
-                    area_delta[area] = area_delta.get(area, 0.0) + penalties.get(asset, 0.0)
+                    area_delta[area] = area_delta.get(area, 0.0) + penalties.get(
+                        asset, 0.0
+                    )
 
         return ImpactResult(
             unavailable_assets=unavailable,
             unit_mw_delta=unit_delta,
             area_mw_delta=area_delta,
         )
+
+
+def unit_derate_curve(start: float, end: float, mw: float) -> list[tuple[float, float]]:
+    """Return a piecewise constant unit derate curve.
+
+    The returned curve applies a constant ``mw`` megawatt derate between
+    ``start`` and ``end`` (both measured in hours) and zero outside this
+    window.  The curve is expressed as ``(time, MW)`` pairs suitable for
+    :func:`loto.scheduling.objective.integrate_mwh`.
+
+    Parameters
+    ----------
+    start:
+        Start time of the derate window in hours.
+    end:
+        End time of the derate window in hours.  Must be greater than or
+        equal to ``start``.
+    mw:
+        Magnitude of the derate in megawatts.
+    """
+
+    if end < start:
+        raise ValueError("end must be >= start")
+    start = float(start)
+    end = float(end)
+    mw = float(mw)
+    return [(start, 0.0), (start, mw), (end, mw), (end, 0.0)]
