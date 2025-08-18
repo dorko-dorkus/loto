@@ -1,0 +1,17 @@
+# Demonstration map of PID diagrams to the tags they contain.
+# This file is purely illustrative and used by tests to exercise
+# the registry loading helpers.
+
+PID-001:
+  file: pid-001.svg
+  tags:
+    - tag: P-101
+      description: "Main cooling pump"
+    - tag: V-201
+      description: "Isolation valve"
+
+PID-002:
+  file: pid-002.svg
+  tags:
+    - tag: VENT-12
+      description: "Vent valve"
