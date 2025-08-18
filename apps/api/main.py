@@ -9,10 +9,18 @@ from pydantic import BaseModel, Field
 
 from loto.impact_config import load_impact_config
 from loto.models import RulePack
-from loto.service import plan_and_evaluate
+from loto.scheduling.des_engine import Task
+from loto.scheduling.objective import integrate_cost
+from loto.service import monte_carlo_schedule, plan_and_evaluate, run_schedule
 
 from .pid_endpoints import router as pid_router
-from .schemas import BlueprintRequest, BlueprintResponse, Step
+from .schemas import (
+    BlueprintRequest,
+    BlueprintResponse,
+    ScheduleRequest,
+    ScheduleResponse,
+    Step,
+)
 
 app = FastAPI(title="loto API")
 app.include_router(pid_router)
@@ -139,11 +147,28 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
     return ProposeResponse(diff=diff, idempotency_key=str(uuid4()))
 
 
-@app.post("/schedule")
-async def post_schedule(payload: dict) -> dict[str, str]:
-    """Placeholder for schedule creation."""
-    _ = payload  # suppress unused variable warning
-    return {"detail": "Not implemented"}
+@app.post("/schedule", response_model=ScheduleResponse)
+async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
+    """Run scheduling simulations and return summary statistics."""
+
+    tasks = {
+        tid: Task(duration=spec.duration, predecessors=spec.predecessors)
+        for tid, spec in payload.tasks.items()
+    }
+    run_res = run_schedule(tasks, payload.resource_caps, seed=payload.seed)
+    mc_res = monte_carlo_schedule(tasks, payload.resource_caps, runs=payload.runs)
+    cost = 0.0
+    if payload.power_curve and payload.price_curve:
+        cost = integrate_cost(payload.power_curve, payload.price_curve)
+
+    return ScheduleResponse(
+        p10=mc_res.makespan_percentiles.get("P10", 0.0),
+        p50=mc_res.makespan_percentiles.get("P50", 0.0),
+        p90=mc_res.makespan_percentiles.get("P90", 0.0),
+        expected_cost=cost,
+        violations=run_res.violations,
+        seed=run_res.seed,
+    )
 
 
 @app.get("/workorders/{workorder_id}")
