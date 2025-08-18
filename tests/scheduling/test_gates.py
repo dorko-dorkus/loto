@@ -1,6 +1,7 @@
 from loto.scheduling.gates import (
     compose_gates,
     hold_point,
+    parts_available,
     permit_gate,
     shared_isolation,
 )
@@ -11,6 +12,14 @@ def test_permit_gate():
     state = {"permit": False}
     assert not gate(state)
     state["permit"] = True
+    assert gate(state)
+
+
+def test_parts_available():
+    gate = parts_available("wo-1")
+    state = {"parts": {}}
+    assert not gate(state)
+    state["parts"]["wo-1"] = True
     assert gate(state)
 
 
