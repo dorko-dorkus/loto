@@ -32,6 +32,8 @@ dev = [
     "mypy",
     "responses",
     "pre-commit",
+    "httpx",
+    "fastapi",
     "types-PyYAML",
 ]
 
