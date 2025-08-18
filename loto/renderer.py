@@ -12,6 +12,7 @@ serialize plan data to JSON.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any, Dict
 
 from .isolation_planner import IsolationPlan
@@ -72,9 +73,30 @@ class Renderer:
 
         Notes
         -----
-        This stub leaves the body empty. A real implementation should
-        transform the plan and simulation results into a structured
-        dictionary with clearly defined fields matching the expected
-        downstream schema.
+        The returned dictionary is deliberately simple and deterministic.  All
+        Pydantic models are converted using ``dict()`` with ``exclude_none`` so
+        optional ``None`` values do not appear in the output.  ``impact`` is
+        included only when provided and its keys are sorted to maintain a
+        stable order for snapshot tests.
         """
-        raise NotImplementedError("Renderer.to_json() is not implemented yet")
+
+        def _sorted_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+            """Recursively sort dictionary keys for deterministic output."""
+
+            items: list[tuple[str, Any]] = []
+            for key, value in sorted(data.items()):
+                if isinstance(value, Mapping):
+                    items.append((key, _sorted_dict(dict(value))))
+                else:
+                    items.append((key, value))
+            return {k: v for k, v in items}
+
+        payload: Dict[str, Any] = {
+            "plan": plan.dict(exclude_none=True),
+            "simulation": sim_report.dict(exclude_none=True),
+        }
+
+        if impact:
+            payload["impact"] = _sorted_dict(dict(impact))
+
+        return payload
