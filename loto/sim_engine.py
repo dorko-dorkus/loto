@@ -14,12 +14,14 @@ and must not control real hardware.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, List
 
 import networkx as nx  # type: ignore
 
 from .isolation_planner import IsolationPlan
 from .rule_engine import RulePack
+from .logic_table import find_coil_violations, parse_csv
 
 
 @dataclass
@@ -137,6 +139,8 @@ class SimEngine:
         applied_graphs: Dict[str, nx.MultiDiGraph],
         stimuli: List[Stimulus],
         rule_pack: "RulePack" | None = None,
+        logic_table_path: str | None = None,
+        enable_logic: bool = False,
     ) -> SimReport:
         """Run stimuli on the isolated graphs and check invariants.
 
@@ -221,5 +225,23 @@ class SimEngine:
                 )
             else:
                 results.append(StimulusResult(stimulus_id=stim.id, result="PASS"))
+
+        if enable_logic and logic_table_path:
+            path = Path(logic_table_path)
+            if path.exists():
+                rows = parse_csv(path)
+                violations = find_coil_violations(rows)
+                if violations:
+                    results.append(
+                        StimulusResult(
+                            stimulus_id="LOGIC_TABLE",
+                            result="FAIL",
+                            details={"rows": violations},
+                        )
+                    )
+                else:
+                    results.append(
+                        StimulusResult(stimulus_id="LOGIC_TABLE", result="PASS")
+                    )
 
         return SimReport(results, unknowns)
