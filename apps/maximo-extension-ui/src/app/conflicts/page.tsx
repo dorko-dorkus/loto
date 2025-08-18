@@ -1,16 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { SimulationResult } from '../../types/api';
 
-type Candidate = {
-  id: number;
-  deltaTime: string;
-  deltaCost: string;
-  readiness: string;
-  isolation: boolean;
-};
-
-const candidates: Candidate[] = [
+const candidates: SimulationResult[] = [
   {
     id: 1,
     deltaTime: '+1d',
