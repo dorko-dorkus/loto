@@ -1,7 +1,7 @@
 import networkx as nx
 
 from loto.sim_engine import SimEngine
-from loto.isolation_planner import IsolationPlan
+from loto.models import IsolationAction, IsolationPlan
 from loto.impact import ImpactEngine
 
 
@@ -24,8 +24,12 @@ def build_graph():
 def test_derates_and_unavailable_sets():
     original = build_graph()
     plan = IsolationPlan(
-        plan={"steam": [("source", "uA"), ("source", "uB1"), ("source", "local1")]},
-        verifications=[],
+        plan_id="p1",
+        actions=[
+            IsolationAction(component_id="steam:source->uA", method="lock"),
+            IsolationAction(component_id="steam:source->uB1", method="lock"),
+            IsolationAction(component_id="steam:source->local1", method="lock"),
+        ],
     )
 
     sim = SimEngine()

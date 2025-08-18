@@ -17,9 +17,8 @@ from typing import Dict, List
 
 import networkx as nx  # type: ignore
 
-from .isolation_planner import IsolationPlan
 from .rule_engine import RulePack
-from .models import Stimulus, SimReport, SimResultItem
+from .models import IsolationPlan, Stimulus, SimReport, SimResultItem
 
 
 class SimEngine:
@@ -52,6 +51,16 @@ class SimEngine:
 
         isolated: Dict[str, nx.MultiDiGraph] = {}
 
+        # Build mapping from domain to edge tuples encoded in the plan actions
+        plan_edges: Dict[str, List[tuple[str, str]]] = {}
+        for action in plan.actions:
+            try:
+                domain, edge = action.component_id.split(":", 1)
+                u, v = edge.split("->")
+            except ValueError:
+                continue
+            plan_edges.setdefault(domain, []).append((u, v))
+
         for domain, graph in graphs.items():
             # ``nx.Graph.copy`` performs a shallow copy where the adjacency
             # structure and attribute dictionaries are duplicated.  Mutating
@@ -59,16 +68,9 @@ class SimEngine:
             # keeps ``apply`` a pure function.
             g = graph.copy()
 
-            # Remove edges specified in the isolation plan.  Each entry can
-            # either specify an explicit key (u, v, k) or an edge pair (u, v)
-            # in which case all multi-edges between the nodes are removed.
-            for edge in plan.plan.get(domain, []):
-                u, v, *rest = edge  # type: ignore[misc]
-                if rest:  # A specific key is provided
-                    k = rest[0]
-                    if g.has_edge(u, v, k):
-                        g.remove_edge(u, v, k)
-                elif g.has_edge(u, v):
+            # Remove edges specified in the isolation plan
+            for u, v in plan_edges.get(domain, []):
+                if g.has_edge(u, v):
                     g.remove_edges_from([(u, v, k) for k in list(g[u][v])])
 
             # Set states for edges and nodes.  Drains and vents are always
