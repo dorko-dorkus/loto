@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from loto.inventory import InventoryStatus, Reservation, StockItem, check_wo_parts_required
+
+
+@dataclass
+class WorkOrder:
+    reservations: list[Reservation]
+
+
+def test_missing_or_low_stock_blocks_work_order():
+    work_order = WorkOrder(reservations=[
+        Reservation(item_id="valve", quantity=2),
+        Reservation(item_id="gasket", quantity=1),
+    ])
+
+    stock = {"valve": StockItem(item_id="valve", quantity=1)}
+
+    status = check_wo_parts_required(work_order, stock.get)
+
+    assert isinstance(status, InventoryStatus)
+    assert status.blocked
+    assert {r.item_id for r in status.missing} == {"valve", "gasket"}
+
+
+def test_adequate_stock_marks_work_order_ready():
+    work_order = WorkOrder(reservations=[Reservation(item_id="bolt", quantity=4)])
+
+    stock = {"bolt": StockItem(item_id="bolt", quantity=10)}
+
+    status = check_wo_parts_required(work_order, stock.get)
+
+    assert status.ready
+    assert not status.missing
