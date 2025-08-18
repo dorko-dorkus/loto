@@ -12,6 +12,8 @@ Only method signatures are provided here, to be fleshed out later.
 
 from __future__ import annotations
 
+import abc
+import os
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from .coupa_adapter import CoupaAdapter, DemoCoupaAdapter
@@ -24,7 +26,7 @@ if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from ..models import SimReport
 
 
-class IntegrationAdapter:
+class IntegrationAdapter(abc.ABC):
     """Base class for integration adapters.
 
     Subclasses should implement the methods defined here to read
@@ -32,45 +34,19 @@ class IntegrationAdapter:
     produced by the LOTO planner.
     """
 
+    @abc.abstractmethod
     def fetch_work_order(self, work_order_id: str) -> Dict[str, Any]:
-        """Retrieve minimal information about a work order.
+        """Retrieve minimal information about a work order."""
 
-        Parameters
-        ----------
-        work_order_id: str
-            Identifier of the work order to fetch.
-
-        Returns
-        -------
-        Dict[str, Any]
-            A dictionary containing fields needed by the planner (e.g.,
-            asset tags, location, description). The exact schema is
-            implementation-specific.
-        """
-        raise NotImplementedError("fetch_work_order is not implemented yet")
-
+    @abc.abstractmethod
     def create_child_work_orders(
         self,
         parent_work_order_id: str,
         plan: IsolationPlan,
     ) -> List[str]:
-        """Create child work orders for each isolation action and verification.
+        """Create child work orders for each isolation action and verification."""
 
-        Parameters
-        ----------
-        parent_work_order_id: str
-            The parent work order to which the child work orders will be
-            linked.
-        plan: IsolationPlan
-            The computed isolation plan.
-
-        Returns
-        -------
-        List[str]
-            A list of identifiers for the newly created child work orders.
-        """
-        raise NotImplementedError("create_child_work_orders is not implemented yet")
-
+    @abc.abstractmethod
     def attach_artifacts(
         self,
         parent_object_id: str,
@@ -79,32 +55,37 @@ class IntegrationAdapter:
         as_json: Dict[str, Any],
         pdf_bytes: bytes,
     ) -> None:
-        """Attach JSON and PDF artifacts to a work order or permit.
+        """Attach JSON and PDF artifacts to a work order or permit."""
 
-        Parameters
-        ----------
-        parent_object_id: str
-            Identifier of the object (work order or permit) to attach the
-            artifacts to.
-        plan: IsolationPlan
-            The isolation plan.
-        sim_report: SimReport
-            The simulation report.
-        as_json: Dict[str, Any]
-            A JSON-serializable representation of the plan and report.
-        pdf_bytes: bytes
-            A PDF rendering of the plan and report.
 
-        Notes
-        -----
-        This method should upload attachments via the appropriate API
-        (e.g., Maximo's doclinks) or write them to disk in demo mode.
-        """
-        raise NotImplementedError("attach_artifacts is not implemented yet")
+from .demo_adapter import DemoIntegrationAdapter  # noqa: E402
+
+
+def get_integration_adapter() -> IntegrationAdapter:
+    """Return an adapter instance based on environment configuration.
+
+    If required environment variables are missing, a
+    :class:`DemoIntegrationAdapter` is returned.
+    """
+
+    required = [
+        "MAXIMO_BASE_URL",
+        "MAXIMO_APIKEY",
+        "MAXIMO_OS_WORKORDER",
+        "MAXIMO_OS_ASSET",
+    ]
+
+    if not all(os.environ.get(var) for var in required):
+        return DemoIntegrationAdapter()
+
+    # Placeholder: return demo adapter until a real one is available
+    return DemoIntegrationAdapter()
 
 
 __all__ = [
     "IntegrationAdapter",
+    "DemoIntegrationAdapter",
+    "get_integration_adapter",
     "CoupaAdapter",
     "DemoCoupaAdapter",
     "StoresAdapter",

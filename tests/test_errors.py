@@ -31,3 +31,39 @@ def test_loto_error_str_contains_code() -> None:
     assert err.hint == "oops"
     assert "X99" in str(err)
     assert "oops" in str(err)
+
+
+def test_demo_adapter_used_when_env_missing(monkeypatch, tmp_path) -> None:
+    from pathlib import Path
+
+    from loto.integrations import DemoIntegrationAdapter, get_integration_adapter
+    from loto.models import IsolationAction, IsolationPlan, SimReport
+
+    for key in [
+        "MAXIMO_BASE_URL",
+        "MAXIMO_APIKEY",
+        "MAXIMO_OS_WORKORDER",
+        "MAXIMO_OS_ASSET",
+    ]:
+        monkeypatch.delenv(key, raising=False)
+
+    monkeypatch.chdir(tmp_path)
+
+    adapter = get_integration_adapter()
+    assert isinstance(adapter, DemoIntegrationAdapter)
+
+    work_order = adapter.fetch_work_order("WO-1")
+    assert work_order["id"] == "WO-1"
+
+    plan = IsolationPlan(
+        plan_id="P1",
+        actions=[IsolationAction(component_id="C1", method="lock")],
+    )
+    child_ids = adapter.create_child_work_orders("WO-1", plan)
+    assert child_ids and child_ids[0].startswith("WO-1")
+
+    sim_report = SimReport(results=[], total_time_s=0.0)
+    adapter.attach_artifacts("WO-1", plan, sim_report, {"k": "v"}, b"pdf")
+    doc_dir = Path("out") / "doclinks"
+    assert (doc_dir / "WO-1.json").exists()
+    assert (doc_dir / "WO-1.pdf").exists()
