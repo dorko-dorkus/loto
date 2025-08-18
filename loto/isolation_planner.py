@@ -103,7 +103,9 @@ class IsolationPlanner:
 
             for u, v in cut_edges:
                 actions.append(
-                    IsolationAction(component_id=f"{u}->{v}", method="isolate")
+                    IsolationAction(
+                        component_id=f"{u}->{v}", method="isolate", duration_s=None
+                    )
                 )
 
         return IsolationPlan(plan_id=asset_tag, actions=actions)
