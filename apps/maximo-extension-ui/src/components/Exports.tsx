@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Button from './Button';
+import { exportPid } from '../lib/exportPid';
 
 interface ExportProps {
   wo: string;
@@ -46,6 +47,12 @@ export default function Exports({ wo }: ExportProps) {
       </Button>
       <Button aria-label="Export JSON" onClick={() => handleExport('json')}>
         Export JSON
+      </Button>
+      <Button
+        aria-label="Export P&ID"
+        onClick={() => exportPid(`WO-${wo}_pid.pdf`)}
+      >
+        Export P&ID
       </Button>
       {hash && <span>Hash: {hash}</span>}
       {seed && <span>Seed: {seed}</span>}
