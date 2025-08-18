@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import networkx as nx  # type: ignore
+import pandas as pd
 
 
 @dataclass
@@ -69,11 +70,81 @@ class GraphBuilder:
 
         Notes
         -----
-        In this stub implementation the body is not provided. A real
-        implementation would parse the CSV files, create nodes and
-        edges, attach attributes to them, and return the graphs.
+        The demo implementation expects very small CSV schemas used in
+        the unit tests.  Each CSV must contain a ``domain`` column to
+        group records.  The relevant columns are:
+
+        ``line_list``
+            ``from_tag`` and ``to_tag`` describing connections.
+        ``valves``
+            ``tag``, ``fail_state`` and ``kind`` for isolation points.
+        ``drains``
+            ``tag`` describing drain/vent nodes.
+        ``sources`` (optional)
+            ``tag`` and ``kind`` marking energy sources.
+
+        Every node in the resulting graphs exposes the following
+        attributes with sensible defaults: ``tag``, ``is_source``,
+        ``is_isolation_point``, ``fail_state`` and ``kind``.
         """
-        raise NotImplementedError("GraphBuilder.from_csvs() is not implemented yet")
+
+        def _ensure_node(graph: nx.MultiDiGraph, tag: str) -> None:
+            if tag not in graph:
+                graph.add_node(
+                    tag,
+                    tag=tag,
+                    is_source=False,
+                    is_isolation_point=False,
+                    fail_state=None,
+                    kind=None,
+                )
+
+        graphs: Dict[str, nx.MultiDiGraph] = {}
+
+        line_df = pd.read_csv(line_list_path)
+        valve_df = pd.read_csv(valves_path)
+        drain_df = pd.read_csv(drains_path)
+        source_df = (
+            pd.read_csv(sources_path) if sources_path is not None else pd.DataFrame()
+        )
+
+        for _, row in line_df.iterrows():
+            domain = row["domain"]
+            g = graphs.setdefault(domain, nx.MultiDiGraph())
+            _ensure_node(g, row["from_tag"])
+            _ensure_node(g, row["to_tag"])
+            g.add_edge(row["from_tag"], row["to_tag"], line_tag=row.get("line_tag"))
+
+        for _, row in valve_df.iterrows():
+            domain = row["domain"]
+            g = graphs.setdefault(domain, nx.MultiDiGraph())
+            tag = row["tag"]
+            _ensure_node(g, tag)
+            g.nodes[tag].update(
+                {
+                    "is_isolation_point": True,
+                    "fail_state": row.get("fail_state"),
+                    "kind": row.get("kind"),
+                }
+            )
+
+        for _, row in drain_df.iterrows():
+            domain = row["domain"]
+            g = graphs.setdefault(domain, nx.MultiDiGraph())
+            tag = row["tag"]
+            _ensure_node(g, tag)
+            if "kind" in row:
+                g.nodes[tag]["kind"] = row["kind"]
+
+        if not source_df.empty:
+            for _, row in source_df.iterrows():
+                domain = row["domain"]
+                g = graphs.setdefault(domain, nx.MultiDiGraph())
+                tag = row["tag"]
+                _ensure_node(g, tag)
+                g.nodes[tag].update({"is_source": True, "kind": row.get("kind")})
+
+        return graphs
 
     def validate(self, graphs: Dict[str, nx.MultiDiGraph]) -> List[Issue]:
         """Validate the constructed graphs.
