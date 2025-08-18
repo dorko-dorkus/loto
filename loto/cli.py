@@ -75,7 +75,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     except Exception:  # pragma: no cover - graceful fallback
         from .models import RulePack
 
-        rule_pack = RulePack()
+        # Explicitly set default fields to satisfy type checkers
+        rule_pack = RulePack(domain_rules=[], verification_rules=[], risk_policies=None)
 
     # Build graphs from CSVs.  The builder is currently unimplemented, so fall
     # back to a minimal graph that contains a single source feeding the asset.
