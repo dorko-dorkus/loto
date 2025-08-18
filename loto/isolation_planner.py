@@ -13,30 +13,12 @@ these signatures as a starting point for a full implementation.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple
 
 import networkx as nx  # type: ignore
 
+from .models import IsolationAction, IsolationPlan
 from .rule_engine import RulePack
-
-
-class IsolationPlan:
-    """Represents the output of the isolation planner.
-
-    Attributes
-    ----------
-    plan: Dict[str, List[Any]]
-        A mapping from energy domain to the list of isolation actions
-        (e.g., valves to close, drains to open). The structure of each
-        action should be defined in future iterations.
-    verifications: List[Any]
-        A list of verification steps (pressure checks, test-before-touch,
-        etc.) required to confirm that the isolation is effective.
-    """
-
-    def __init__(self, plan: Dict[str, List[Any]], verifications: List[Any]):
-        self.plan = plan
-        self.verifications = verifications
 
 
 class IsolationPlanner:
@@ -77,14 +59,13 @@ class IsolationPlanner:
         that domain.
         """
 
-        plan: Dict[str, List[Tuple[str, str]]] = {}
+        actions: List[IsolationAction] = []
 
         for domain, graph in graphs.items():
             sources = [n for n, data in graph.nodes(data=True) if data.get("is_source")]
             targets = [n for n, data in graph.nodes(data=True) if data.get("tag") == asset_tag]
 
             if not sources or not targets:
-                plan[domain] = []
                 continue
 
             # Build weighted graph for min-cut computations
@@ -120,6 +101,9 @@ class IsolationPlanner:
                                     cut_edges.add((u, v))
                                     break
 
-            plan[domain] = list(cut_edges)
+            for u, v in cut_edges:
+                actions.append(
+                    IsolationAction(component_id=f"{u}->{v}", method="isolate")
+                )
 
-        return IsolationPlan(plan=plan, verifications=[])
+        return IsolationPlan(plan_id=asset_tag, actions=actions)

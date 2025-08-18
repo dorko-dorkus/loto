@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 
 import networkx as nx  # type: ignore
 
-from .isolation_planner import IsolationPlan
+from .models import IsolationPlan
 from .rule_engine import RulePack
 
 
@@ -93,16 +93,15 @@ class SimEngine:
             # keeps ``apply`` a pure function.
             g = graph.copy()
 
-            # Remove edges specified in the isolation plan.  Each entry can
-            # either specify an explicit key (u, v, k) or an edge pair (u, v)
-            # in which case all multi-edges between the nodes are removed.
-            for edge in plan.plan.get(domain, []):
-                u, v, *rest = edge  # type: ignore[misc]
-                if rest:  # A specific key is provided
-                    k = rest[0]
-                    if g.has_edge(u, v, k):
-                        g.remove_edge(u, v, k)
-                elif g.has_edge(u, v):
+            # Remove edges specified in the isolation plan.  Each action stores
+            # the edge as a "u->v" component identifier.  All multi-edges
+            # between ``u`` and ``v`` are removed if present.
+            for action in plan.actions:
+                try:
+                    u, v = [p.strip() for p in action.component_id.split("->", 1)]
+                except ValueError:
+                    continue
+                if g.has_edge(u, v):
                     g.remove_edges_from([(u, v, k) for k in list(g[u][v])])
 
             # Set states for edges and nodes.  Drains and vents are always

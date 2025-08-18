@@ -21,10 +21,14 @@ def test_min_cut_blocks_targets():
     pack = RulePack()
     plan = planner.compute({'process': g}, asset_tag='asset', rule_pack=pack)
 
-    assert set(plan.plan['process']) == {('A', 't1'), ('A', 't2')}
+    edges = {tuple(a.component_id.split('->')) for a in plan.actions}
+    assert edges == {('A', 't1'), ('A', 't2')}
 
     g_cut = g.copy()
-    g_cut.remove_edges_from(plan.plan['process'])
+    for a in plan.actions:
+        u, v = a.component_id.split('->')
+        if g_cut.has_edge(u, v):
+            g_cut.remove_edges_from([(u, v, k) for k in list(g_cut[u][v])])
 
     sources = [n for n, data in g_cut.nodes(data=True) if data.get('is_source')]
     targets = [n for n, data in g_cut.nodes(data=True) if data.get('tag') == 'asset']

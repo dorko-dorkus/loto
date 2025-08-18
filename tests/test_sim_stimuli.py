@@ -1,7 +1,7 @@
 import networkx as nx
 
 from loto.sim_engine import SimEngine, Stimulus
-from loto.isolation_planner import IsolationPlan
+from loto.models import IsolationAction, IsolationPlan
 
 
 
@@ -22,7 +22,10 @@ def make_stimuli():
 
 def test_valid_plan_pass():
     g = build_graph()
-    plan = IsolationPlan(plan={"steam": [("source", "valve1")]}, verifications=[])
+    plan = IsolationPlan(
+        plan_id="demo",
+        actions=[IsolationAction(component_id="source->valve1", method="isolate")],
+    )
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": g})
 
@@ -34,7 +37,7 @@ def test_valid_plan_pass():
 
 def test_tampered_plan_fail():
     g = build_graph()
-    plan = IsolationPlan(plan={"steam": []}, verifications=[])
+    plan = IsolationPlan(plan_id="demo", actions=[])
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": g})
 
