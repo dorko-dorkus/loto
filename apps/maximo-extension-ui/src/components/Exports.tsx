@@ -41,8 +41,12 @@ export default function Exports({ wo }: ExportProps) {
 
   return (
     <div className="mb-4 flex items-center space-x-2">
-      <Button onClick={() => handleExport('pdf')}>Export PDF</Button>
-      <Button onClick={() => handleExport('json')}>Export JSON</Button>
+      <Button aria-label="Export PDF" onClick={() => handleExport('pdf')}>
+        Export PDF
+      </Button>
+      <Button aria-label="Export JSON" onClick={() => handleExport('json')}>
+        Export JSON
+      </Button>
       {hash && <span>Hash: {hash}</span>}
       {seed && <span>Seed: {seed}</span>}
     </div>

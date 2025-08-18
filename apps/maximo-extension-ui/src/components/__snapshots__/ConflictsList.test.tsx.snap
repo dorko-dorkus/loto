@@ -64,7 +64,10 @@ exports[`click sets recommended items 1`] = `
       </p>
     </li>
   </ul>
-  <button>
+  <button
+    aria-label="Select recommended set"
+    type="button"
+  >
     Select recommended set
   </button>
 </div>
