@@ -37,16 +37,25 @@ def _prepare_series(series: pd.Series) -> pd.Series:
 
 @dataclass
 class CsvProvider:
-    """Load price series from a CSV file.
+    """Load and cache a price series from a CSV file.
 
     The CSV is expected to have at least two columns: timestamp and value. The
-    first column is parsed as datetimes and the second as the price value.
+    first column is parsed as datetimes and the second as the price value. The
+    loaded series is normalized to :data:`TZ` and resampled to five minute
+    buckets. Results are cached after the first load and copies are returned on
+    subsequent calls.
     """
 
     path: Path
     _cache: Optional[pd.Series] = None
 
     def load(self) -> pd.Series:
+        """Return the cached price series.
+
+        The CSV file is read only once. Subsequent calls return a copy of the
+        cached, timezone-normalized and resampled series.
+        """
+
         if self._cache is None:
             path = Path(self.path)
             if not path.exists():
@@ -68,7 +77,17 @@ class CsvProvider:
 
 
 class Em6Provider:
-    """Stubbed EM6 provider reading from a CSV cache on disk."""
+    """Stubbed EM6 provider reading from a CSV cache on disk.
+
+    Parameters
+    ----------
+    region, node:
+        Exactly one of ``region`` or ``node`` must be provided to identify the
+        dataset to load.
+    cache_dir:
+        Directory containing the CSV cache files. The provider reads from this
+        directory once and caches the resulting series in memory.
+    """
 
     _cache: dict[str, pd.Series] = {}
 
@@ -91,6 +110,13 @@ class Em6Provider:
         return f"region:{self.region}" if self.region else f"node:{self.node}"
 
     def load(self) -> pd.Series:
+        """Return the cached price series for the configured region or node.
+
+        The CSV file located in :attr:`cache_dir` is parsed, normalized to the
+        target timezone and resampled to five minute buckets. Loaded data is
+        cached in a class-level dictionary and copies are returned on each call.
+        """
+
         key = self._cache_key()
         if key in self._cache:
             return self._cache[key].copy()
