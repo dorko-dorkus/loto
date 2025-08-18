@@ -8,6 +8,7 @@ identifier with the SVG document and corresponding tag map used by
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict
 
@@ -15,6 +16,30 @@ import yaml
 from pydantic import BaseModel, Field
 
 from .schema import load_tag_map
+
+
+def _get_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except FileNotFoundError:
+        return -1.0
+
+
+@lru_cache(maxsize=32)
+def _load_registry_cached(path: Path, mtime: float) -> PidRegistry:
+    with path.open("r") as fh:
+        data = yaml.safe_load(fh) or {}
+    registry = PidRegistry(**data)
+
+    base = path.parent
+    for entry in registry.pids.values():
+        tag_map_path = entry.tag_map
+        if not tag_map_path.is_absolute():
+            tag_map_path = (base / tag_map_path).resolve()
+        load_tag_map(tag_map_path)
+        entry.tag_map = tag_map_path
+
+    return registry
 
 
 class PidEntry(BaseModel):
@@ -43,23 +68,9 @@ class PidRegistry(BaseModel):
 
 
 def load_registry(path: str | Path) -> PidRegistry:
-    """Load a :class:`PidRegistry` from a YAML file.
-
-    The function validates each referenced tag map against
-    :func:`loto.pid.schema.load_tag_map`.
-    """
+    """Load a :class:`PidRegistry` from a YAML file."""
 
     path = Path(path)
-    with path.open("r") as fh:
-        data = yaml.safe_load(fh) or {}
-    registry = PidRegistry(**data)
-
-    base = path.parent
-    for entry in registry.pids.values():
-        tag_map_path = entry.tag_map
-        if not tag_map_path.is_absolute():
-            tag_map_path = (base / tag_map_path).resolve()
-        load_tag_map(tag_map_path)
-        entry.tag_map = tag_map_path
-
-    return registry
+    registry = _load_registry_cached(path, _get_mtime(path))
+    # Return a deep copy so callers can mutate without affecting the cache
+    return registry.model_copy(deep=True)

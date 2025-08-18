@@ -1,3 +1,4 @@
+import loto.pid.overlay as overlay
 from loto.models import IsolationAction, IsolationPlan
 from loto.pid import build_overlay
 
@@ -78,3 +79,30 @@ def test_overlay_dedup_and_warnings(tmp_path):
     path0 = overlay["paths"][0]
     assert path0["selectors"].count("#DUP") == 1
     assert {"selector": "#A201", "type": "warning"} in overlay["badges"]
+
+
+def test_overlay_map_cache(tmp_path):
+    pid_map = tmp_path / "pid_map.yaml"
+    pid_map.write_text("src: '#SRC'\n")
+    plan = IsolationPlan(plan_id="p3", actions=[])
+
+    overlay._load_map_cached.cache_clear()
+    build_overlay(
+        sources=["src"],
+        asset="src",
+        plan=plan,
+        sim_fail_paths=[],
+        map_path=pid_map,
+    )
+    first = overlay._load_map_cached.cache_info()
+    assert first.misses == 1
+
+    build_overlay(
+        sources=["src"],
+        asset="src",
+        plan=plan,
+        sim_fail_paths=[],
+        map_path=pid_map,
+    )
+    info = overlay._load_map_cached.cache_info()
+    assert info.misses == 1 and info.hits == 1
