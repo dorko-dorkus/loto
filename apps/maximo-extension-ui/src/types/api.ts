@@ -16,6 +16,8 @@ export interface BlueprintData {
   steps: BlueprintStep[];
   unavailable_assets: string[];
   unit_mw_delta: Record<string, number>;
+  diff?: string;
+  audit_metadata?: Record<string, unknown>;
 }
 
 export interface PlanStep {

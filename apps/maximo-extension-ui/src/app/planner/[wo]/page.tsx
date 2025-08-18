@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
 import Exports from '../../../components/Exports';
+import CommitPanel from './CommitPanel';
 
-const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact'];
+const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact', 'Commit'];
 
 const queryClient = new QueryClient();
 
@@ -115,6 +116,7 @@ function PlannerContent({ wo }: { wo: string }) {
               </tbody>
             </table>
           )}
+          {activeTab === 'Commit' && <CommitPanel wo={wo} />}
         </div>
         <aside className="w-64 shrink-0 border-l border-[var(--mxc-border)] bg-[var(--mxc-drawer-bg)] p-4 text-[var(--mxc-drawer-fg)]">
           Warnings placeholder
