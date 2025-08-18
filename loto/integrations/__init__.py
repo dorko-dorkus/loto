@@ -15,8 +15,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, List
 
 from .coupa_adapter import CoupaAdapter, DemoCoupaAdapter
-from .stores_adapter import StoresAdapter, DemoStoresAdapter
-from .wapr_adapter import WaprAdapter, DemoWaprAdapter
+from .maximo_adapter import MaximoAdapter
+from .stores_adapter import DemoStoresAdapter, StoresAdapter
+from .wapr_adapter import DemoWaprAdapter, WaprAdapter
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from ..isolation_planner import IsolationPlan
@@ -110,4 +111,5 @@ __all__ = [
     "DemoStoresAdapter",
     "WaprAdapter",
     "DemoWaprAdapter",
+    "MaximoAdapter",
 ]
