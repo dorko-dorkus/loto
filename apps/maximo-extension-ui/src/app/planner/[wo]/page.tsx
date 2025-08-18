@@ -1,23 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  WorkOrderSummary,
-  PlanStep,
-  SimulationResult,
-  ImpactRecord
-} from '../../../types/api';
+import { PlanStep, SimulationResult, ImpactRecord } from '../../../types/api';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useWorkOrder } from '../../../lib/hooks';
 
 const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact'];
 
-export default function PlannerPage({ params }: { params: { wo: string } }) {
-  const [activeTab, setActiveTab] = useState('Plan');
+const queryClient = new QueryClient();
 
-  const workOrder: WorkOrderSummary = {
-    id: params.wo,
-    description: 'Example work order',
-    status: 'WAPPR'
-  };
+function PlannerContent({ wo }: { wo: string }) {
+  const [activeTab, setActiveTab] = useState('Plan');
+  const { data: workOrder } = useWorkOrder(wo);
+
+  if (!workOrder) return null;
 
   const plan: PlanStep[] = [
     { step: 1, description: 'Example step', resources: 'None' }
@@ -128,6 +124,14 @@ export default function PlannerPage({ params }: { params: { wo: string } }) {
         </aside>
       </div>
     </main>
+  );
+}
+
+export default function PlannerPage({ params }: { params: { wo: string } }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <PlannerContent wo={params.wo} />
+    </QueryClientProvider>
   );
 }
 

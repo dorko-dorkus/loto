@@ -1,8 +1,9 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { test, expect } from 'vitest';
 import Page from './page';
 
-test('renders 4 tabs', () => {
-  const { getAllByRole } = render(<Page params={{ wo: 'WO-1' }} />);
-  expect(getAllByRole('tab')).toHaveLength(4);
+test('renders 4 tabs', async () => {
+  render(<Page params={{ wo: 'WO-1' }} />);
+  const tabs = await screen.findAllByRole('tab');
+  expect(tabs).toHaveLength(4);
 });

@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import KpiCards from '../../components/KpiCards';
-import { fetchPortfolio } from '../../mocks/portfolio';
+import { usePortfolio } from '../../lib/hooks';
 
 const queryClient = new QueryClient();
 
 function PortfolioContent() {
   const [dense, setDense] = useState(false);
-  const { data } = useQuery({ queryKey: ['portfolio'], queryFn: fetchPortfolio });
+  const { data } = usePortfolio();
 
   if (!data) return null;
 
