@@ -1,7 +1,7 @@
 import networkx as nx
 
-from loto.sim_engine import SimEngine
 from loto.models import IsolationAction, IsolationPlan, Stimulus
+from loto.sim_engine import SimEngine
 
 
 def build_graph():
@@ -28,9 +28,11 @@ def test_valid_plan_pass():
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": g})
 
-    report = engine.run_stimuli(applied, make_stimuli())
+    stims = make_stimuli()
+    report = engine.run_stimuli(applied, stims)
 
     assert all(r.success for r in report.results)
+    assert report.total_time_s == sum(s.duration_s for s in stims)
 
 
 def test_tampered_plan_fail():
@@ -39,6 +41,8 @@ def test_tampered_plan_fail():
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": g})
 
-    report = engine.run_stimuli(applied, make_stimuli())
+    stims = make_stimuli()
+    report = engine.run_stimuli(applied, stims)
 
     assert all(not r.success for r in report.results)
+    assert report.total_time_s == sum(s.duration_s for s in stims)

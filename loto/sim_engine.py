@@ -17,8 +17,8 @@ from typing import Dict, List
 
 import networkx as nx  # type: ignore
 
+from .models import IsolationPlan, SimReport, SimResultItem, Stimulus
 from .rule_engine import RulePack
-from .models import IsolationPlan, Stimulus, SimReport, SimResultItem
 
 
 class SimEngine:
@@ -174,11 +174,10 @@ class SimEngine:
             offending_path: List[str] | None = None
             for domain, graph in applied_graphs.items():
                 path = shortest_path(graph)
-                if path is not None and (
-                    offending_path is None or len(path) < len(offending_path)
-                ):
-                    offending_path = path
+                if path is not None:
                     offending_domain = domain
+                    offending_path = path
+                    break
 
             success = offending_path is None
             impact = 0.0 if success else 1.0
