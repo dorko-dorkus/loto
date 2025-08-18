@@ -52,7 +52,7 @@ export default function ConflictsPage() {
   return (
     <main>
       <h1 className="mb-4 text-xl font-semibold">Conflicts & Bundling</h1>
-      <table className="min-w-full border border-[var(--mxc-border)]">
+      <table className="w-full border border-[var(--mxc-border)]">
         <thead className="bg-[var(--mxc-nav-bg)] text-left">
           <tr>
             <th className="px-4 py-2"></th>
@@ -70,6 +70,7 @@ export default function ConflictsPage() {
                   type="checkbox"
                   checked={selected.has(c.id)}
                   onChange={() => toggle(c.id)}
+                  aria-label={`Select candidate ${c.id}`}
                 />
               </td>
               <td className="px-4 py-2">{c.deltaTime}</td>
