@@ -13,8 +13,10 @@ serialize plan data to JSON.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from io import BytesIO
 from typing import Any, Dict
+from zoneinfo import ZoneInfo
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -81,11 +83,18 @@ class Renderer:
             Paragraph(f"Seed: {seed if seed is not None else 'N/A'}", styles["Normal"])
         )
         story.append(Paragraph(f"Timezone: {timezone}", styles["Normal"]))
+        timestamp = datetime.now(ZoneInfo(timezone))
+        story.append(
+            Paragraph(
+                f"Generated: {timestamp.strftime('%Y-%m-%d %H:%M %Z')}",
+                styles["Normal"],
+            )
+        )
         story.append(Spacer(1, 12))
         story.append(Paragraph("Legend", styles["Heading2"]))
         story.append(
             Paragraph(
-                "Because footnotes explain why each isolation is required."
+                "Because… footnotes explain why each isolation is required."
                 " 'DDBB' denotes double block and bleed.",
                 styles["Normal"],
             )
