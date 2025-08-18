@@ -67,6 +67,32 @@ def shared_isolation(key: str) -> Callable[[State], bool]:
     return predicate
 
 
+def parts_available(wo_id: str) -> Callable[[State], bool]:
+    """Return a predicate requiring parts for ``wo_id`` to be available.
+
+    The event ``state`` is expected to expose a ``"parts"`` collection –
+    either a mapping from work order IDs to truthy availability flags or a
+    set of work order IDs that currently have parts on hand.  The predicate
+    evaluates to ``True`` when ``wo_id`` is present and truthy in that
+    collection.
+    """
+
+    def predicate(state: State) -> bool:
+        parts = state.get("parts")
+        if isinstance(parts, dict):
+            return bool(parts.get(wo_id))
+        if isinstance(parts, set):
+            return wo_id in parts
+        if parts is None:
+            return False
+        try:
+            return wo_id in parts
+        except TypeError:
+            return False
+
+    return predicate
+
+
 def compose_gates(*preds: Callable[[State], bool]) -> Callable[[State], bool]:
     """Combine multiple gate predicates using logical AND.
 
