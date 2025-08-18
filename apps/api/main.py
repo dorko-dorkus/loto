@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List
+from uuid import uuid4
 
 from fastapi import FastAPI
 
@@ -54,7 +55,7 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         open(ctx["drain_csv"]) as drain,
         open(ctx["source_csv"]) as source,
     ):
-        plan, _, impact = plan_and_evaluate(
+        plan, _, impact, _prov = plan_and_evaluate(
             line,
             valve,
             drain,
@@ -85,6 +86,37 @@ async def post_schedule(payload: dict) -> dict[str, str]:
     """Placeholder for schedule creation."""
     _ = payload  # suppress unused variable warning
     return {"detail": "Not implemented"}
+
+
+@app.post("/propose")
+async def post_propose(payload: dict[str, Any]) -> Dict[str, Any]:
+    """Return diff of proposed targets/assignments with an idempotency key."""
+
+    current = {
+        "targets": {"asset": "A"},
+        "assignments": {"task": "worker"},
+    }
+
+    proposed_targets = payload.get("targets", {})
+    proposed_assignments = payload.get("assignments", {})
+
+    def diff(
+        current_map: Dict[str, Any], proposed_map: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        added = {k: v for k, v in proposed_map.items() if k not in current_map}
+        removed = {k: v for k, v in current_map.items() if k not in proposed_map}
+        changed = {
+            k: {"from": current_map[k], "to": proposed_map[k]}
+            for k in proposed_map
+            if k in current_map and current_map[k] != proposed_map[k]
+        }
+        return {"added": added, "removed": removed, "changed": changed}
+
+    return {
+        "idempotency_key": str(uuid4()),
+        "target_diff": diff(current["targets"], proposed_targets),
+        "assignment_diff": diff(current["assignments"], proposed_assignments),
+    }
 
 
 @app.get("/workorders/{workorder_id}")
