@@ -21,31 +21,9 @@ method stubs. Detailed logic will be implemented in future iterations.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict
 
-
-@dataclass
-class RulePack:
-    """A simple data container for a loaded rule pack.
-
-    Attributes
-    ----------
-    version: str
-        The semantic version of the rule pack.
-    metadata: Dict[str, Any]
-        Arbitrary metadata associated with the rule pack (e.g., site name,
-        update timestamp).
-    domains: Dict[str, Any]
-        Domain-specific rules (e.g., steam, condensate). The structure of
-        each domain entry depends on the rule schema and is not enforced
-        here.
-    """
-
-    version: str
-    metadata: Dict[str, Any]
-    domains: Dict[str, Any]
+from .models import RulePack
 
 
 class RuleEngine:
