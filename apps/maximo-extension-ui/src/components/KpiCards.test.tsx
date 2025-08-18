@@ -13,3 +13,8 @@ test('renders KPI labels', () => {
   expect(screen.getByText('Completed')).toBeInTheDocument();
 });
 
+test('matches snapshot', () => {
+  const { container } = render(<KpiCards items={kpis} />);
+  expect(container.firstChild).toMatchSnapshot();
+});
+
