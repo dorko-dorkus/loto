@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Dict, List
+from uuid import uuid4
 
 from fastapi import FastAPI
+from pydantic import BaseModel, Field
 
 from loto.impact_config import load_impact_config
 from loto.models import RulePack
@@ -12,6 +14,30 @@ from loto.service import plan_and_evaluate
 from .schemas import BlueprintRequest, BlueprintResponse, Step
 
 app = FastAPI(title="loto API")
+
+
+class ProposeRequest(BaseModel):
+    """Payload for proposing plan and schedule updates."""
+
+    plan: Dict[str, Any] = Field(default_factory=dict, description="Proposed targets")
+    schedule: Dict[str, Any] = Field(
+        default_factory=dict, description="Proposed assignments"
+    )
+
+    class Config:
+        extra = "forbid"
+
+
+class ProposeResponse(BaseModel):
+    """Response highlighting differences from current state."""
+
+    diff: Dict[str, Dict[str, Dict[str, Any]]] = Field(
+        default_factory=dict, description="Differences vs current targets/assignments"
+    )
+    idempotency_key: str
+
+    class Config:
+        extra = "forbid"
 
 
 @app.get("/healthz", include_in_schema=False)
@@ -54,7 +80,7 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         open(ctx["drain_csv"]) as drain,
         open(ctx["source_csv"]) as source,
     ):
-        plan, _, impact = plan_and_evaluate(
+        plan, _, impact, _ = plan_and_evaluate(
             line,
             valve,
             drain,
@@ -78,6 +104,37 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         unavailable_assets=sorted(impact.unavailable_assets),
         unit_mw_delta=impact.unit_mw_delta,
     )
+
+
+def _diff(
+    current: Dict[str, Any], proposed: Dict[str, Any]
+) -> Dict[str, Dict[str, Any]]:
+    """Return key-wise difference between two mappings."""
+
+    delta: Dict[str, Dict[str, Any]] = {}
+    for key in set(current) | set(proposed):
+        cur = current.get(key)
+        prop = proposed.get(key)
+        if cur != prop:
+            delta[key] = {"current": cur, "proposed": prop}
+    return delta
+
+
+@app.post("/propose", response_model=ProposeResponse)
+async def post_propose(payload: ProposeRequest) -> ProposeResponse:
+    """Return diffs between proposed plan/schedule and current state."""
+
+    current: Dict[str, Dict[str, Any]] = {
+        "targets": {"A": 1},
+        "assignments": {"A": "crew-1"},
+    }
+
+    diff = {
+        "targets": _diff(current["targets"], payload.plan),
+        "assignments": _diff(current["assignments"], payload.schedule),
+    }
+
+    return ProposeResponse(diff=diff, idempotency_key=str(uuid4()))
 
 
 @app.post("/schedule")

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import random
+from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Dict, Iterable, Mapping, Tuple
 
@@ -12,6 +15,14 @@ from ..models import IsolationPlan, RulePack, SimReport, Stimulus
 from ..scheduling import gates
 from ..scheduling.assemble import InventoryFn
 from ..sim_engine import SimEngine
+
+
+@dataclass(frozen=True)
+class Provenance:
+    """Record of deterministic inputs influencing planning."""
+
+    seed: int | None
+    rule_hash: str
 
 
 def plan_and_evaluate(
@@ -28,13 +39,19 @@ def plan_and_evaluate(
     unit_areas: Dict[str, str],
     penalties: Dict[str, float] | None = None,
     asset_areas: Dict[str, str] | None = None,
-) -> Tuple[IsolationPlan, SimReport, ImpactResult]:
+    seed: int | None = None,
+) -> Tuple[IsolationPlan, SimReport, ImpactResult, Provenance]:
     """Run builder → planner → simulator → impact evaluation pipeline.
 
     All parameters are in-memory objects to keep this function free of any
     I/O side effects.  CSV inputs may therefore be file-like objects such as
-    :class:`io.StringIO` instances.
+    :class:`io.StringIO` instances.  When ``seed`` is provided the random
+    module is seeded to ensure deterministic output.  The returned
+    :class:`Provenance` captures the seed and a hash of the rule pack used.
     """
+
+    if seed is not None:
+        random.seed(seed)
 
     builder = GraphBuilder()
     graphs = builder.from_csvs(line_csv, valve_csv, drain_csv, source_csv)
@@ -61,7 +78,10 @@ def plan_and_evaluate(
         asset_areas=asset_areas,
     )
 
-    return plan, report, impact
+    rule_hash = hashlib.sha256(rule_pack.json().encode()).hexdigest()
+    provenance = Provenance(seed=seed, rule_hash=rule_hash)
+
+    return plan, report, impact, provenance
 
 
 def inventory_state(
