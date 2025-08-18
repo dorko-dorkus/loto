@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Utilities for reading hat availability rosters.
 
 This module parses a simple CSV describing when a particular hat (resource) is
@@ -18,6 +16,8 @@ The primary entry points are :func:`read_hat_roster` which returns availability
 windows for each hat and :func:`calendar_adapter` which converts those windows
 into a predicate suitable for :class:`des_engine.Task`'s ``calendar`` field.
 """
+
+from __future__ import annotations
 
 from collections import defaultdict
 import csv
