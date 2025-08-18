@@ -1,0 +1,7 @@
+# Mapping of P&ID tags to CSS selectors used by overlay utilities.
+V-101: '#V101'
+V-102:
+  - '#V102A'
+  - '#V102B'
+A-100: '#A100'
+src: '#SRC'
