@@ -142,7 +142,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     # Render outputs
     json_output = renderer.to_json(plan, sim_report)
     rule_hash = rule_engine.hash(rule_pack)
-    pdf_bytes = renderer.pdf(plan, sim_report, rule_hash)
+    pdf_bytes = renderer.pdf(plan, sim_report, rule_hash, seed=None, timezone="UTC")
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)

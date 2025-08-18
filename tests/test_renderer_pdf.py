@@ -23,10 +23,13 @@ def test_pdf_contains_plan_id():
         total_time_s=1.0,
     )
 
-    pdf_bytes = Renderer().pdf(plan, sim, rule_hash="abc123")
+    pdf_bytes = Renderer().pdf(plan, sim, rule_hash="abc123", seed=42, timezone="UTC")
 
     assert pdf_bytes, "pdf() should return non-empty bytes"
 
     reader = PdfReader(io.BytesIO(pdf_bytes))
     text = "".join(page.extract_text() for page in reader.pages)
     assert plan.plan_id in text
+    assert "abc123" in text
+    assert "Seed: 42" in text
+    assert "Legend" in text
