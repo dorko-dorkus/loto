@@ -2,6 +2,7 @@
 
 from loto.integrations.coupa_adapter import DemoCoupaAdapter
 from loto.integrations.stores_adapter import DemoStoresAdapter
+from loto.integrations.wapr_adapter import DemoWaprAdapter
 
 
 def test_coupa_demo_adapter_returns_rfq_id() -> None:
@@ -26,3 +27,10 @@ def test_stores_demo_adapter_returns_pick_list_id() -> None:
     else:
         pick_id = ""
     assert pick_id.startswith("PL-")
+
+
+def test_wapr_demo_adapter_returns_fixture_permit() -> None:
+    """Ensure fixture permit data is returned for a work order."""
+    adapter = DemoWaprAdapter()
+    permit = adapter.fetch_permit("WO-100")
+    assert permit == {"applied_isolations": ["ISO-1", "ISO-2"]}
