@@ -25,7 +25,7 @@ import hashlib
 import json
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from pydantic import ValidationError
 
 from .models import RulePack
