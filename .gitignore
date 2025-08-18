@@ -16,3 +16,8 @@ env/
 .DS_Store
 *.coverage
 coverage.xml
+node_modules/
+storybook-static/
+playwright-report/
+**/.next/
+apps/maximo-extension-ui/test-results/
