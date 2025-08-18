@@ -37,20 +37,31 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
         The parsed arguments.
     """
     parser = argparse.ArgumentParser(description="LOTO planner CLI")
-    parser.add_argument("--asset", required=True, help="Asset tag to isolate")
-    parser.add_argument(
-        "--rules", required=True, help="Path to rule pack file (YAML/JSON)"
-    )
-    parser.add_argument("--line-list", required=True, help="Path to line list CSV")
-    parser.add_argument("--valves", required=True, help="Path to valves CSV")
-    parser.add_argument("--drains", required=True, help="Path to drains/vents CSV")
+    parser.add_argument("--asset", help="Asset tag to isolate")
+    parser.add_argument("--rules", help="Path to rule pack file (YAML/JSON)")
+    parser.add_argument("--line-list", help="Path to line list CSV")
+    parser.add_argument("--valves", help="Path to valves CSV")
+    parser.add_argument("--drains", help="Path to drains/vents CSV")
     parser.add_argument("--sources", help="Path to energy sources CSV", default=None)
     parser.add_argument(
         "--air-map", help="Path to instrument air map CSV", default=None
     )
     parser.add_argument("--output", help="Directory for outputs", default="./out")
     parser.add_argument("--no-sim", action="store_true", help="Skip simulation testing")
-    return parser.parse_args(args)
+    parser.add_argument("--demo", action="store_true", help="Run in demo mode")
+
+    parsed = parser.parse_args(args)
+
+    if not parsed.demo:
+        required = ["asset", "rules", "line_list", "valves", "drains"]
+        missing = [opt for opt in required if getattr(parsed, opt) is None]
+        if missing:
+            parser.error(
+                "Missing required arguments: "
+                + ", ".join("--" + m.replace("_", "-") for m in missing)
+            )
+
+    return parsed
 
 
 def main(argv: Optional[list[str]] = None) -> None:
@@ -61,6 +72,15 @@ def main(argv: Optional[list[str]] = None) -> None:
     and render outputs. Method bodies are left as placeholders.
     """
     args = parse_args(argv)
+
+    if args.demo:
+        demo_dir = Path(__file__).resolve().parent.parent / "demo"
+        args.asset = args.asset or "A"
+        args.rules = args.rules or str(demo_dir / "rules.yaml")
+        args.line_list = args.line_list or str(demo_dir / "line_list.csv")
+        args.valves = args.valves or str(demo_dir / "valves.csv")
+        args.drains = args.drains or str(demo_dir / "drains.csv")
+        args.sources = args.sources or str(demo_dir / "sources.csv")
 
     # Instantiate engine components
     rule_engine = RuleEngine()
@@ -88,6 +108,13 @@ def main(argv: Optional[list[str]] = None) -> None:
             args.sources,
             args.air_map,
         )
+        if args.demo:
+            for g in graphs.values():
+                for u, v, data in g.edges(data=True):
+                    if g.nodes[u].get("is_isolation_point") or g.nodes[v].get(
+                        "is_isolation_point"
+                    ):
+                        data["is_isolation_point"] = True
     except Exception:  # pragma: no cover - use dummy graphs when builder missing
         g = nx.MultiDiGraph()
         g.add_node("source", is_source=True)
@@ -112,15 +139,20 @@ def main(argv: Optional[list[str]] = None) -> None:
         except Exception:  # pragma: no cover - ignore simulation failures
             pass
 
-    # Render JSON output.  PDF generation is currently unimplemented and is
-    # therefore skipped.
+    # Render outputs
     json_output = renderer.to_json(plan, sim_report)
+    rule_hash = rule_engine.hash(rule_pack)
+    pdf_bytes = renderer.pdf(plan, sim_report, rule_hash)
 
     out_dir = Path(args.output)
     out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = out_dir / f"LOTO_{args.asset}.json"
-    with out_path.open("w", encoding="utf-8") as f:
+    json_path = out_dir / f"LOTO_{args.asset}.json"
+    with json_path.open("w", encoding="utf-8") as f:
         json.dump(json_output, f, indent=2)
+
+    pdf_path = out_dir / f"LOTO_{args.asset}.pdf"
+    with pdf_path.open("wb") as f:
+        f.write(pdf_bytes)
 
     return None
 

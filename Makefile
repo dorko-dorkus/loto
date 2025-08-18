@@ -14,4 +14,4 @@ test:
 	pytest
 
 run-demo:
-	python -m loto.cli --help
+	python -m loto.cli --demo
