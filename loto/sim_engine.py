@@ -170,16 +170,29 @@ class SimEngine:
             if stim.name not in supported:
                 continue
 
-            offending: List[str] | None = None
-            for graph in applied_graphs.values():
+            offending_domain: str | None = None
+            offending_path: List[str] | None = None
+            for domain, graph in applied_graphs.items():
                 path = shortest_path(graph)
-                if path is not None:
-                    if offending is None or len(path) < len(offending):
-                        offending = path
+                if path is not None and (
+                    offending_path is None or len(path) < len(offending_path)
+                ):
+                    offending_path = path
+                    offending_domain = domain
 
-            success = offending is None
+            success = offending_path is None
             impact = 0.0 if success else 1.0
-            results.append(SimResultItem(stimulus=stim, success=success, impact=impact))
+            hint = None if success else "extra isolation required"
+            results.append(
+                SimResultItem(
+                    stimulus=stim,
+                    success=success,
+                    impact=impact,
+                    domain=offending_domain,
+                    path=offending_path,
+                    hint=hint,
+                )
+            )
             total_time += getattr(stim, "duration_s", 0.0)
 
         return SimReport(results=results, total_time_s=total_time)
