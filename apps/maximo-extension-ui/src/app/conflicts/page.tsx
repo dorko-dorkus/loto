@@ -1,34 +1,23 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SimulationResult } from '../../types/api';
 
-const candidates: SimulationResult[] = [
-  {
-    id: 1,
-    deltaTime: '+1d',
-    deltaCost: '+$100',
-    readiness: 'High',
-    isolation: true
-  },
-  {
-    id: 2,
-    deltaTime: '-2d',
-    deltaCost: '-$50',
-    readiness: 'Medium',
-    isolation: false
-  },
-  {
-    id: 3,
-    deltaTime: '+3d',
-    deltaCost: '+$200',
-    readiness: 'Low',
-    isolation: true
-  }
-];
+// Fetch candidate bundling options for a work order
+async function fetchCandidates(): Promise<SimulationResult[]> {
+  const res = await fetch('/bundling?wo=1');
+  return res.json();
+}
 
 export default function ConflictsPage() {
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [candidates, setCandidates] = useState<SimulationResult[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCandidates().then(setCandidates);
+  }, []);
 
   const toggle = (id: number) => {
     setSelected((prev) => {
@@ -76,10 +65,25 @@ export default function ConflictsPage() {
       </table>
       <button
         className="mt-4 rounded border border-[var(--mxc-border)] px-4 py-2"
-        onClick={() => console.log('Recommend', Array.from(selected))}
+        onClick={async () => {
+          const res = await fetch('/bundling/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selected: Array.from(selected) })
+          });
+          const ids: number[] = await res.json();
+          setSelected(new Set(ids));
+          setToast(`Recommended: ${ids.join(', ')}`);
+          console.log('Recommend', ids);
+        }}
       >
         Recommend
       </button>
+      {toast && (
+        <div role="status" aria-live="polite" className="mt-2 text-sm">
+          {toast}
+        </div>
+      )}
     </main>
   );
 }
