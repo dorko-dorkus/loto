@@ -105,3 +105,22 @@ def compose_gates(*preds: Callable[[State], bool]) -> Callable[[State], bool]:
         return all(pred(state) for pred in preds)
 
     return combined
+
+
+def feed_parts_state(state: State, wo_id: str, ready: bool) -> State:
+    """Return new state reflecting parts readiness for ``wo_id``.
+
+    The returned mapping contains a ``"parts"`` set updated based on the
+    ``ready`` flag.  When ``ready`` is ``True`` the work order ID is added to
+    the set; otherwise it is removed.  The original ``state`` mapping is not
+    mutated.
+    """
+
+    parts = set(state.get("parts", set()))
+    if ready:
+        parts.add(wo_id)
+    else:
+        parts.discard(wo_id)
+    new_state: dict[str, Any] = dict(state)
+    new_state["parts"] = parts
+    return new_state
