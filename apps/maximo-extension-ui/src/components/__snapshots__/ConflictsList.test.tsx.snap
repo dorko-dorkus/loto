@@ -1,0 +1,71 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`click sets recommended items 1`] = `
+<div>
+  <ul>
+    <li
+      class="mb-2"
+    >
+      <label
+        class="flex items-center gap-2"
+      >
+        <input
+          aria-label="Candidate 1"
+          type="checkbox"
+        />
+        <span>
+          Candidate 1
+        </span>
+      </label>
+      <p
+        class="ml-6 text-sm text-gray-600"
+      >
+        First option
+      </p>
+    </li>
+    <li
+      class="mb-2"
+    >
+      <label
+        class="flex items-center gap-2"
+      >
+        <input
+          aria-label="Candidate 2"
+          type="checkbox"
+        />
+        <span>
+          Candidate 2
+        </span>
+      </label>
+      <p
+        class="ml-6 text-sm text-gray-600"
+      >
+        Second option
+      </p>
+    </li>
+    <li
+      class="mb-2"
+    >
+      <label
+        class="flex items-center gap-2"
+      >
+        <input
+          aria-label="Candidate 3"
+          type="checkbox"
+        />
+        <span>
+          Candidate 3
+        </span>
+      </label>
+      <p
+        class="ml-6 text-sm text-gray-600"
+      >
+        Third option
+      </p>
+    </li>
+  </ul>
+  <button>
+    Select recommended set
+  </button>
+</div>
+`;
