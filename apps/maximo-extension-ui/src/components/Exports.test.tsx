@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { test, expect, vi, afterEach } from 'vitest';
 import Exports from './Exports';
+import * as exportPidModule from '../lib/exportPid';
 
 const originalFetch = global.fetch;
 
@@ -78,4 +79,17 @@ test('downloads JSON with hash in filename', async () => {
   expect(click).toHaveBeenCalled();
   await screen.findByText('Hash: def456');
   await screen.findByText('Seed: 7');
+});
+
+test('exports P&ID view as PDF', async () => {
+  const spy = vi.spyOn(exportPidModule, 'exportPid').mockResolvedValue();
+  const div = document.createElement('div');
+  div.id = 'pid-container';
+  document.body.appendChild(div);
+
+  render(<Exports wo="3" />);
+  fireEvent.click(screen.getByText('Export P&ID'));
+  await waitFor(() => expect(spy).toHaveBeenCalledWith('WO-3_pid.pdf'));
+
+  document.body.removeChild(div);
 });
