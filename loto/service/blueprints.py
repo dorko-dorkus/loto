@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, IO, Iterable, Tuple
+from typing import IO, Dict, Iterable, Mapping, Tuple
 
 from ..graph_builder import GraphBuilder
 from ..impact import ImpactEngine, ImpactResult
 from ..isolation_planner import IsolationPlanner
 from ..models import IsolationPlan, RulePack, SimReport, Stimulus
+from ..scheduling import gates
+from ..scheduling.assemble import InventoryFn
 from ..sim_engine import SimEngine
 
 
@@ -60,3 +62,33 @@ def plan_and_evaluate(
     )
 
     return plan, report, impact
+
+
+def inventory_state(
+    work_order: object,
+    check_parts: InventoryFn | None,
+    state: Mapping[str, object] | None = None,
+) -> Mapping[str, object]:
+    """Return scheduler state seeded with parts availability.
+
+    Parameters
+    ----------
+    work_order:
+        Object exposing an ``id`` attribute identifying the work order.
+    check_parts:
+        Optional callable returning an :class:`~loto.inventory.InventoryStatus`.
+    state:
+        Optional existing state mapping to update.
+
+    Returns
+    -------
+    dict[str, object]
+        New state mapping including the work order's parts readiness.
+    """
+
+    state = dict(state or {})
+    if check_parts:
+        status = check_parts(work_order)
+        wo_id = getattr(work_order, "id", "")
+        state = dict(gates.feed_parts_state(state, wo_id, status.ready))
+    return state
