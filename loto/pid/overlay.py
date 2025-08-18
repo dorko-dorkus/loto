@@ -7,6 +7,7 @@ identifiers to CSS selectors using a ``pid_map.yaml`` file.
 
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Set
 
@@ -15,10 +16,16 @@ import yaml
 from ..models import IsolationPlan
 
 
-def _load_map(map_path: Path) -> Dict[str, List[str]]:
-    """Return mapping from component tags to CSS selectors."""
+def _get_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except FileNotFoundError:
+        return -1.0
 
-    with map_path.open("r") as fh:
+
+@lru_cache(maxsize=32)
+def _load_map_cached(path: Path, mtime: float) -> Dict[str, List[str]]:
+    with path.open("r") as fh:
         raw = yaml.safe_load(fh) or {}
 
     mapping: Dict[str, List[str]] = {}
@@ -30,6 +37,12 @@ def _load_map(map_path: Path) -> Dict[str, List[str]]:
         # Ensure selectors for a given tag are unique while preserving order
         mapping[tag] = list(dict.fromkeys(mapping.get(tag, [])))
     return mapping
+
+
+def _load_map(map_path: Path) -> Dict[str, List[str]]:
+    """Return mapping from component tags to CSS selectors."""
+
+    return _load_map_cached(map_path, _get_mtime(map_path))
 
 
 def _selectors(tag: str, mapping: Dict[str, List[str]]) -> List[str]:

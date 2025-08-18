@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, cast
 
@@ -14,6 +15,24 @@ from loto.pid import build_overlay
 from loto.pid.validator import validate_svg_map
 
 router = APIRouter(prefix="/pid", tags=["pid"])
+
+
+def _stat_path(path: Path) -> tuple[float, bool]:
+    try:
+        stat = path.stat()
+        return stat.st_mtime, True
+    except FileNotFoundError:
+        return -1.0, False
+
+
+@lru_cache(maxsize=128)
+def _svg_exists_cached(path: Path, mtime: float, exists: bool) -> bool:
+    return exists
+
+
+def _svg_exists(path: Path) -> bool:
+    mtime, exists = _stat_path(path)
+    return _svg_exists_cached(path, mtime, exists)
 
 
 class OverlayRequest(BaseModel):
@@ -67,7 +86,7 @@ async def get_pid_svg(drawing_id: str) -> StreamingResponse:
 
     base = Path(__file__).resolve().parents[2] / "demo"
     svg_path = base / f"{drawing_id}.svg"
-    if not svg_path.exists():
+    if not _svg_exists(svg_path):
         raise HTTPException(status_code=404, detail="Drawing not found")
     return StreamingResponse(svg_path.open("rb"), media_type="image/svg+xml")
 
