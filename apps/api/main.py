@@ -30,7 +30,7 @@ from loto.scheduling.monte_carlo import simulate
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import inventory_state
 
-from .hats_endpoints import router as hats_router
+from .hats_endpoints import router as hats_router  # provides hats KPI endpoints
 from .pid_endpoints import router as pid_router
 from .schemas import (
     BlueprintRequest,
