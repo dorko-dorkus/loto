@@ -63,10 +63,13 @@ AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
 
 @app.middleware("http")
 async def auth_guard(request: Request, call_next):
-    if AUTH_REQUIRED:
+    """Enforce bearer token on non-read-only requests when required."""
+    if AUTH_REQUIRED and request.method not in {"GET", "HEAD", "OPTIONS"}:
         auth_header = request.headers.get("Authorization")
         if auth_header != f"Bearer {AUTH_TOKEN}":
-            return Response(status_code=401)
+            resp = Response(status_code=401)
+            resp.headers["X-Env"] = ENV_BADGE
+            return resp
     return await call_next(request)
 
 
