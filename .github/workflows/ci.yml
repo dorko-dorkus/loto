@@ -42,5 +42,30 @@ jobs:
         run: make lint
       - name: Type check
         run: make typecheck
+      - name: Validate P&ID selectors (>=99% valid)
+        run: |
+          python - <<'PY'
+          from loto.pid.validator import validate_svg_map
+          import yaml, sys, glob
+          ok = True
+          for map_path in glob.glob("demo/pids/*pid_map.yaml"):
+              svg_path = map_path.replace("pid_map.yaml", "diagram.svg")
+              res = validate_svg_map(svg_path, map_path)
+              selectors = []
+              with open(map_path) as fh:
+                  data = yaml.safe_load(fh) or {}
+              for v in data.values():
+                  if isinstance(v, list):
+                      selectors.extend(v)
+                  else:
+                      selectors.append(v)
+              total = len(selectors)
+              missing = sum(1 for w in res.warnings if w.startswith("missing selector"))
+              rate = 1.0 if total == 0 else (total - missing) / total
+              print(f"{map_path}: {rate:.4f}")
+              if rate < 0.99:
+                  ok = False
+          sys.exit(0 if ok else 1)
+          PY
       - name: Tests
         run: make test
