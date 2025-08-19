@@ -36,6 +36,9 @@ class BlueprintResponse(BaseModel):
     unit_mw_delta: Dict[str, float] = Field(
         default_factory=dict, description="Lost capacity per unit in MW"
     )
+    blocked_by_parts: bool = Field(
+        False, description="Whether execution is blocked due to missing parts"
+    )
 
     class Config:
         extra = "forbid"
