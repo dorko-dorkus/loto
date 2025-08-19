@@ -35,3 +35,11 @@ def test_validate_svg_map_reports_missing(tmp_path: Path) -> None:
     report = validate_svg_map(svg, mapping)
     assert "missing selector '#missing'" in report.warnings
     assert "missing selector '.missing'" in report.warnings
+
+
+def test_validate_svg_map_missing_svg(tmp_path: Path) -> None:
+    mapping = _write_map(tmp_path)
+    missing_svg = tmp_path / "nope.svg"
+    report = validate_svg_map(missing_svg, mapping)
+    assert f"missing svg '{missing_svg}'" in report.warnings
+    assert "missing selector '#a'" in report.warnings

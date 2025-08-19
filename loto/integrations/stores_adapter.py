@@ -41,7 +41,7 @@ class DemoStoresAdapter(StoresAdapter):
 
     _INVENTORY = {
         "P-100": {"available": 5},
-        "P-200": {"available": 0},
+        "P-200": {"available": 1},
     }
 
     def create_pick_list(self, part_number: str, quantity: int) -> str:

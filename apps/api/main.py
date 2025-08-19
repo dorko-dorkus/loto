@@ -324,6 +324,32 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
 async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
     """Return a synthetic schedule for the given work order."""
 
+    stores = DemoStoresAdapter()
+    work_order = WorkOrder(
+        id=payload.workorder,
+        reservations=[
+            Reservation(item_id="P-100", quantity=1),
+            Reservation(item_id="P-200", quantity=1),
+        ],
+    )
+
+    def lookup_stock(item_id: str) -> StockItem | None:
+        try:
+            status = stores.inventory_status(item_id)
+        except KeyError:
+            return None
+        return StockItem(item_id=item_id, quantity=status.get("available", 0))
+
+    inv_status = check_wo_parts_required(work_order, lookup_stock)
+
+    seed_int = 0
+    if inv_status.blocked:
+        seed_var.set(seed_int)
+        logging.info("request complete")
+        return ScheduleResponse(
+            schedule=[], seed=str(seed_int), objective=0.0, blocked_by_parts=True
+        )
+
     # Minimal demo task graph
     tasks = {
         "prep": Task(duration=1),
@@ -345,10 +371,11 @@ async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
             )
         )
 
-    seed_int = 0
     seed_var.set(seed_int)
     logging.info("request complete")
-    return ScheduleResponse(schedule=schedule, seed=str(seed_int), objective=0.0)
+    return ScheduleResponse(
+        schedule=schedule, seed=str(seed_int), objective=0.0, blocked_by_parts=False
+    )
 
 
 @app.get("/workorders/{workorder_id}")
