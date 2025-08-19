@@ -1,7 +1,6 @@
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import { test, expect, vi, afterEach } from 'vitest';
 import Exports from './Exports';
-import * as exportPidModule from '../lib/exportPid';
 
 const originalFetch = global.fetch;
 
@@ -81,15 +80,32 @@ test('downloads JSON with hash in filename', async () => {
   await screen.findByText('Seed: 7');
 });
 
-test('exports P&ID view as PDF', async () => {
-  const spy = vi.spyOn(exportPidModule, 'exportPid').mockResolvedValue();
-  const div = document.createElement('div');
-  div.id = 'pid-container';
-  document.body.appendChild(div);
+test('exports P&ID view as PDF via backend', async () => {
+  const blob = new Blob(['pdf'], { type: 'application/pdf' });
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    blob: () => Promise.resolve(blob)
+  });
+  global.fetch = fetchMock as any;
+
+  const click = vi.fn();
+  const origCreate = document.createElement.bind(document);
+  let anchor: HTMLAnchorElement;
+  vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+    if (tag === 'a') {
+      anchor = origCreate('a') as HTMLAnchorElement;
+      anchor.click = click;
+      return anchor;
+    }
+    return origCreate(tag);
+  });
+  (global as any).URL.createObjectURL = vi.fn(() => 'blob:mock');
+  (global as any).URL.revokeObjectURL = vi.fn();
 
   render(<Exports wo="3" />);
   fireEvent.click(screen.getByText('Export P&ID'));
-  await waitFor(() => expect(spy).toHaveBeenCalledWith('WO-3_pid.pdf'));
+  await waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
-  document.body.removeChild(div);
+  expect(anchor.download).toBe('WO-3_pid.pdf');
+  expect(click).toHaveBeenCalled();
 });

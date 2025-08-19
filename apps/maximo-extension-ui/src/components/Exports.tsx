@@ -2,7 +2,6 @@
 
 import React, { useRef, useState } from 'react';
 import Button from './Button';
-import { exportPid } from '../lib/exportPid';
 
 interface ExportProps {
   wo: string;
@@ -35,6 +34,27 @@ export default function Exports({ wo }: ExportProps) {
     const a = document.createElement('a');
     a.href = url;
     a.download = `WO-${wo}_${h ?? 'unknown'}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handlePid() {
+    const res = await fetch('/pid/pdf', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/pdf'
+      },
+      body: JSON.stringify({ workorder_id: wo })
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `WO-${wo}_pid.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -91,10 +111,7 @@ export default function Exports({ wo }: ExportProps) {
       <Button aria-label="Export JSON" onClick={() => handleExport('json')}>
         Export JSON
       </Button>
-      <Button
-        aria-label="Export P&ID"
-        onClick={() => exportPid(`WO-${wo}_pid.pdf`)}
-      >
+      <Button aria-label="Export P&ID" onClick={handlePid}>
         Export P&ID
       </Button>
       <Button aria-label="Export P&ID (A3)" onClick={handlePidA3}>
