@@ -23,7 +23,7 @@ from loto.inventory import (
     check_wo_parts_required,
 )
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
-from loto.materials.jobpack import build_jobpack
+from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.models import RulePack
 from loto.scheduling.des_engine import Task
 from loto.scheduling.monte_carlo import simulate
@@ -353,7 +353,11 @@ async def get_workorder(workorder_id: str) -> dict[str, str]:
 
 
 @app.get("/workorders/{workorder_id}/jobpack")
-async def get_jobpack(workorder_id: str) -> dict[str, dict[str, object]]:
+async def get_jobpack(
+    workorder_id: str,
+    permit_start: date | None = None,
+    lead_days: int = DEFAULT_LEAD_DAYS,
+) -> dict[str, dict[str, object]]:
     """Return a mock job pack for the given work order."""
 
-    return build_jobpack(workorder_id)
+    return build_jobpack(workorder_id, permit_start=permit_start, lead_days=lead_days)
