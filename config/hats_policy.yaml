@@ -1,0 +1,6 @@
+weights: [0.5, 0.5]
+half_life: 1
+pseudo_count: 0.1
+incident_cap: 10
+rotation_window: 2
+daily_utilization_cap: 1.0
