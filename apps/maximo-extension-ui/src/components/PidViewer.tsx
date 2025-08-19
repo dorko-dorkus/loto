@@ -19,6 +19,10 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
   const dragStart = useRef({ x: 0, y: 0 });
   const [showWarnings, setShowWarnings] = useState(false);
 
+  function copyWarning(w: string) {
+    navigator.clipboard?.writeText(w).catch(() => {});
+  }
+
   useEffect(() => {
     fetch(src)
       .then((r) => r.text())
@@ -201,6 +205,20 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
           />
           Missing tag
         </div>
+        <div className="flex items-center">
+          <span
+            aria-hidden="true"
+            className="pid-badge pid-badge-unknown-selector mr-1"
+          />
+          Unknown selector
+        </div>
+        <div className="flex items-center">
+          <span
+            aria-hidden="true"
+            className="pid-badge pid-badge-unmapped mr-1"
+          />
+          Unmapped
+        </div>
       </div>
       {warnings.length > 0 && showWarnings && (
         <aside
@@ -209,11 +227,19 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
           role="complementary"
           aria-label="Warnings"
         >
-          {warnings.map((w) => (
-            <span key={w} className="pid-warning-chip">
-              {w}
-            </span>
-          ))}
+          <ul className="m-0 list-none p-0">
+            {warnings.map((w) => (
+              <li key={w}>
+                <button
+                  type="button"
+                  className="pid-warning-chip"
+                  onClick={() => copyWarning(w)}
+                >
+                  {w}
+                </button>
+              </li>
+            ))}
+          </ul>
         </aside>
       )}
     </div>
