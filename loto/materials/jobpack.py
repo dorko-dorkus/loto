@@ -29,7 +29,8 @@ def build_jobpack(
     rulepack_sha256: str | None = None,
     rulepack_id: str | None = None,
     rulepack_version: str | None = None,
-) -> Dict[str, Dict[str, object]]:
+    seed: str | None = None,
+) -> Dict[str, object]:
     """Construct a mock job pack for ``workorder_id``.
 
     Parameters
@@ -47,6 +48,8 @@ def build_jobpack(
         Optional identifier of the rule pack.
     rulepack_version:
         Optional version string of the rule pack.
+    seed:
+        Optional random seed recorded for determinism.
     """
 
     permit_start = permit_start or (date.today() + timedelta(days=5))
@@ -64,6 +67,8 @@ def build_jobpack(
         payload["rulepack_id"] = rulepack_id
     if rulepack_version:
         payload["rulepack_version"] = rulepack_version
+    if seed is not None:
+        payload["seed"] = seed
 
     out_dir = Path("out/jobpacks") / f"WO-{workorder_id}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -86,7 +91,16 @@ def build_jobpack(
     csv_name = f"{csv_hash}.csv"
     (out_dir / csv_name).write_text(csv_content)
 
-    return {
+    result: Dict[str, object] = {
         "json": {"filename": json_name, "content": payload},
         "csv": {"filename": csv_name, "content": csv_content},
     }
+    if rulepack_sha256 is not None:
+        result["rulepack_sha256"] = rulepack_sha256
+    if rulepack_id is not None:
+        result["rulepack_id"] = rulepack_id
+    if rulepack_version is not None:
+        result["rulepack_version"] = rulepack_version
+    if seed is not None:
+        result["seed"] = seed
+    return result

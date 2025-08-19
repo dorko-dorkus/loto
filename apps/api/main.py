@@ -415,8 +415,10 @@ async def get_jobpack(
     workorder_id: str,
     permit_start: date | None = None,
     lead_days: int = DEFAULT_LEAD_DAYS,
-) -> dict[str, dict[str, object]]:
+) -> dict[str, object]:
     """Return a mock job pack for the given work order."""
+    seed_int = 0
+    seed_var.set(seed_int)
     rule_hash_var.set(RULE_PACK_HASH)
     return build_jobpack(
         workorder_id,
@@ -425,4 +427,5 @@ async def get_jobpack(
         rulepack_sha256=RULE_PACK_HASH,
         rulepack_id=RULE_PACK_ID,
         rulepack_version=RULE_PACK_VERSION,
+        seed=str(seed_int),
     )

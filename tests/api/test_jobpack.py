@@ -7,7 +7,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from apps.api.main import RULE_PACK_HASH, app
+from apps.api.main import RULE_PACK_HASH, RULE_PACK_ID, RULE_PACK_VERSION, app
 
 
 def test_jobpack_endpoint():
@@ -17,6 +17,10 @@ def test_jobpack_endpoint():
     assert res.status_code == 200
     data = res.json()
     assert "csv" in data and "json" in data
+    assert data["rulepack_sha256"] == RULE_PACK_HASH
+    assert data["rulepack_id"] == RULE_PACK_ID
+    assert data["rulepack_version"] == RULE_PACK_VERSION
+    assert data["seed"] == "0"
 
     csv_info = data["csv"]
     json_info = data["json"]
@@ -32,6 +36,9 @@ def test_jobpack_endpoint():
     ).hexdigest()
     assert json_info["filename"].startswith(json_hash)
     assert json_content["rulepack_sha256"] == RULE_PACK_HASH
+    assert json_content["rulepack_id"] == RULE_PACK_ID
+    assert json_content["rulepack_version"] == RULE_PACK_VERSION
+    assert json_content["seed"] == "0"
 
     # pick_by is permit_start minus two days
     permit_start = date.fromisoformat(json_content["permit_start"])
