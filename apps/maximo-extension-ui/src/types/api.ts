@@ -16,6 +16,8 @@ export interface BlueprintData {
   steps: BlueprintStep[];
   unavailable_assets: string[];
   unit_mw_delta: Record<string, number>;
+  blocked_by_parts?: boolean;
+  parts_status?: Record<string, MaterialStatus>;
   diff?: string;
   audit_metadata?: Record<string, unknown>;
 }
@@ -42,6 +44,8 @@ export interface ImpactRecord {
 }
 
 export type InventoryStatus = 'ready' | 'short' | 'ordered';
+
+export type MaterialStatus = 'ok' | 'low' | 'short' | 'rfq' | 'parked';
 
 export interface InventoryItem {
   item: string;

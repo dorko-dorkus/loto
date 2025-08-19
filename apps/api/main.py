@@ -206,6 +206,17 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         assert isinstance(wo, WorkOrder)
         return check_wo_parts_required(wo, lookup_stock)
 
+    parts_status: Dict[str, str] = {}
+    for res in work_order.reservations:
+        stock = lookup_stock(res.item_id)
+        available = stock.quantity if stock else 0
+        if available >= res.quantity:
+            parts_status[res.item_id] = "ok"
+        elif available > 0:
+            parts_status[res.item_id] = "low"
+        else:
+            parts_status[res.item_id] = "short"
+
     inv_status = check_parts(work_order)
 
     global STATE
@@ -244,6 +255,7 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         unavailable_assets=sorted(impact.unavailable_assets),
         unit_mw_delta=impact.unit_mw_delta,
         blocked_by_parts=inv_status.blocked,
+        parts_status=parts_status,
     )
 
 
