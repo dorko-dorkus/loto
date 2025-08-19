@@ -46,6 +46,14 @@
   background: #f87171;
 }
 
+.pid-badge-unknown-selector {
+  background: #f97316;
+}
+
+.pid-badge-unmapped {
+  background: #9ca3af;
+}
+
 .pid-warning-drawer {
   position: absolute;
   top: 0.5rem;
@@ -65,4 +73,6 @@
   border-radius: var(--mxc-radius-sm);
   margin: 0 4px 4px 0;
   font-size: 0.75rem;
+  border: none;
+  cursor: pointer;
 }

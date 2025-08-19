@@ -26,12 +26,13 @@ function uniq(values: string[]): string[] {
  * Badges are rendered near their target elements using SVG `foreignObject`
  * elements so that HTML can be positioned relative to the graphic.
  */
-export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): void {
+export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): string[] {
   const highlight = uniq(overlay.highlight);
   overlay.paths = overlay.paths.map((p) => ({
     ...p,
     selectors: uniq(p.selectors),
   }));
+  const warnings = uniq(overlay.warnings ?? []);
 
   highlight.forEach((selector) => {
     svg.querySelectorAll<SVGElement>(selector).forEach((el) => {
@@ -69,4 +70,5 @@ export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): void {
 
     badgeLayer.appendChild(fo);
   });
+  return warnings;
 }

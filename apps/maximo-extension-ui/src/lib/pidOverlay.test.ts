@@ -37,4 +37,17 @@ describe('applyPidOverlay', () => {
     expect(badges[1].textContent).toBe('source');
     expect(badges[1].classList.contains('pid-badge-source')).toBe(true);
   });
+
+  it('returns unique warnings', () => {
+    const svg = createSvg([]);
+    const overlay: Overlay = {
+      highlight: [],
+      badges: [],
+      paths: [],
+      warnings: ['missing tag', 'missing tag', 'unmapped'],
+    };
+
+    const warnings = applyPidOverlay(svg, overlay);
+    expect(warnings).toEqual(['missing tag', 'unmapped']);
+  });
 });
