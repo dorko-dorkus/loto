@@ -40,14 +40,23 @@ class MaximoAdapter:
         self.os_workorder = os.environ.get("MAXIMO_OS_WORKORDER", "WORKORDER")
         self.os_asset = os.environ.get("MAXIMO_OS_ASSET", "ASSET")
         self._session = session or requests.Session()
+        self._timeout = (3.05, 10)
 
     # internal helper
     def _get(self, path: str, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
         url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
         headers = {"apikey": self.apikey} if self.apikey else {}
-        resp = self._session.get(url, headers=headers, params=params)
-        resp.raise_for_status()
-        return resp.json()
+        for attempt in range(2):
+            try:
+                resp = self._session.get(
+                    url, headers=headers, params=params, timeout=self._timeout
+                )
+                resp.raise_for_status()
+                return resp.json()
+            except requests.RequestException:
+                if attempt == 1:
+                    raise
+        raise RuntimeError("Unreachable")
 
     def get_work_order(self, work_order_id: str) -> WorkOrder:
         """Retrieve a single work order by identifier."""
