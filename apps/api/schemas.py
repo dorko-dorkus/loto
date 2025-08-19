@@ -79,6 +79,10 @@ class ScheduleResponse(BaseModel):
     )
     seed: str = Field(..., description="Seed used for deterministic simulation")
     objective: float = Field(..., description="Objective value for the schedule")
+    blocked_by_parts: bool = Field(
+        False,
+        description="Whether execution is blocked due to missing parts",
+    )
 
     class Config:
         extra = "forbid"

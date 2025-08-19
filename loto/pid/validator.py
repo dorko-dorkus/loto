@@ -60,7 +60,8 @@ def validate_svg_map(svg_path: str | Path, map_path: str | Path) -> ValidationRe
     try:
         root = ET.parse(svg_path).getroot()
     except FileNotFoundError:
-        # If SVG missing, all selectors are effectively missing
+        # If SVG missing, report the asset and mark all selectors missing
+        warnings.append(f"missing svg '{svg_path}'")
         for sel in selector_map:
             warnings.append(f"missing selector '{sel}'")
         return ValidationReport(sorted(warnings))
