@@ -6,9 +6,10 @@ type Highlight = 'primary' | 'warning' | null;
 interface PidViewerProps {
   src: string;
   highlight?: Highlight;
+  warnings?: string[];
 }
 
-export default function PidViewer({ src, highlight = null }: PidViewerProps) {
+export default function PidViewer({ src, highlight = null, warnings = [] }: PidViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgContainerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -16,6 +17,7 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
+  const [showWarnings, setShowWarnings] = useState(false);
 
   useEffect(() => {
     fetch(src)
@@ -122,6 +124,14 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
       setScale((s) => Math.min(s * 1.1, 10));
     } else if (e.key === '-') {
       setScale((s) => Math.max(s * 0.9, 0.1));
+    } else if (e.key === 'ArrowLeft') {
+      setTranslate((t) => ({ ...t, x: t.x + 10 }));
+    } else if (e.key === 'ArrowRight') {
+      setTranslate((t) => ({ ...t, x: t.x - 10 }));
+    } else if (e.key === 'ArrowUp') {
+      setTranslate((t) => ({ ...t, y: t.y + 10 }));
+    } else if (e.key === 'ArrowDown') {
+      setTranslate((t) => ({ ...t, y: t.y - 10 }));
     }
   }
 
@@ -145,6 +155,17 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
         <button className="badge" onClick={resetView} type="button">
           Reset
         </button>
+        {warnings.length > 0 && (
+          <button
+            className="badge"
+            onClick={() => setShowWarnings((s) => !s)}
+            aria-expanded={showWarnings}
+            aria-controls="pid-warnings"
+            type="button"
+          >
+            Warnings ({warnings.length})
+          </button>
+        )}
       </div>
       <div
         className="legend absolute bottom-2 left-2 text-xs bg-white bg-opacity-80 p-2 rounded shadow"
@@ -167,7 +188,34 @@ export default function PidViewer({ src, highlight = null }: PidViewerProps) {
           />
           Warning
         </div>
+        <div className="flex items-center">
+          <span aria-hidden="true" className="pid-badge pid-badge-asset mr-1" /> Asset
+        </div>
+        <div className="flex items-center">
+          <span aria-hidden="true" className="pid-badge pid-badge-source mr-1" /> Source
+        </div>
+        <div className="flex items-center">
+          <span
+            aria-hidden="true"
+            className="pid-badge pid-badge-missing-tag mr-1"
+          />
+          Missing tag
+        </div>
       </div>
+      {warnings.length > 0 && showWarnings && (
+        <aside
+          id="pid-warnings"
+          className="pid-warning-drawer"
+          role="complementary"
+          aria-label="Warnings"
+        >
+          {warnings.map((w) => (
+            <span key={w} className="pid-warning-chip">
+              {w}
+            </span>
+          ))}
+        </aside>
+      )}
     </div>
   );
 }

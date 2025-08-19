@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Button from './Button';
 import { exportPid } from '../lib/exportPid';
 
@@ -11,6 +11,7 @@ interface ExportProps {
 export default function Exports({ wo }: ExportProps) {
   const [hash, setHash] = useState<string | null>(null);
   const [seed, setSeed] = useState<string | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null);
 
   async function handleExport(format: 'pdf' | 'json') {
     const res = await fetch('/blueprint', {
@@ -61,8 +62,29 @@ export default function Exports({ wo }: ExportProps) {
     URL.revokeObjectURL(url);
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (!toolbarRef.current) return;
+    const buttons = toolbarRef.current.querySelectorAll<HTMLButtonElement>('button');
+    const currentIndex = Array.from(buttons).indexOf(document.activeElement as HTMLButtonElement);
+    if (e.key === 'ArrowRight') {
+      const next = buttons[(currentIndex + 1) % buttons.length];
+      next.focus();
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft') {
+      const prev = buttons[(currentIndex - 1 + buttons.length) % buttons.length];
+      prev.focus();
+      e.preventDefault();
+    }
+  }
+
   return (
-    <div className="mb-4 flex items-center space-x-2">
+    <div
+      ref={toolbarRef}
+      role="toolbar"
+      aria-label="Export options"
+      onKeyDown={handleKeyDown}
+      className="mb-4 flex items-center space-x-2"
+    >
       <Button aria-label="Export PDF" onClick={() => handleExport('pdf')}>
         Export PDF
       </Button>

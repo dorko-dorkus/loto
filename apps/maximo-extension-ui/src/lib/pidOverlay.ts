@@ -12,6 +12,7 @@ export interface Overlay {
   highlight: string[];
   badges: Badge[];
   paths: OverlayPath[];
+  warnings?: string[];
 }
 
 function uniq(values: string[]): string[] {
@@ -60,8 +61,10 @@ export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): void {
     fo.setAttribute('height', String(bbox.height));
 
     const div = document.createElement('div');
-    div.className = 'pid-badge';
+    const typeClass = badge.type.replace(/\s+/g, '-');
+    div.className = `pid-badge pid-badge-${typeClass}`;
     div.textContent = badge.type;
+    div.setAttribute('tabindex', '0');
     fo.appendChild(div);
 
     badgeLayer.appendChild(fo);
