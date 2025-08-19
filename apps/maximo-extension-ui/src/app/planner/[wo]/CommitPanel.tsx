@@ -14,6 +14,12 @@ export default function CommitPanel({ wo }: CommitPanelProps) {
   const diff = data?.diff;
   const audit = data?.audit_metadata as Record<string, unknown> | undefined;
 
+  const handleCommit = async () => {
+    const input = window.prompt('Type COMMIT to confirm');
+    if (input !== 'COMMIT') return;
+    await fetch(`/api/commit/${wo}`, { method: 'POST' });
+  };
+
   return (
     <section>
       {diff && (
@@ -29,7 +35,9 @@ export default function CommitPanel({ wo }: CommitPanelProps) {
           </pre>
         </div>
       )}
-      <Button disabled={!canCommit}>Commit</Button>
+      <Button disabled={!canCommit} onClick={handleCommit}>
+        Commit
+      </Button>
     </section>
   );
 }

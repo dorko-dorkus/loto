@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import '../styles/globals.css';
 import ThemeToggle from '../components/ThemeToggle';
+import DensityToggle from '../components/DensityToggle';
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -9,7 +10,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <div className="flex min-h-screen flex-col">
           <header className="flex h-12 items-center justify-between bg-[var(--mxc-topbar-bg)] px-4 text-[var(--mxc-topbar-fg)]">
             <span className="font-semibold">Maximo Extension</span>
-            <ThemeToggle />
+            <div className="flex gap-2">
+              <ThemeToggle />
+              <DensityToggle />
+            </div>
           </header>
           <div className="flex flex-1 overflow-hidden">
             <nav className="w-56 shrink-0 border-r border-[var(--mxc-border)] bg-[var(--mxc-nav-bg)] p-4 text-[var(--mxc-nav-fg)]">

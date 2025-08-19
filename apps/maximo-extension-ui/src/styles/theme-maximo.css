@@ -12,6 +12,10 @@
   --mxc-drawer-bg: #e0e0e0;
   --mxc-drawer-fg: #161616;
   --mxc-border: #e0e0e0;
+  --mxc-status-success: #24a148;
+  --mxc-status-info: #0f62fe;
+  --mxc-status-warning: #f1c21b;
+  --mxc-status-critical: #da1e28;
 
   /* Radii */
   --mxc-radius-sm: 2px;
@@ -42,8 +46,21 @@
   --mxc-drawer-bg: #393939;
   --mxc-drawer-fg: #f4f4f4;
   --mxc-border: #525252;
+  --mxc-status-success: #42be65;
+  --mxc-status-info: #4589ff;
+  --mxc-status-warning: #f1c21b;
+  --mxc-status-critical: #fa4d56;
   --mxc-chip-bg: #393939;
   --mxc-chip-fg: #f4f4f4;
+}
+
+:root,
+[data-density='comfortable'] {
+  --mxc-density: 1;
+}
+
+[data-density='compact'] {
+  --mxc-density: 0.75;
 }
 
 /* Respect system preference unless explicitly set */
