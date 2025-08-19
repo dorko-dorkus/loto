@@ -26,3 +26,7 @@ All deadlines are recorded in New Zealand time; for example
 ## Support
 
 Contact the platform team via `#pilot-support` for assistance.
+
+## References
+
+- [HATS Ranking](HATS_RANKING.md) – KPI calculations and scheduling integration.
