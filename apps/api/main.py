@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from loto.impact_config import load_impact_config
@@ -33,6 +35,41 @@ from .schemas import (
 
 app = FastAPI(title="loto API")
 app.include_router(pid_router)
+
+logger = logging.getLogger(__name__)
+
+
+@app.middleware("http")
+async def envelope_errors(request: Request, call_next):
+    request_id = str(uuid4())
+    request.state.request_id = request_id
+    try:
+        return await call_next(request)
+    except HTTPException as exc:
+        logger.warning("HTTP error request_id=%s", request_id)
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "error": {
+                    "code": exc.status_code,
+                    "message": str(exc.detail),
+                    "details": str(exc.detail),
+                }
+            },
+        )
+    except Exception as exc:
+        logger.exception("Unhandled error request_id=%s", request_id)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": {
+                    "code": 500,
+                    "message": "Internal Server Error",
+                    "details": str(exc),
+                }
+            },
+        )
+
 
 STATE: Dict[str, Any] = {}
 
