@@ -3,10 +3,11 @@
 
 import { useEffect, useState } from 'react';
 import { SimulationResult } from '../../types/api';
+import { apiFetch } from '../../lib/api';
 
 // Fetch candidate bundling options for a work order
 async function fetchCandidates(): Promise<SimulationResult[]> {
-  const res = await fetch('/bundling?wo=1');
+  const res = await apiFetch('/bundling?wo=1');
   return res.json();
 }
 
@@ -66,7 +67,7 @@ export default function ConflictsPage() {
       <button
         className="mt-4 rounded border border-[var(--mxc-border)] px-4 py-2"
         onClick={async () => {
-          const res = await fetch('/bundling/recommend', {
+          const res = await apiFetch('/bundling/recommend', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ selected: Array.from(selected) })

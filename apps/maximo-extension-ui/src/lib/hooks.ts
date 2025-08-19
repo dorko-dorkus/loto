@@ -3,12 +3,13 @@ import { fetchPortfolio, type PortfolioData } from '../mocks/portfolio';
 import { fetchWorkOrder } from '../mocks/workorder';
 import { fetchBlueprint } from '../mocks/blueprint';
 import type { WorkOrderSummary, BlueprintData } from '../types/api';
+import { apiFetch } from './api';
 
 /**
  * Fetch portfolio data from the API.
  */
 async function fetchPortfolioApi(): Promise<PortfolioData> {
-  const res = await fetch('/portfolio');
+  const res = await apiFetch('/portfolio');
   if (!res.ok) {
     throw new Error('Failed to fetch portfolio');
   }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '../lib/api';
 
 interface HatCandidate {
   hat_id: string;
@@ -8,7 +9,7 @@ interface HatCandidate {
 }
 
 async function fetchCandidates(): Promise<HatCandidate[]> {
-  const res = await fetch(process.env.NEXT_PUBLIC_API_BASE + '/hats');
+  const res = await apiFetch('/hats');
   if (!res.ok) throw new Error('Failed to fetch hats');
   return (await res.json()) as HatCandidate[];
 }
