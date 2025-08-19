@@ -40,7 +40,7 @@ export default function Exports({ wo }: ExportProps) {
     URL.revokeObjectURL(url);
   }
 
-  async function handlePid() {
+  async function downloadPid(a3 = false) {
     const res = await fetch('/pid/pdf', {
       method: 'POST',
       headers: {
@@ -50,32 +50,18 @@ export default function Exports({ wo }: ExportProps) {
       body: JSON.stringify({ workorder_id: wo })
     });
     if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `WO-${wo}_pid.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
 
-  async function handlePidA3() {
-    const res = await fetch('/pid/pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/pdf'
-      },
-      body: JSON.stringify({ workorder_id: wo })
-    });
-    if (!res.ok) return;
+    const h = res.headers.get('x-loto-hash');
+    const s = res.headers.get('x-loto-seed');
+    if (h) setHash(h);
+    if (s) setSeed(s);
+
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `WO-${wo}_pid_a3.pdf`;
+    const suffix = a3 ? '_pid_a3' : '_pid';
+    a.download = `WO-${wo}_${h ?? 'unknown'}${suffix}.pdf`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -111,10 +97,10 @@ export default function Exports({ wo }: ExportProps) {
       <Button aria-label="Export JSON" onClick={() => handleExport('json')}>
         Export JSON
       </Button>
-      <Button aria-label="Export P&ID" onClick={handlePid}>
+      <Button aria-label="Export P&ID" onClick={() => downloadPid(false)}>
         Export P&ID
       </Button>
-      <Button aria-label="Export P&ID (A3)" onClick={handlePidA3}>
+      <Button aria-label="Export P&ID (A3)" onClick={() => downloadPid(true)}>
         Export P&ID (A3)
       </Button>
       {hash && <span>Hash: {hash}</span>}

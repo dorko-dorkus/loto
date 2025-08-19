@@ -55,7 +55,7 @@ def test_pdf_contains_stamps_and_is_deterministic():
     )
 
     assert "WO: plan-123" in text1
-    assert "Rule Pack Hash: abc123" in text1
+    assert "Rule Hash: abc123" in text1
     assert "Seed: 42" in text1
     assert re.search(r"Generated: \d{4}-\d{2}-\d{2} \d{2}:\d{2} (NZDT|NZST)", text1)
     assert "DRY-RUN" in text1

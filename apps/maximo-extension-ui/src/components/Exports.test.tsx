@@ -80,10 +80,13 @@ test('downloads JSON with hash in filename', async () => {
   await screen.findByText('Seed: 7');
 });
 
-test('exports P&ID view as PDF via backend', async () => {
+test('exports P&ID view as PDF via backend with hash and seed', async () => {
+  const hash = 'ghi789';
+  const seed = '99';
   const blob = new Blob(['pdf'], { type: 'application/pdf' });
   const fetchMock = vi.fn().mockResolvedValue({
     ok: true,
+    headers: new Headers({ 'x-loto-hash': hash, 'x-loto-seed': seed }),
     blob: () => Promise.resolve(blob)
   });
   global.fetch = fetchMock as any;
@@ -106,6 +109,8 @@ test('exports P&ID view as PDF via backend', async () => {
   fireEvent.click(screen.getByText('Export P&ID'));
   await waitFor(() => expect(fetchMock).toHaveBeenCalled());
 
-  expect(anchor.download).toBe('WO-3_pid.pdf');
+  expect(anchor.download).toBe(`WO-3_${hash}_pid.pdf`);
   expect(click).toHaveBeenCalled();
+  await screen.findByText(`Hash: ${hash}`);
+  await screen.findByText(`Seed: ${seed}`);
 });

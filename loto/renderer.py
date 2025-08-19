@@ -79,7 +79,7 @@ class Renderer:
 
         story = [Paragraph(f"Isolation Plan: {plan.plan_id}", styles["Title"])]
         story.append(Paragraph(f"Work Order ID: {plan.plan_id}", styles["Normal"]))
-        story.append(Paragraph(f"Rule Pack Hash: {rule_hash}", styles["Normal"]))
+        story.append(Paragraph(f"Rule Hash: {rule_hash}", styles["Normal"]))
         story.append(
             Paragraph(f"Seed: {seed if seed is not None else 'N/A'}", styles["Normal"])
         )
@@ -166,8 +166,8 @@ class Renderer:
         nz_timestamp = datetime.now(ZoneInfo("Pacific/Auckland"))
         footer_text = (
             f"WO: {plan.plan_id} | Seed: {seed if seed is not None else 'N/A'} | "
-            f"Rule Pack Hash: {rule_hash} | Generated: {nz_timestamp.strftime('%Y-%m-%d %H:%M %Z')} | "
-            f"{env_badge}"
+            f"Rule Hash: {rule_hash} | Generated: {nz_timestamp.strftime('%Y-%m-%d %H:%M %Z')} | "
+            f"ENV: {env_badge}"
         )
 
         def _footer(canvas, doc):
