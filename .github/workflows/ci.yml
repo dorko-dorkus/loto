@@ -37,5 +37,8 @@ jobs:
         with:
           node-version: 20
           cache: pnpm
-      - run: corepack enable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
       - run: pnpm -C apps/maximo-extension-ui i && pnpm -C apps/maximo-extension-ui build && pnpm -C apps/maximo-extension-ui test
