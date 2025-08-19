@@ -81,3 +81,28 @@ class ScheduleResponse(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+class HatKpiRequest(BaseModel):
+    """Request body for the /hats/kpi endpoint."""
+
+    wo_id: str = Field(..., description="Work order identifier")
+    hat_id: str = Field(..., description="Hat identifier")
+    SA: float = Field(..., ge=0.0, le=1.0, description="SA metric")
+    SP: float = Field(..., ge=0.0, le=1.0, description="SP metric")
+    RQ: float | None = Field(None, ge=0.0, le=1.0, description="RQ metric", title="RQ")
+    OF: float | None = Field(None, ge=0.0, le=1.0, description="OF metric", title="OF")
+
+    class Config:
+        extra = "forbid"
+
+
+class HatKpiResponse(BaseModel):
+    """Response model for the /hats/kpi endpoint."""
+
+    rank: int = Field(..., description="Position in ranking")
+    coefficient: float = Field(..., description="Composite coefficient")
+    band: str = Field(..., description="Band classification")
+
+    class Config:
+        extra = "forbid"
