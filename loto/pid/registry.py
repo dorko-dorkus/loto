@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict
 
 import yaml
 from pydantic import BaseModel, Field
@@ -32,11 +31,14 @@ def _load_registry_cached(path: Path, mtime: float) -> PidRegistry:
     registry = PidRegistry(**data)
 
     base = path.parent
-    for entry in registry.pids.values():
+    for pid, entry in registry.pids.items():
         tag_map_path = entry.tag_map
         if not tag_map_path.is_absolute():
             tag_map_path = (base / tag_map_path).resolve()
-        load_tag_map(tag_map_path)
+        try:
+            load_tag_map(tag_map_path)
+        except ValueError as exc:
+            raise ValueError(f"{path}: PID '{pid}': {exc}") from None
         entry.tag_map = tag_map_path
 
     return registry
@@ -58,7 +60,7 @@ class PidEntry(BaseModel):
 class PidRegistry(BaseModel):
     """Registry of available P&ID documents."""
 
-    pids: Dict[str, PidEntry] = Field(
+    pids: dict[str, PidEntry] = Field(
         default_factory=dict,
         description="Mapping of PID identifier to registry entry",
     )

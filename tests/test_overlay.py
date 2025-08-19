@@ -1,3 +1,5 @@
+import pytest
+
 import loto.pid.overlay as overlay
 from loto.models import IsolationAction, IsolationPlan
 from loto.pid import build_overlay
@@ -106,3 +108,50 @@ def test_overlay_map_cache(tmp_path):
     )
     info = overlay._load_map_cached.cache_info()
     assert info.misses == 1 and info.hits == 1
+
+
+def test_overlay_invalid_selector_error(tmp_path):
+    pid_map = tmp_path / "pid_map.yaml"
+    pid_map.write_text("bad: '#INVALID*'\n")
+    plan = IsolationPlan(plan_id="p4", actions=[])
+    with pytest.raises(ValueError) as exc:
+        build_overlay(
+            sources=[],
+            asset="bad",
+            plan=plan,
+            sim_fail_paths=[],
+            map_path=pid_map,
+        )
+    msg = str(exc.value)
+    assert "pid_map.yaml" in msg and "bad" in msg and "invalid selector" in msg
+
+
+def test_overlay_duplicate_tag_error(tmp_path):
+    pid_map = tmp_path / "pid_map.yaml"
+    pid_map.write_text("A: '#A1'\nA: '#A2'\n")
+    plan = IsolationPlan(plan_id="p5", actions=[])
+    with pytest.raises(ValueError) as exc:
+        build_overlay(
+            sources=[],
+            asset="A",
+            plan=plan,
+            sim_fail_paths=[],
+            map_path=pid_map,
+        )
+    assert "duplicate tag 'A'" in str(exc.value)
+
+
+def test_overlay_empty_selector_error(tmp_path):
+    pid_map = tmp_path / "pid_map.yaml"
+    pid_map.write_text("bad: []\n")
+    plan = IsolationPlan(plan_id="p6", actions=[])
+    with pytest.raises(ValueError) as exc:
+        build_overlay(
+            sources=[],
+            asset="bad",
+            plan=plan,
+            sim_fail_paths=[],
+            map_path=pid_map,
+        )
+    msg = str(exc.value)
+    assert "bad" in msg and "selector must not be empty" in msg
