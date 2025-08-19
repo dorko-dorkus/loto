@@ -9,9 +9,9 @@ from __future__ import annotations
 
 __all__ = ["duration_with_rank"]
 
-_CR = 1.5  # maximum allowed multiplier
+_CR = 1.1  # maximum allowed multiplier
 _C = 1.0  # baseline multiplier for rank 1
-_R = 0.1  # incremental multiplier per additional rank
+_R = 0.025  # incremental multiplier per additional rank
 
 
 def duration_with_rank(base_dur: float, hat_rank: int) -> float:
