@@ -18,6 +18,13 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
   const dragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
   const [showWarnings, setShowWarnings] = useState(false);
+  const uniqueWarnings = Array.from(new Set(warnings));
+
+  useEffect(() => {
+    if (uniqueWarnings.length === 0) {
+      setShowWarnings(false);
+    }
+  }, [uniqueWarnings.length]);
 
   function copyWarning(w: string) {
     navigator.clipboard?.writeText(w).catch(() => {});
@@ -159,7 +166,7 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
         <button className="badge" onClick={resetView} type="button">
           Reset
         </button>
-        {warnings.length > 0 && (
+        {uniqueWarnings.length > 0 && (
           <button
             className="badge"
             onClick={() => setShowWarnings((s) => !s)}
@@ -167,7 +174,7 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
             aria-controls="pid-warnings"
             type="button"
           >
-            Warnings ({warnings.length})
+            Warnings ({uniqueWarnings.length})
           </button>
         )}
       </div>
@@ -220,7 +227,7 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
           Unmapped
         </div>
       </div>
-      {warnings.length > 0 && showWarnings && (
+      {uniqueWarnings.length > 0 && showWarnings && (
         <aside
           id="pid-warnings"
           className="pid-warning-drawer"
@@ -228,7 +235,7 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
           aria-label="Warnings"
         >
           <ul className="m-0 list-none p-0">
-            {warnings.map((w) => (
+            {uniqueWarnings.map((w) => (
               <li key={w}>
                 <button
                   type="button"

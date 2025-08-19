@@ -70,5 +70,6 @@ export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): string[] 
 
     badgeLayer.appendChild(fo);
   });
-  return warnings;
+  // Return a copy so callers can freely modify the list.
+  return [...warnings];
 }
