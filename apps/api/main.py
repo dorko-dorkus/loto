@@ -90,8 +90,8 @@ else:
     ENV_BADGE = "DRY-RUN"
 
 RATE_LIMIT_PATHS = {"/pid/overlay", "/schedule"}
-RATE_LIMIT_CAPACITY = 10
-RATE_LIMIT_INTERVAL = 60.0
+RATE_LIMIT_CAPACITY = int(os.getenv("RATE_LIMIT_CAPACITY", "10"))
+RATE_LIMIT_INTERVAL = float(os.getenv("RATE_LIMIT_INTERVAL", "60"))
 _rate_limit_state = {
     path: {"tokens": RATE_LIMIT_CAPACITY, "ts": time.monotonic()}
     for path in RATE_LIMIT_PATHS
@@ -154,9 +154,18 @@ class ProposeResponse(BaseModel):
 
 
 @app.get("/healthz", include_in_schema=False)
-async def healthz() -> dict[str, str]:
-    """Health check endpoint."""
-    return {"status": "ok"}
+async def healthz() -> dict[str, Any]:
+    """Health check endpoint including rate limit counters."""
+    return {
+        "status": "ok",
+        "rate_limit": {
+            "capacity": RATE_LIMIT_CAPACITY,
+            "interval": RATE_LIMIT_INTERVAL,
+            "counters": {
+                path: state["tokens"] for path, state in _rate_limit_state.items()
+            },
+        },
+    }
 
 
 class DemoMaximoAdapter:
