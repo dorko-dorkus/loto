@@ -2,23 +2,54 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import yaml from 'js-yaml';
+import { useBlueprint } from '../../../lib/hooks';
 import PidViewer from '../../../components/PidViewer';
 import { applyPidOverlay, type Overlay } from '../../../lib/pidOverlay';
+import type { BlueprintData } from '../../../types/api';
 
 interface OverlayResponse extends Overlay {
   drawingId: string;
 }
 
-async function fetchOverlay(wo: string): Promise<OverlayResponse> {
-  const res = await fetch(`/pid/overlay?wo=${wo}`);
+async function fetchOverlay(wo: string, blueprint: BlueprintData): Promise<OverlayResponse> {
+  const mapRes = await fetch('/demo/pids/pid_map.yaml');
+  if (!mapRes.ok) {
+    throw new Error('Failed to fetch pid map');
+  }
+  const pidMap = yaml.load(await mapRes.text()) as Record<string, unknown>;
+
+  const plan = {
+    plan_id: wo,
+    actions: blueprint.steps.map((s) => ({ component_id: s.component_id, method: s.method })),
+    verifications: []
+  };
+
+  const res = await fetch('/pid/overlay', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sources: ['src'],
+      asset: 'A-100',
+      plan,
+      sim_fail_paths: [],
+      pid_map: pidMap
+    })
+  });
   if (!res.ok) {
     throw new Error('Failed to fetch overlay');
   }
-  return res.json();
+  const overlay = await res.json();
+  return { ...overlay, drawingId: 'demo' };
 }
 
 export default function PidTab({ wo }: { wo: string }) {
-  const { data } = useQuery({ queryKey: ['pid', wo], queryFn: () => fetchOverlay(wo) });
+  const { data: blueprint } = useBlueprint(wo);
+  const { data } = useQuery({
+    queryKey: ['pid', wo],
+    enabled: !!blueprint,
+    queryFn: () => fetchOverlay(wo, blueprint as BlueprintData)
+  });
   const [showSimFails, setShowSimFails] = useState(false);
   const [showSourcePath, setShowSourcePath] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
