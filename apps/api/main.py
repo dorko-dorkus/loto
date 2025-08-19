@@ -40,23 +40,11 @@ logger = logging.getLogger(__name__)
 
 
 @app.middleware("http")
-async def envelope_errors(request: Request, call_next):
+async def add_request_id(request: Request, call_next):
     request_id = str(uuid4())
     request.state.request_id = request_id
     try:
         return await call_next(request)
-    except HTTPException as exc:
-        logger.warning("HTTP error request_id=%s", request_id)
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={
-                "error": {
-                    "code": exc.status_code,
-                    "message": str(exc.detail),
-                    "details": str(exc.detail),
-                }
-            },
-        )
     except Exception as exc:
         logger.exception("Unhandled error request_id=%s", request_id)
         return JSONResponse(
@@ -69,6 +57,22 @@ async def envelope_errors(request: Request, call_next):
                 }
             },
         )
+
+
+@app.exception_handler(HTTPException)
+async def handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+    request_id = getattr(request.state, "request_id", "")
+    logger.warning("HTTP error request_id=%s", request_id)
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.status_code,
+                "message": str(exc.detail),
+                "details": str(exc.detail),
+            }
+        },
+    )
 
 
 STATE: Dict[str, Any] = {}
