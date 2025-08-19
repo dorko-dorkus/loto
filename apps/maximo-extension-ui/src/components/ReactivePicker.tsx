@@ -8,7 +8,7 @@ interface HatCandidate {
 }
 
 async function fetchCandidates(): Promise<HatCandidate[]> {
-  const res = await fetch('/api/hats');
+  const res = await fetch(process.env.NEXT_PUBLIC_API_BASE + '/hats');
   if (!res.ok) throw new Error('Failed to fetch hats');
   return (await res.json()) as HatCandidate[];
 }
