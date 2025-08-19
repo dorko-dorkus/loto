@@ -14,6 +14,10 @@ export interface ScheduleResponse {
   schedule: SchedulePoint[];
   seed: string;
   objective: number;
+  blocked_by_parts: boolean;
+  rulepack_sha256: string;
+  rulepack_id?: string;
+  rulepack_version?: string;
 }
 
 /**

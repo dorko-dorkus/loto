@@ -17,6 +17,10 @@ class DomainRule(BaseModel):
 
     name: str = Field(..., description="Rule name")
     expression: str = Field(..., description="Expression used to evaluate the rule")
+    statutory: List[str] = Field(
+        ..., description="Statutory references supporting the rule"
+    )
+    evidence: List[str] = Field(..., description="Evidence requirements for compliance")
 
     class Config:
         extra = "forbid"
@@ -27,6 +31,10 @@ class VerificationRule(BaseModel):
 
     name: str = Field(..., description="Verification rule name")
     check: str = Field(..., description="Expression or callable for verification")
+    statutory: List[str] = Field(
+        ..., description="Statutory references supporting the rule"
+    )
+    evidence: List[str] = Field(..., description="Evidence requirements for compliance")
 
     class Config:
         extra = "forbid"
@@ -63,8 +71,7 @@ class Edge(BaseModel):
 
     source: str = Field(..., description="Identifier of the source node")
     target: str = Field(..., description="Identifier of the target node")
-    weight: Optional[float] = Field(
-        None, description="Edge weight (unitless)")
+    weight: Optional[float] = Field(None, description="Edge weight (unitless)")
 
     class Config:
         extra = "forbid"
@@ -91,9 +98,7 @@ class IsolationAction(BaseModel):
     """Action executed to isolate a component."""
 
     component_id: str = Field(..., description="Identifier of the component")
-    method: str = Field(
-        ..., description="Isolation method such as 'lock' or 'tag'"
-    )
+    method: str = Field(..., description="Isolation method such as 'lock' or 'tag'")
     duration_s: Optional[float] = Field(
         None, description="Expected duration in seconds"
     )
@@ -154,9 +159,7 @@ class SimReport(BaseModel):
     results: List[SimResultItem] = Field(
         default_factory=list, description="Individual simulation results"
     )
-    total_time_s: float = Field(
-        ..., description="Total simulation time in seconds"
-    )
+    total_time_s: float = Field(..., description="Total simulation time in seconds")
 
     class Config:
         extra = "forbid"
@@ -193,6 +196,18 @@ class ArtifactBundle(BaseModel):
 class RulePack(BaseModel):
     """Collection of domain and verification rules with optional risk policies."""
 
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict, description="Informational metadata about the rules"
+    )
+    policy: Dict[str, Any] = Field(
+        default_factory=dict, description="Policy settings influencing execution"
+    )
+    governance: Dict[str, Any] = Field(
+        default_factory=dict, description="Governance stamping information"
+    )
+    datasets: Dict[str, Any] = Field(
+        default_factory=dict, description="Dataset references used by rules"
+    )
     domain_rules: List[DomainRule] = Field(
         default_factory=list, description="Rules describing domain constraints"
     )

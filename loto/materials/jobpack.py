@@ -26,6 +26,9 @@ def build_jobpack(
     *,
     permit_start: date | None = None,
     lead_days: int = DEFAULT_LEAD_DAYS,
+    rulepack_sha256: str | None = None,
+    rulepack_id: str | None = None,
+    rulepack_version: str | None = None,
 ) -> Dict[str, Dict[str, object]]:
     """Construct a mock job pack for ``workorder_id``.
 
@@ -38,6 +41,12 @@ def build_jobpack(
         future is used.
     lead_days:
         Number of days prior to ``permit_start`` that materials should be picked.
+    rulepack_sha256:
+        Optional SHA-256 hash of the rule pack used to generate the job pack.
+    rulepack_id:
+        Optional identifier of the rule pack.
+    rulepack_version:
+        Optional version string of the rule pack.
     """
 
     permit_start = permit_start or (date.today() + timedelta(days=5))
@@ -49,6 +58,12 @@ def build_jobpack(
         "pick_by": pick_by.isoformat(),
         "items": items,
     }
+    if rulepack_sha256:
+        payload["rulepack_sha256"] = rulepack_sha256
+    if rulepack_id:
+        payload["rulepack_id"] = rulepack_id
+    if rulepack_version:
+        payload["rulepack_version"] = rulepack_version
 
     out_dir = Path("out/jobpacks") / f"WO-{workorder_id}"
     out_dir.mkdir(parents=True, exist_ok=True)

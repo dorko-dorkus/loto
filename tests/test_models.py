@@ -1,5 +1,5 @@
-import json
 import copy
+import json
 
 import pytest
 from pydantic import ValidationError
@@ -23,8 +23,24 @@ from loto.models import (
 
 # Example instances for round-trip tests
 MODEL_DATA = [
-    (DomainRule, {"name": "r1", "expression": "x > 0"}),
-    (VerificationRule, {"name": "v1", "check": "x < 1"}),
+    (
+        DomainRule,
+        {
+            "name": "r1",
+            "expression": "x > 0",
+            "statutory": ["HSWA"],
+            "evidence": ["record"],
+        },
+    ),
+    (
+        VerificationRule,
+        {
+            "name": "v1",
+            "check": "x < 1",
+            "statutory": ["HSWA"],
+            "evidence": ["record"],
+        },
+    ),
     (RiskPolicies, {"levels": {"low": 0.1, "high": 0.9}}),
     (Node, {"id": "n1", "label": "Node 1"}),
     (Edge, {"source": "n1", "target": "n2", "weight": 1.0}),
@@ -87,9 +103,27 @@ MODEL_DATA = [
     (
         RulePack,
         {
-            "domain_rules": [{"name": "r1", "expression": "x > 0"}],
-            "verification_rules": [{"name": "v1", "check": "x < 1"}],
+            "domain_rules": [
+                {
+                    "name": "r1",
+                    "expression": "x > 0",
+                    "statutory": ["HSWA"],
+                    "evidence": ["record"],
+                }
+            ],
+            "verification_rules": [
+                {
+                    "name": "v1",
+                    "check": "x < 1",
+                    "statutory": ["HSWA"],
+                    "evidence": ["record"],
+                }
+            ],
             "risk_policies": {"levels": {"low": 0.1}},
+            "metadata": {},
+            "policy": {},
+            "governance": {},
+            "datasets": {},
         },
     ),
 ]

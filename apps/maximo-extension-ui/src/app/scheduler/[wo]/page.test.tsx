@@ -20,7 +20,9 @@ test('renders gantt, price curve and hats timeline', async () => {
       { date: '2024-01-02', p10: 12, p50: 22, p90: 32, price: 42, hats: 2 }
     ],
     seed: 'abc',
-    objective: 0.95
+    objective: 0.95,
+    blocked_by_parts: false,
+    rulepack_sha256: 'abc123'
   };
   const fetchMock = vi
     .spyOn(global, 'fetch')

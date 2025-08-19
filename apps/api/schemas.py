@@ -83,6 +83,11 @@ class ScheduleResponse(BaseModel):
         False,
         description="Whether execution is blocked due to missing parts",
     )
+    rulepack_sha256: str = Field(
+        ..., description="SHA-256 digest of the rule pack used"
+    )
+    rulepack_id: str | None = Field(None, description="Identifier of the rule pack")
+    rulepack_version: str | None = Field(None, description="Version of the rule pack")
 
     class Config:
         extra = "forbid"
