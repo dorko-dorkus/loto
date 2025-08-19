@@ -6,8 +6,9 @@ import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
 import Exports from '../../../components/Exports';
 import CommitPanel from './CommitPanel';
 import PidTab from './PidTab';
+import type { MaterialStatus } from '../../../types/api';
 
-const tabs = ['Plan', 'P&ID', 'Simulation', 'Impact', 'Commit'];
+const tabs = ['Plan', 'Materials', 'P&ID', 'Simulation', 'Impact', 'Commit'];
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,23 @@ function PlannerContent({ wo }: { wo: string }) {
   const plan = blueprint?.steps ?? [];
   const unavailable = blueprint?.unavailable_assets ?? [];
   const impact = blueprint?.unit_mw_delta ?? {};
+  const materials = blueprint?.parts_status ?? {};
+
+  const statusStyles: Record<MaterialStatus, string> = {
+    ok: 'bg-green-100 text-green-800',
+    low: 'bg-yellow-100 text-yellow-800',
+    short: 'bg-red-100 text-red-800',
+    rfq: 'bg-blue-100 text-blue-800',
+    parked: 'bg-gray-100 text-gray-800'
+  };
+
+  const statusLabels: Record<MaterialStatus, string> = {
+    ok: 'OK',
+    low: 'Low',
+    short: 'Short',
+    rfq: 'RFQ',
+    parked: 'Parked'
+  };
 
   return (
     <main className="h-full">
@@ -58,6 +76,30 @@ function PlannerContent({ wo }: { wo: string }) {
                     <td className="px-4 py-2">{idx + 1}</td>
                     <td className="px-4 py-2">{p.component_id}</td>
                     <td className="px-4 py-2">{p.method}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {activeTab === 'Materials' && (
+            <table className="min-w-full border border-[var(--mxc-border)]">
+              <thead className="bg-[var(--mxc-nav-bg)] text-left">
+                <tr>
+                  <th className="px-4 py-2">Item</th>
+                  <th className="px-4 py-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(materials).map(([item, status]) => (
+                  <tr key={item}>
+                    <td className="px-4 py-2">{item}</td>
+                    <td className="px-4 py-2">
+                      <span
+                        className={`inline-block rounded-full px-2 py-1 text-xs font-medium ${statusStyles[status as MaterialStatus]}`}
+                      >
+                        {statusLabels[status as MaterialStatus]}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>

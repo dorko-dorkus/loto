@@ -39,6 +39,9 @@ class BlueprintResponse(BaseModel):
     blocked_by_parts: bool = Field(
         False, description="Whether execution is blocked due to missing parts"
     )
+    parts_status: Dict[str, str] = Field(
+        default_factory=dict, description="Inventory status per material line"
+    )
 
     class Config:
         extra = "forbid"
