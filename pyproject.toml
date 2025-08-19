@@ -20,6 +20,7 @@ dependencies = [
     "python-dotenv",
     "pandas",
     "PyPDF2",
+    "weasyprint",
 ]
 
 [project.optional-dependencies]
