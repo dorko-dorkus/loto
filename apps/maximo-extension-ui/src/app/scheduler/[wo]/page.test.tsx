@@ -11,6 +11,9 @@ test('renders gantt, price curve and hats timeline', async () => {
   // @ts-ignore
   global.ResizeObserver = ResizeObserver;
 
+  const apiBase = 'http://localhost:8000';
+  process.env.NEXT_PUBLIC_API_BASE = apiBase;
+
   const sample = {
     schedule: [
       { date: '2024-01-01', p10: 10, p50: 20, p90: 30, price: 40, hats: 1 },
@@ -25,7 +28,7 @@ test('renders gantt, price curve and hats timeline', async () => {
       if (typeof input === 'string' && input === '/schedule') {
         return Promise.resolve({ ok: true, json: async () => sample } as Response);
       }
-      if (typeof input === 'string' && input === '/api/hats') {
+      if (typeof input === 'string' && input === apiBase + '/hats') {
         return Promise.resolve({ ok: true, json: async () => [] } as Response);
       }
       return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
