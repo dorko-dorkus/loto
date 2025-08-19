@@ -12,6 +12,7 @@ serialize plan data to JSON.
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from datetime import datetime
 from io import BytesIO
@@ -154,7 +155,28 @@ class Renderer:
             for note in plan.verifications:
                 story.append(Paragraph(f"Because {note}", styles["Normal"]))
 
-        doc.build(story)
+        env = os.getenv("APP_ENV", "").lower()
+        if env == "live":
+            env_badge = "PROD"
+        elif env == "test":
+            env_badge = "TEST"
+        else:
+            env_badge = "DRY-RUN"
+
+        nz_timestamp = datetime.now(ZoneInfo("Pacific/Auckland"))
+        footer_text = (
+            f"WO: {plan.plan_id} | Seed: {seed if seed is not None else 'N/A'} | "
+            f"Rule Pack Hash: {rule_hash} | Generated: {nz_timestamp.strftime('%Y-%m-%d %H:%M %Z')} | "
+            f"{env_badge}"
+        )
+
+        def _footer(canvas, doc):
+            canvas.saveState()
+            canvas.setFont("Helvetica", 8)
+            canvas.drawString(doc.leftMargin, 15, footer_text)
+            canvas.restoreState()
+
+        doc.build(story, onFirstPage=_footer, onLaterPages=_footer)
         pdf_bytes = buffer.getvalue()
         buffer.close()
         return pdf_bytes
