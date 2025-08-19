@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Dict, List
 
 DEFAULT_LEAD_DAYS = 2
+__all__ = ["build_jobpack", "DEFAULT_LEAD_DAYS"]
 
 
 def _default_items() -> List[Dict[str, object]]:
