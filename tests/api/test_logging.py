@@ -3,7 +3,7 @@ import logging
 
 from fastapi.testclient import TestClient
 
-from apps.api.main import app
+from apps.api.main import RULE_PACK_HASH, app
 from loto.loggers import JsonFormatter
 
 
@@ -18,4 +18,4 @@ def test_structured_logging(caplog):
     assert data["level"] == "info"
     assert data["seed"] == 0
     assert data["request_id"]
-    assert "rule_hash" in data
+    assert data["rule_hash"] == RULE_PACK_HASH

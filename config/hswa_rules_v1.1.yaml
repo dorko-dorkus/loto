@@ -1,0 +1,35 @@
+metadata:
+  id: hswa
+  version: "1.1"
+  jurisdiction: NZ
+  seed: 12345
+policy:
+  control_hierarchy: [eliminate, substitute, isolate, engineer, admin, ppe]
+  permit_categories: [general]
+  ddbb_threshold_kpag: 50
+  max_hat_bias_multiplier: 1.1
+domain_rules:
+  - name: isolation hierarchy
+    expression: prefer_elimination_substitution
+    statutory: ["GRWM r6"]
+    evidence: ["control_selection"]
+  - name: positive isolation
+    expression: require_ddbb_and_bleed
+    statutory: ["GRWM r22"]
+    evidence: ["ddbb_record", "bleed_path"]
+verification_rules:
+  - name: zero potential
+    check: ptw_zero
+    statutory: ["HSWA s30", "HSWA s36"]
+    evidence: ["gas_test", "tav_reading"]
+  - name: stored energy released
+    check: stored_energy_zero
+    statutory: ["ISO 14118"]
+    evidence: ["pressure_gauge", "tav_reading"]
+governance:
+  rulepack_id: hswa
+  rulepack_version: "1.1"
+  seed: 12345
+datasets:
+  drains_register: []
+  line_list: []

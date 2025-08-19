@@ -25,6 +25,7 @@ from loto.inventory import (
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.models import RulePack
+from loto.rule_engine import RuleEngine
 from loto.scheduling.des_engine import Task
 from loto.scheduling.monte_carlo import simulate
 from loto.service import plan_and_evaluate
@@ -42,6 +43,17 @@ from .schemas import (
 )
 
 configure_logging()
+
+_rule_engine = RuleEngine()
+_default_rulepack = (
+    Path(__file__).resolve().parents[2] / "config" / "hswa_rules_v1.1.yaml"
+)
+_rulepack_path = Path(os.getenv("RULEPACK_FILE", _default_rulepack))
+RULE_PACK = _rule_engine.load(_rulepack_path)
+RULE_PACK_HASH = _rule_engine.hash(RULE_PACK)
+RULE_PACK_ID = RULE_PACK.metadata.get("id")
+RULE_PACK_VERSION = RULE_PACK.metadata.get("version")
+logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
 
 app = FastAPI(title="loto API")
 
@@ -345,9 +357,16 @@ async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
     seed_int = 0
     if inv_status.blocked:
         seed_var.set(seed_int)
+        rule_hash_var.set(RULE_PACK_HASH)
         logging.info("request complete")
         return ScheduleResponse(
-            schedule=[], seed=str(seed_int), objective=0.0, blocked_by_parts=True
+            schedule=[],
+            seed=str(seed_int),
+            objective=0.0,
+            blocked_by_parts=True,
+            rulepack_sha256=RULE_PACK_HASH,
+            rulepack_id=RULE_PACK_ID,
+            rulepack_version=RULE_PACK_VERSION,
         )
 
     # Minimal demo task graph
@@ -372,9 +391,16 @@ async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
         )
 
     seed_var.set(seed_int)
+    rule_hash_var.set(RULE_PACK_HASH)
     logging.info("request complete")
     return ScheduleResponse(
-        schedule=schedule, seed=str(seed_int), objective=0.0, blocked_by_parts=False
+        schedule=schedule,
+        seed=str(seed_int),
+        objective=0.0,
+        blocked_by_parts=False,
+        rulepack_sha256=RULE_PACK_HASH,
+        rulepack_id=RULE_PACK_ID,
+        rulepack_version=RULE_PACK_VERSION,
     )
 
 
@@ -391,5 +417,12 @@ async def get_jobpack(
     lead_days: int = DEFAULT_LEAD_DAYS,
 ) -> dict[str, dict[str, object]]:
     """Return a mock job pack for the given work order."""
-
-    return build_jobpack(workorder_id, permit_start=permit_start, lead_days=lead_days)
+    rule_hash_var.set(RULE_PACK_HASH)
+    return build_jobpack(
+        workorder_id,
+        permit_start=permit_start,
+        lead_days=lead_days,
+        rulepack_sha256=RULE_PACK_HASH,
+        rulepack_id=RULE_PACK_ID,
+        rulepack_version=RULE_PACK_VERSION,
+    )
