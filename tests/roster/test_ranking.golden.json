@@ -1,0 +1,17 @@
+{
+  "alice": {
+    "band": "S",
+    "coefficient": 0.8425,
+    "rank": 1
+  },
+  "bob": {
+    "band": "A",
+    "coefficient": 0.505,
+    "rank": 2
+  },
+  "carol": {
+    "band": "B",
+    "coefficient": 0.3025,
+    "rank": 3
+  }
+}
