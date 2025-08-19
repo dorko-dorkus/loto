@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import time
 from dataclasses import dataclass
@@ -7,8 +8,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from loto.impact_config import load_impact_config
@@ -47,6 +49,20 @@ if origins:
     )
 
 app.include_router(pid_router)
+
+
+@app.exception_handler(HTTPException)
+async def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
+    """Return errors in a consistent JSON envelope."""
+    return JSONResponse(status_code=exc.status_code, content={"error": str(exc.detail)})
+
+
+@app.exception_handler(Exception)
+async def _handle_exception(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all handler to wrap unexpected exceptions."""
+    logging.exception("Unhandled exception: %s", exc)
+    return JSONResponse(status_code=500, content={"error": str(exc)})
+
 
 ENV = os.getenv("APP_ENV", "").lower()
 if ENV == "live":
