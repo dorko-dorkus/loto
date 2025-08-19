@@ -9,8 +9,8 @@ threshold based ranking.
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal, Sequence, Tuple
+from datetime import datetime, timedelta
+from typing import Literal, Sequence, Tuple, cast
 
 from pydantic import BaseModel, Field
 
@@ -134,3 +134,74 @@ def rank_bands(score: float, bands: Sequence[Tuple[float, str]]) -> str:
             return name
     # Fall back to the lowest band name if nothing matches
     return bands[-1][1]
+
+
+# ---------------------------------------------------------------------------
+# Safeguards
+# ---------------------------------------------------------------------------
+
+
+def clamp(value: float, lower: float = 0.0, upper: float = 1.0) -> float:
+    """Return *value* constrained to the inclusive ``[lower, upper]`` range.
+
+    Parameters
+    ----------
+    value:
+        The value to clamp.
+    lower, upper:
+        Bounds of the permitted range.  ``lower`` must be less than or equal to
+        ``upper``.
+    """
+
+    if lower > upper:
+        raise ValueError("lower bound must be <= upper bound")
+    return min(max(value, lower), upper)
+
+
+def safety_rank(
+    events: Sequence[KpiEvent],
+    *,
+    now: datetime | None = None,
+    cooldown_hours: float = 0.0,
+    min_samples: int = 1,
+    bands: Sequence[Tuple[float, str]] = ((0.8, "green"), (0.5, "amber"), (0.0, "red")),
+) -> HatRank:
+    """Return a :class:`HatRank` for ``events`` with several safeguards.
+
+    The function combines a sequence of :class:`KpiEvent` values into a single
+    hat rank while enforcing a number of safety measures used by the roster
+    ranking system:
+
+    * **Minimum samples** – if the total population across ``events`` is below
+      ``min_samples`` the rank effect is suppressed and a neutral score of
+      ``0.5`` (amber) is returned.
+    * **Clamping** – the underlying incident rate is clamped to the ``[0, 1]``
+      interval to guard against bad input data.
+    * **Incident demotion** – any event with one or more incidents immediately
+      demotes the rank to red for a period specified by ``cooldown_hours``.
+    * **Cooldown** – after an incident the entity must wait ``cooldown_hours``
+      before being eligible to move out of the red band.
+    """
+
+    if now is None:
+        now = datetime.utcnow()
+
+    total_incidents = sum(evt.incidents for evt in events)
+    total_population = sum(evt.total for evt in events)
+
+    if total_population < min_samples:
+        # Not enough data to produce a meaningful rank – return neutral score.
+        return HatRank(band="amber", score=0.5)
+
+    # Compute the complement of the incident rate (higher is better).
+    rate = 1.0 - (total_incidents / total_population if total_population else 0.0)
+    score = clamp(rate, 0.0, 1.0)
+
+    # Determine if a recent incident should demote the rank.
+    if total_incidents > 0:
+        last_incident = max(evt.timestamp for evt in events if evt.incidents > 0)
+        if cooldown_hours > 0 and now - last_incident < timedelta(hours=cooldown_hours):
+            return HatRank(band="red", score=0.0)
+
+    band = cast(Literal["green", "amber", "red"], rank_bands(score, bands))
+    return HatRank(band=band, score=score)
