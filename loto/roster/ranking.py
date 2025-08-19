@@ -23,7 +23,7 @@ teaching example for statistical style ranking pipelines.
 
 from __future__ import annotations
 
-from typing import Dict, Mapping, Sequence
+from typing import Any, Dict, Mapping, Sequence
 
 _ALPHA = 0.5
 _SHRINKAGE = 0.1
@@ -31,7 +31,9 @@ _THRESHOLDS = (0.75, 0.5, 0.25)  # S, A, B, else C
 _CAPS = (0.0, 1.0)
 
 
-def _composite(observation: Sequence[float]) -> float:
+def _composite(
+    observation: Sequence[float], weights: Sequence[float] | None = None
+) -> float:
     """Combine multiple metrics into a single score.
 
     A simple arithmetic mean is used which is sufficient for the tests and keeps
@@ -40,6 +42,11 @@ def _composite(observation: Sequence[float]) -> float:
 
     if not observation:
         return 0.0
+    if weights:
+        total = sum(weights[: len(observation)])
+        if total == 0:
+            return 0.0
+        return float(sum(v * w for v, w in zip(observation, weights)) / total)
     return float(sum(observation) / len(observation))
 
 
@@ -75,8 +82,17 @@ def _band(value: float) -> str:
     return "C"
 
 
+def _alpha_from_half_life(half_life: float | None) -> float:
+    """Return EWMA alpha for a given *half_life*."""
+
+    if not half_life or half_life <= 0:
+        return _ALPHA
+    return 1.0 - 0.5 ** (1.0 / half_life)
+
+
 def update_ranking(
     ledger: Mapping[str, Sequence[Sequence[float]]],
+    policy: Mapping[str, Any] | None = None,
 ) -> Dict[str, Dict[str, object]]:
     """Return a ranking snapshot for the given *ledger*.
 
@@ -94,19 +110,38 @@ def update_ranking(
         ``coefficient`` and ``band`` entries.
     """
 
+    weights = None
+    half_life = None
+    pseudo = _SHRINKAGE
+    incident_cap = None
+    if policy:
+        weights = policy.get("weights")
+        half_life = policy.get("half_life")
+        pseudo = float(policy.get("pseudo_count", _SHRINKAGE))
+        incident_cap = policy.get("incident_cap")
+
     # Step 1 – build composite score history for each entity.
     histories: Dict[str, list[float]] = {
-        name: [_composite(obs) for obs in observations]
+        name: [_composite(obs, weights) for obs in observations]
         for name, observations in ledger.items()
     }
 
+    if incident_cap:
+        histories = {
+            name: vals[-int(incident_cap) :] for name, vals in histories.items()
+        }
+
     # Step 2 – compute EWMA for each entity.
-    ewmas: Dict[str, float] = {name: _ewma(vals) for name, vals in histories.items()}
+    alpha = _alpha_from_half_life(half_life)
+    ewmas: Dict[str, float] = {
+        name: _ewma(vals, alpha) for name, vals in histories.items()
+    }
 
     # Step 3 – shrink towards global mean to reduce variance.
     global_mean = sum(ewmas.values()) / len(ewmas) if ewmas else 0.0
     coefficients: Dict[str, float] = {
-        name: _apply_shrinkage(value, global_mean) for name, value in ewmas.items()
+        name: _apply_shrinkage(value, global_mean, pseudo)
+        for name, value in ewmas.items()
     }
 
     # Step 4 – apply caps.
