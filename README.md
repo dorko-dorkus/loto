@@ -48,7 +48,24 @@ NEXT_PUBLIC_USE_API=false
 
 ### Demo
 
+Run the API and UI with demo data using Docker. Ensure Docker and Docker Compose are installed and the Docker daemon is running:
+
 ```bash
-# Show the CLI help as a simple demo
+make demo-up
+```
+
+This reads `.env.example` and starts the API at <http://localhost:8000> and the
+UI at <http://localhost:3000>. Verify the API is running:
+
+```bash
+curl :8000/healthz
+```
+
+Open the UI in your browser to view the Portfolio page at
+<http://localhost:3000>.
+
+To run the CLI demo instead:
+
+```bash
 make run-demo
 ```
