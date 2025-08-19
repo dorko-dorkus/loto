@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Gantt from '../../../components/Gantt';
+import ReactivePicker from '../../../components/ReactivePicker';
 import { useSchedule } from '../../../lib/schedule';
 
 const queryClient = new QueryClient();
@@ -14,6 +15,7 @@ function SchedulerContent({ wo }: { wo: string }) {
     <main className="h-full flex flex-col">
       <h1 className="mb-4 text-xl font-semibold">Scheduler: {wo}</h1>
       <Gantt data={schedule} />
+      <ReactivePicker wo={wo} />
       <footer className="mt-4 text-sm text-gray-500" data-testid="schedule-meta">
         Seed: {seed} Objective: {objective}
       </footer>

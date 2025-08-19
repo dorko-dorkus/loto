@@ -19,10 +19,17 @@ test('renders gantt, price curve and hats timeline', async () => {
     seed: 'abc',
     objective: 0.95
   };
-  const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
-    ok: true,
-    json: async () => sample
-  } as Response);
+  const fetchMock = vi
+    .spyOn(global, 'fetch')
+    .mockImplementation((input: RequestInfo) => {
+      if (typeof input === 'string' && input === '/schedule') {
+        return Promise.resolve({ ok: true, json: async () => sample } as Response);
+      }
+      if (typeof input === 'string' && input === '/api/hats') {
+        return Promise.resolve({ ok: true, json: async () => [] } as Response);
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
+    });
 
   const { container } = render(<Page params={{ wo: 'WO-1' }} />);
 
