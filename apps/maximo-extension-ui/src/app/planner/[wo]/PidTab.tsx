@@ -6,6 +6,7 @@ import yaml from 'js-yaml';
 import { useBlueprint } from '../../../lib/hooks';
 import PidViewer from '../../../components/PidViewer';
 import { applyPidOverlay, type Overlay } from '../../../lib/pidOverlay';
+import { apiFetch } from '../../../lib/api';
 import type { BlueprintData } from '../../../types/api';
 
 interface OverlayResponse extends Overlay {
@@ -25,7 +26,7 @@ async function fetchOverlay(wo: string, blueprint: BlueprintData): Promise<Overl
     verifications: []
   };
 
-  const res = await fetch('/pid/overlay', {
+  const res = await apiFetch('/pid/overlay', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import Button from './Button';
+import { apiFetch } from '../lib/api';
 
 interface ExportProps {
   wo: string;
@@ -13,7 +14,7 @@ export default function Exports({ wo }: ExportProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   async function handleExport(format: 'pdf' | 'json') {
-    const res = await fetch('/blueprint', {
+    const res = await apiFetch('/blueprint', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -41,7 +42,7 @@ export default function Exports({ wo }: ExportProps) {
   }
 
   async function downloadPid(a3 = false) {
-    const res = await fetch('/pid/pdf', {
+    const res = await apiFetch('/pid/pdf', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

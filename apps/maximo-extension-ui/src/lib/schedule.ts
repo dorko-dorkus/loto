@@ -1,4 +1,5 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { apiFetch } from './api';
 
 export interface SchedulePoint {
   date: string;
@@ -19,7 +20,7 @@ export interface ScheduleResponse {
  * Fetch schedule for a work order.
  */
 export async function fetchSchedule(wo: string): Promise<ScheduleResponse> {
-  const res = await fetch('/schedule', {
+  const res = await apiFetch('/schedule', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ workorder: wo })

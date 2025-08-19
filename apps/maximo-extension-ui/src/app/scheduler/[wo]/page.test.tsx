@@ -25,7 +25,7 @@ test('renders gantt, price curve and hats timeline', async () => {
   const fetchMock = vi
     .spyOn(global, 'fetch')
     .mockImplementation((input: RequestInfo) => {
-      if (typeof input === 'string' && input === '/schedule') {
+      if (typeof input === 'string' && input === apiBase + '/schedule') {
         return Promise.resolve({ ok: true, json: async () => sample } as Response);
       }
       if (typeof input === 'string' && input === apiBase + '/hats') {
