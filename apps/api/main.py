@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -333,8 +333,14 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
 
 
 @app.post("/schedule", response_model=ScheduleResponse)
-async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
-    """Return a synthetic schedule for the given work order."""
+async def post_schedule(
+    payload: ScheduleRequest, strict: bool = False
+) -> ScheduleResponse:
+    """Return a synthetic schedule for the given work order.
+
+    When ``strict`` is ``True`` and the work order is blocked by missing parts,
+    a ``409 Conflict`` response is returned instead of an empty schedule.
+    """
 
     stores = DemoStoresAdapter()
     work_order = WorkOrder(
@@ -359,6 +365,18 @@ async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
         seed_var.set(seed_int)
         rule_hash_var.set(RULE_PACK_HASH)
         logging.info("request complete")
+        missing_parts = [
+            {"item_id": res.item_id, "quantity": res.quantity}
+            for res in inv_status.missing
+        ]
+        if strict:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content={
+                    "blocked_by_parts": True,
+                    "missing_parts": missing_parts,
+                },
+            )
         return ScheduleResponse(
             schedule=[],
             seed=str(seed_int),
