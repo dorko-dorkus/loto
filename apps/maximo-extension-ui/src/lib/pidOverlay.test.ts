@@ -33,6 +33,8 @@ describe('applyPidOverlay', () => {
     const badges = Array.from(svg.querySelectorAll('.pid-badge'));
     expect(badges).toHaveLength(2);
     expect(badges[0].textContent).toBe('asset');
+    expect(badges[0].classList.contains('pid-badge-asset')).toBe(true);
     expect(badges[1].textContent).toBe('source');
+    expect(badges[1].classList.contains('pid-badge-source')).toBe(true);
   });
 });

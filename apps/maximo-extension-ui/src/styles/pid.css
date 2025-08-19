@@ -25,3 +25,44 @@
   padding: 2px 6px;
   border-radius: var(--mxc-radius-sm);
 }
+
+.pid-badge {
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: var(--mxc-radius-sm);
+  font-size: 0.7rem;
+  color: #fff;
+}
+
+.pid-badge-asset {
+  background: var(--mxc-topbar-bg);
+}
+
+.pid-badge-source {
+  background: #3b82f6;
+}
+
+.pid-badge-missing-tag {
+  background: #f87171;
+}
+
+.pid-warning-drawer {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  max-width: 12rem;
+  background: white;
+  padding: 0.5rem;
+  border-radius: var(--mxc-radius-sm);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.pid-warning-chip {
+  display: inline-block;
+  background: #fbbf24;
+  color: #000;
+  padding: 2px 4px;
+  border-radius: var(--mxc-radius-sm);
+  margin: 0 4px 4px 0;
+  font-size: 0.75rem;
+}

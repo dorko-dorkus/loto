@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { render, waitFor, fireEvent } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import PidViewer from './PidViewer';
 
@@ -41,6 +41,23 @@ test('adds aria-labels from title elements', async () => {
     expect(rect?.getAttribute('aria-label')).toBe('Valve 1');
     expect(rect?.getAttribute('tabindex')).toBe('0');
   });
+
+  (fetch as any).mockRestore();
+});
+
+test('renders warning chips when provided', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>';
+  vi.spyOn(global, 'fetch').mockResolvedValue({
+    text: () => Promise.resolve(svg)
+  } as any);
+
+  const { getByRole, findByText } = render(
+    <PidViewer src="/test.svg" warnings={['missing tag']} />
+  );
+
+  const btn = await waitFor(() => getByRole('button', { name: /warnings/i }));
+  fireEvent.click(btn);
+  await findByText('missing tag');
 
   (fetch as any).mockRestore();
 });
