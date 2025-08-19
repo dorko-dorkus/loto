@@ -1,0 +1,54 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renders gantt, price curve and hats timeline 1`] = `
+<main
+  class="h-full flex flex-col"
+>
+  <h1
+    class="mb-4 text-xl font-semibold"
+  >
+    Scheduler: 
+    WO-1
+  </h1>
+  <div
+    class="w-full h-full"
+  >
+    <div
+      data-sync="schedule"
+      data-testid="gantt-chart"
+    >
+      <div
+        class="recharts-responsive-container"
+        style="width: 100%; height: 200px; min-width: 0;"
+      />
+    </div>
+    <div
+      data-sync="schedule"
+      data-testid="price-chart"
+    >
+      <div
+        class="recharts-responsive-container"
+        style="width: 100%; height: 100px; min-width: 0;"
+      />
+    </div>
+    <div
+      data-sync="schedule"
+      data-testid="hats-chart"
+    >
+      <div
+        class="recharts-responsive-container"
+        style="width: 100%; height: 100px; min-width: 0;"
+      />
+    </div>
+  </div>
+  <footer
+    class="mt-4 text-sm text-gray-500"
+    data-testid="schedule-meta"
+  >
+    Seed: 
+    abc
+     Objective: 
+    0.95
+  </footer>
+</main>
+`;

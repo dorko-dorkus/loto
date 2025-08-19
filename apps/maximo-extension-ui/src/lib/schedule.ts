@@ -9,10 +9,16 @@ export interface SchedulePoint {
   hats: number;
 }
 
+export interface ScheduleResponse {
+  schedule: SchedulePoint[];
+  seed: string;
+  objective: number;
+}
+
 /**
  * Fetch schedule for a work order.
  */
-export async function fetchSchedule(wo: string): Promise<SchedulePoint[]> {
+export async function fetchSchedule(wo: string): Promise<ScheduleResponse> {
   const res = await fetch('/schedule', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -20,13 +26,13 @@ export async function fetchSchedule(wo: string): Promise<SchedulePoint[]> {
   });
   if (!res.ok) throw new Error('Failed to fetch schedule');
   const data = await res.json();
-  return data.schedule as SchedulePoint[];
+  return data as ScheduleResponse;
 }
 
 /**
  * React Query hook for schedule data.
  */
-export function useSchedule(wo: string): UseQueryResult<SchedulePoint[]> {
+export function useSchedule(wo: string): UseQueryResult<ScheduleResponse> {
   return useQuery({ queryKey: ['schedule', wo], queryFn: () => fetchSchedule(wo) });
 }
 
