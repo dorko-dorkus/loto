@@ -96,8 +96,7 @@ def load_tag_map(path: str | Path) -> PidTagMap:
         err = exc.errors()[0]
         loc = err.get("loc", ())
         if loc:
-            tag = loc[0]
-            line = line_map.get(str(tag), 1)
-        else:
-            line = 1
-        raise ValueError(f"{path}:{line}: {err['msg']}") from None
+            tag = str(loc[0])
+            line = line_map.get(tag, 1)
+            raise ValueError(f"{path}:{line}: tag '{tag}': {err['msg']}") from None
+        raise ValueError(f"{path}:1: {err['msg']}") from None

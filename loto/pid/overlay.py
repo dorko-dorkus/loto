@@ -11,9 +11,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, Iterable, List, Set
 
-import yaml
-
 from ..models import IsolationPlan
+from .schema import load_tag_map
 
 
 def _get_mtime(path: Path) -> float:
@@ -25,17 +24,10 @@ def _get_mtime(path: Path) -> float:
 
 @lru_cache(maxsize=32)
 def _load_map_cached(path: Path, mtime: float) -> Dict[str, List[str]]:
-    with path.open("r") as fh:
-        raw = yaml.safe_load(fh) or {}
-
+    tag_map = load_tag_map(path).root
     mapping: Dict[str, List[str]] = {}
-    for tag, selector in raw.items():
-        if isinstance(selector, str):
-            mapping[tag] = [selector]
-        elif isinstance(selector, Iterable):
-            mapping[tag] = [s for s in selector if isinstance(s, str)]
-        # Ensure selectors for a given tag are unique while preserving order
-        mapping[tag] = list(dict.fromkeys(mapping.get(tag, [])))
+    for tag, selectors in tag_map.items():
+        mapping[tag] = list(dict.fromkeys(selectors.root))
     return mapping
 
 
