@@ -5,20 +5,12 @@ from apps.api.main import app
 
 def test_schedule_endpoint():
     client = TestClient(app)
-    payload = {
-        "tasks": {
-            "a": {"duration": 4},
-            "b": {"duration": 2, "predecessors": ["a"]},
-        },
-        "runs": 5,
-        "seed": 42,
-        "power_curve": [[0, 1], [6, 1]],
-        "price_curve": [[0, 5], [6, 5]],
-    }
+    payload = {"workorder": "WO-1"}
     res = client.post("/schedule", json=payload)
     assert res.status_code == 200
     data = res.json()
-    assert data["p10"] == data["p50"] == data["p90"] == 6
-    assert data["expected_cost"] == 30.0
-    assert data["violations"] == []
-    assert data["seed"] == 42
+    assert "schedule" in data
+    assert len(data["schedule"]) > 0
+    first = data["schedule"][0]
+    assert {"date", "p10", "p50", "p90", "price", "hats"} <= first.keys()
+    assert data["seed"] == "0"
