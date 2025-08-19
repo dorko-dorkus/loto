@@ -21,6 +21,7 @@ from loto.inventory import (
     StockItem,
     check_wo_parts_required,
 )
+from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.models import RulePack
 from loto.scheduling.des_engine import Task
 from loto.scheduling.objective import integrate_cost
@@ -36,6 +37,8 @@ from .schemas import (
     Step,
 )
 
+configure_logging()
+
 app = FastAPI(title="loto API")
 
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
@@ -49,6 +52,19 @@ if origins:
     )
 
 app.include_router(pid_router)
+
+
+@app.middleware("http")
+async def log_context(request: Request, call_next):
+    req_id = str(uuid4())
+    token = request_id_var.set(req_id)
+    try:
+        response = await call_next(request)
+        return response
+    finally:
+        request_id_var.reset(token)
+        seed_var.set(None)
+        rule_hash_var.set(None)
 
 
 @app.exception_handler(HTTPException)
@@ -201,7 +217,7 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         open(ctx["drain_csv"]) as drain,
         open(ctx["source_csv"]) as source,
     ):
-        plan, _, impact, _ = plan_and_evaluate(
+        plan, _, impact, prov = plan_and_evaluate(
             line,
             valve,
             drain,
@@ -215,6 +231,9 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
             penalties=impact_cfg.penalties,
             asset_areas=impact_cfg.asset_areas,
         )
+    seed_var.set(prov.seed)
+    rule_hash_var.set(prov.rule_hash)
+    logging.info("request complete")
 
     steps: List[Step] = [
         Step(component_id=a.component_id, method=a.method) for a in plan.actions
@@ -268,6 +287,8 @@ async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
         for tid, spec in payload.tasks.items()
     }
     run_res = run_schedule(tasks, payload.resource_caps, seed=payload.seed)
+    seed_var.set(run_res.seed)
+    logging.info("request complete")
     mc_res = monte_carlo_schedule(tasks, payload.resource_caps, runs=payload.runs)
     cost = 0.0
     if payload.power_curve and payload.price_curve:
