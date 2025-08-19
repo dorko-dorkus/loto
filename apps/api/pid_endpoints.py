@@ -121,7 +121,7 @@ async def post_overlay(payload: OverlayRequest) -> OverlayResponse:
                 base = Path(__file__).resolve().parents[2]
                 svg_path = base / svg_path
             report = validate_svg_map(svg_path, map_path)
-            warnings = report.missing_selectors
+            warnings.extend(report.warnings)
     finally:
         map_path.unlink(missing_ok=True)
 
