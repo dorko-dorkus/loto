@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from loto.impact_config import load_impact_config
@@ -32,7 +35,55 @@ from .schemas import (
 )
 
 app = FastAPI(title="loto API")
+
+origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
+if origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
 app.include_router(pid_router)
+
+ENV = os.getenv("APP_ENV", "").lower()
+if ENV == "live":
+    ENV_BADGE = "PROD"
+elif ENV == "test":
+    ENV_BADGE = "TEST"
+else:
+    ENV_BADGE = "DRY-RUN"
+
+RATE_LIMIT_PATHS = {"/pid/overlay", "/schedule"}
+RATE_LIMIT_CAPACITY = 10
+RATE_LIMIT_INTERVAL = 60.0
+_rate_limit_state = {
+    path: {"tokens": RATE_LIMIT_CAPACITY, "ts": time.monotonic()}
+    for path in RATE_LIMIT_PATHS
+}
+
+
+@app.middleware("http")
+async def add_env_and_rate_limit(request: Request, call_next):
+    path = request.url.path
+    if path in _rate_limit_state:
+        bucket = _rate_limit_state[path]
+        now = time.monotonic()
+        elapsed = now - bucket["ts"]
+        if elapsed > RATE_LIMIT_INTERVAL:
+            bucket["tokens"] = RATE_LIMIT_CAPACITY
+            bucket["ts"] = now
+        if bucket["tokens"] <= 0:
+            response = Response(status_code=429)
+            response.headers["X-Env"] = ENV_BADGE
+            return response
+        bucket["tokens"] -= 1
+    response = await call_next(request)
+    response.headers["X-Env"] = ENV_BADGE
+    return response
+
 
 STATE: Dict[str, Any] = {}
 
