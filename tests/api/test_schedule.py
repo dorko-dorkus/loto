@@ -32,3 +32,17 @@ def test_schedule_inventory_gating():
         assert data["rulepack_sha256"] == RULE_PACK_HASH
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
+
+
+def test_schedule_inventory_gating_strict():
+    client = TestClient(app)
+    original = DemoStoresAdapter._INVENTORY["P-200"]["available"]
+    try:
+        DemoStoresAdapter._INVENTORY["P-200"]["available"] = 0
+        res = client.post("/schedule?strict=true", json={"workorder": "WO-1"})
+        assert res.status_code == 409
+        data = res.json()
+        assert data["blocked_by_parts"] is True
+        assert data["missing_parts"] == [{"item_id": "P-200", "quantity": 1}]
+    finally:
+        DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
