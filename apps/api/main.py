@@ -55,6 +55,19 @@ if origins:
 app.include_router(pid_router)
 
 
+AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "").lower() == "true"
+AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
+
+
+@app.middleware("http")
+async def auth_guard(request: Request, call_next):
+    if AUTH_REQUIRED:
+        auth_header = request.headers.get("Authorization")
+        if auth_header != f"Bearer {AUTH_TOKEN}":
+            return Response(status_code=401)
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def log_context(request: Request, call_next):
     req_id = str(uuid4())
