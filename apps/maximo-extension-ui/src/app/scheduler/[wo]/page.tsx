@@ -9,10 +9,14 @@ const queryClient = new QueryClient();
 function SchedulerContent({ wo }: { wo: string }) {
   const { data } = useSchedule(wo);
   if (!data) return null;
+  const { schedule, seed, objective } = data;
   return (
-    <main className="h-full">
+    <main className="h-full flex flex-col">
       <h1 className="mb-4 text-xl font-semibold">Scheduler: {wo}</h1>
-      <Gantt data={data} />
+      <Gantt data={schedule} />
+      <footer className="mt-4 text-sm text-gray-500" data-testid="schedule-meta">
+        Seed: {seed} Objective: {objective}
+      </footer>
     </main>
   );
 }
