@@ -10,6 +10,8 @@ const queryClient = new QueryClient();
 function PortfolioContent() {
   const [dense, setDense] = useState(false);
   const { data } = usePortfolio();
+  const search =
+    typeof window !== 'undefined' ? window.location.search : '';
 
   if (!data) return null;
 
@@ -33,6 +35,7 @@ function PortfolioContent() {
             <th className="px-4 py-2">Description</th>
             <th className="px-4 py-2">Status</th>
             <th className="px-4 py-2">Owner</th>
+            <th className="px-4 py-2">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -41,6 +44,10 @@ function PortfolioContent() {
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{wo.description}</td>
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{wo.status}</td>
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{wo.owner}</td>
+              <td className={`px-4 ${dense ? 'py-1' : 'py-2'} space-x-2`}>
+                <a href={`/planner/${wo.id}${search}`}>Planner</a>
+                <a href={`/scheduler/${wo.id}${search}`}>Scheduler</a>
+              </td>
             </tr>
           ))}
         </tbody>
