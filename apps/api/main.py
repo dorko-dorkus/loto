@@ -4,6 +4,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
@@ -25,14 +26,15 @@ from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_
 from loto.materials.jobpack import build_jobpack
 from loto.models import RulePack
 from loto.scheduling.des_engine import Task
-from loto.scheduling.objective import integrate_cost
-from loto.service import monte_carlo_schedule, plan_and_evaluate, run_schedule
+from loto.scheduling.monte_carlo import simulate
+from loto.service import plan_and_evaluate
 from loto.service.blueprints import inventory_state
 
 from .pid_endpoints import router as pid_router
 from .schemas import (
     BlueprintRequest,
     BlueprintResponse,
+    SchedulePoint,
     ScheduleRequest,
     ScheduleResponse,
     Step,
@@ -315,28 +317,33 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
 
 @app.post("/schedule", response_model=ScheduleResponse)
 async def post_schedule(payload: ScheduleRequest) -> ScheduleResponse:
-    """Run scheduling simulations and return summary statistics."""
+    """Return a synthetic schedule for the given work order."""
 
+    # Minimal demo task graph
     tasks = {
-        tid: Task(duration=spec.duration, predecessors=spec.predecessors)
-        for tid, spec in payload.tasks.items()
+        "prep": Task(duration=1),
+        "exec": Task(duration=2, predecessors=["prep"]),
     }
-    run_res = run_schedule(tasks, payload.resource_caps, seed=payload.seed)
-    seed_var.set(run_res.seed)
-    logging.info("request complete")
-    mc_res = monte_carlo_schedule(tasks, payload.resource_caps, runs=payload.runs)
-    cost = 0.0
-    if payload.power_curve and payload.price_curve:
-        cost = integrate_cost(payload.power_curve, payload.price_curve)
 
-    return ScheduleResponse(
-        p10=mc_res.makespan_percentiles.get("P10", 0.0),
-        p50=mc_res.makespan_percentiles.get("P50", 0.0),
-        p90=mc_res.makespan_percentiles.get("P90", 0.0),
-        expected_cost=cost,
-        violations=run_res.violations,
-        seed=run_res.seed,
-    )
+    mc_res = simulate(tasks, {}, runs=20)
+    today = date.today()
+    schedule: List[SchedulePoint] = []
+    for i, pct in enumerate(mc_res.task_percentiles.values()):
+        schedule.append(
+            SchedulePoint(
+                date=(today + timedelta(days=i)).isoformat(),
+                p10=pct.get("P10", 0.0),
+                p50=pct.get("P50", 0.0),
+                p90=pct.get("P90", 0.0),
+                price=0.0,
+                hats=i + 1,
+            )
+        )
+
+    seed_int = 0
+    seed_var.set(seed_int)
+    logging.info("request complete")
+    return ScheduleResponse(schedule=schedule, seed=str(seed_int), objective=0.0)
 
 
 @app.get("/workorders/{workorder_id}")
