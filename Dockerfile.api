@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install application and API dependencies
+COPY pyproject.toml README.md ./
+COPY loto ./loto
+COPY apps/api ./apps/api
+COPY demo ./demo
+RUN pip install --no-cache-dir -r apps/api/requirements.txt && \
+    pip install --no-cache-dir .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

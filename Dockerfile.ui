@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm and workspace dependencies for the UI
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/maximo-extension-ui/package.json apps/maximo-extension-ui/
+RUN pnpm install --filter maximo-extension-ui... --frozen-lockfile
+
+COPY apps/maximo-extension-ui apps/maximo-extension-ui
+
+EXPOSE 3000
+
+CMD ["pnpm", "-F", "maximo-extension-ui", "dev"]
