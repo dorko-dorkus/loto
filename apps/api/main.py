@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
@@ -8,10 +9,18 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from loto.impact_config import load_impact_config
+from loto.integrations.stores_adapter import DemoStoresAdapter
+from loto.inventory import (
+    InventoryStatus,
+    Reservation,
+    StockItem,
+    check_wo_parts_required,
+)
 from loto.models import RulePack
 from loto.scheduling.des_engine import Task
 from loto.scheduling.objective import integrate_cost
 from loto.service import monte_carlo_schedule, plan_and_evaluate, run_schedule
+from loto.service.blueprints import inventory_state
 
 from .pid_endpoints import router as pid_router
 from .schemas import (
@@ -24,6 +33,16 @@ from .schemas import (
 
 app = FastAPI(title="loto API")
 app.include_router(pid_router)
+
+STATE: Dict[str, Any] = {}
+
+
+@dataclass
+class WorkOrder:
+    """Minimal work order representation for demo inventory checks."""
+
+    id: str
+    reservations: List[Reservation]
 
 
 class ProposeRequest(BaseModel):
@@ -84,6 +103,31 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     ctx = adapter.load_context(payload.workorder_id)
     impact_cfg = ctx["impact_cfg"]
 
+    stores = DemoStoresAdapter()
+    work_order = WorkOrder(
+        id=payload.workorder_id,
+        reservations=[
+            Reservation(item_id="P-100", quantity=1),
+            Reservation(item_id="P-200", quantity=1),
+        ],
+    )
+
+    def lookup_stock(item_id: str) -> StockItem | None:
+        try:
+            status = stores.inventory_status(item_id)
+        except KeyError:
+            return None
+        return StockItem(item_id=item_id, quantity=status.get("available", 0))
+
+    def check_parts(wo: object) -> InventoryStatus:
+        assert isinstance(wo, WorkOrder)
+        return check_wo_parts_required(wo, lookup_stock)
+
+    inv_status = check_parts(work_order)
+
+    global STATE
+    STATE = dict(inventory_state(work_order, check_parts, STATE))
+
     with (
         open(ctx["line_csv"]) as line,
         open(ctx["valve_csv"]) as valve,
@@ -113,6 +157,7 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         steps=steps,
         unavailable_assets=sorted(impact.unavailable_assets),
         unit_mw_delta=impact.unit_mw_delta,
+        blocked_by_parts=inv_status.blocked,
     )
 
 
