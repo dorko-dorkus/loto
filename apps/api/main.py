@@ -30,6 +30,7 @@ from loto.scheduling.monte_carlo import simulate
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import inventory_state
 
+from .hats_endpoints import router as hats_router
 from .pid_endpoints import router as pid_router
 from .schemas import (
     BlueprintRequest,
@@ -55,6 +56,7 @@ if origins:
     )
 
 app.include_router(pid_router)
+app.include_router(hats_router)
 
 
 AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "").lower() == "true"
