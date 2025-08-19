@@ -6,30 +6,20 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
 
 from loto.roster import storage, update_ranking
+
+from .schemas import HatKpiRequest, HatSnapshot
 
 router = APIRouter(prefix="/hats", tags=["hats"])
 
 
-class HatSnapshot(BaseModel):
-    """Snapshot of ranking information for a hat."""
-
-    hat_id: str = Field(..., description="Identifier of the hat")
-    rank: int = Field(0, description="Rank among hats (1 = best)")
-    c_r: float = Field(0.5, description="Ranking coefficient")
-    n_samples: int = Field(0, description="Number of KPI events")
-    last_event_at: datetime | None = Field(
-        None, description="Timestamp of the most recent event"
-    )
-
-    class Config:
-        extra = "forbid"
-
-
 def _ledger_path() -> Path:
     return Path(os.getenv("HATS_LEDGER_PATH", "hats_ledger.jsonl"))
+
+
+def _snapshot_path() -> Path:
+    return Path(os.getenv("HATS_SNAPSHOT_PATH", "hats_snapshot.json"))
 
 
 def _read_ledger() -> Tuple[Dict[str, List[List[float]]], Dict[str, Dict[str, Any]]]:
@@ -115,6 +105,49 @@ async def get_hat(hat_id: str) -> HatSnapshot:
     coef = cast(float, info.get("coefficient", 0.5))
     return HatSnapshot(
         hat_id=hat_id,
+        rank=rank,
+        c_r=coef,
+        n_samples=int(stat.get("n_samples", 0)) if stat else 0,
+        last_event_at=stat.get("last_event_at") if stat else None,
+    )
+
+
+@router.post("/kpi", response_model=HatSnapshot)
+async def post_hat_kpi(event: HatKpiRequest) -> HatSnapshot:
+    """Record KPI metrics for a hat and return updated snapshot."""
+
+    ledger_path = _ledger_path()
+    snapshot_path = _snapshot_path()
+    metrics: List[float] = [event.SA, event.SP]
+    if event.RQ is not None:
+        metrics.append(event.RQ)
+    if event.OF is not None:
+        metrics.append(event.OF)
+    entry = {
+        "wo_id": event.wo_id,
+        "hat_id": event.hat_id,
+        "metrics": metrics,
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    try:
+        storage.append_ledger(ledger_path, entry)
+    except ValueError:
+        pass
+
+    entries = storage.read_ledger(ledger_path)
+    snapshot = storage.compute_snapshot(entries)
+    storage.write_snapshot(snapshot_path, snapshot)
+
+    ledger, stats = _read_ledger()
+    ranking = update_ranking(ledger) if ledger else {}
+    info = ranking.get(event.hat_id)
+    stat = stats.get(event.hat_id)
+    if not info:
+        return _neutral_snapshot(event.hat_id, stat)
+    rank = cast(int, info.get("rank", 0))
+    coef = cast(float, info.get("coefficient", 0.5))
+    return HatSnapshot(
+        hat_id=event.hat_id,
         rank=rank,
         c_r=coef,
         n_samples=int(stat.get("n_samples", 0)) if stat else 0,

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Dict, List
 
 from pydantic import BaseModel, Field
@@ -78,6 +79,36 @@ class ScheduleResponse(BaseModel):
     )
     seed: str = Field(..., description="Seed used for deterministic simulation")
     objective: float = Field(..., description="Objective value for the schedule")
+
+    class Config:
+        extra = "forbid"
+
+
+class HatKpiRequest(BaseModel):
+    """Payload for recording hat KPI metrics."""
+
+    wo_id: str = Field(..., description="Work order identifier")
+    hat_id: str = Field(..., description="Hat identifier")
+    SA: float = Field(..., description="Safety metric A")
+    SP: float = Field(..., description="Safety metric P")
+    RQ: float | None = Field(None, description="Optional RQ metric")
+    OF: float | None = Field(None, description="Optional OF metric")
+
+    class Config:
+        extra = "forbid"
+
+
+class HatSnapshot(BaseModel):
+    """Snapshot of ranking information for a hat."""
+
+    hat_id: str = Field(..., description="Identifier of the hat")
+    rank: int = Field(0, description="Rank among hats (1 = best)")
+    c_r: float = Field(0.5, description="Ranking coefficient")
+    n_samples: int = Field(0, description="Number of KPI events")
+    last_event_at: datetime | None = Field(
+        None,
+        description="Timestamp of the most recent event",
+    )
 
     class Config:
         extra = "forbid"
