@@ -1,3 +1,6 @@
+# Copyright (c) 2024 Loto Inc.
+# All rights reserved.
+
 """Top-level package for the LOTO planner.
 
 This package contains the core components needed to compute lockout–tagout
