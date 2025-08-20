@@ -54,3 +54,11 @@ export interface InventoryItem {
   eta?: string;
   status: InventoryStatus;
 }
+
+export interface HatSnapshot {
+  hat_id: string;
+  rank: number;
+  c_r: number;
+  n_samples: number;
+  last_event_at?: string;
+}
