@@ -41,6 +41,7 @@ from .schemas import (
     ScheduleResponse,
     Step,
 )
+from .workorder_endpoints import router as workorder_router
 
 configure_logging()
 
@@ -69,6 +70,7 @@ if origins:
 
 app.include_router(pid_router)
 app.include_router(hats_router)
+app.include_router(workorder_router)
 
 
 AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "").lower() == "true"
@@ -420,12 +422,6 @@ async def post_schedule(
         rulepack_id=RULE_PACK_ID,
         rulepack_version=RULE_PACK_VERSION,
     )
-
-
-@app.get("/workorders/{workorder_id}")
-async def get_workorder(workorder_id: str) -> dict[str, str]:
-    """Mock work order fetch."""
-    return {"workorder_id": workorder_id, "status": "mocked"}
 
 
 @app.get("/workorders/{workorder_id}/jobpack")
