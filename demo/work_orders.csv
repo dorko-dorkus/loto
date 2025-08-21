@@ -1,0 +1,4 @@
+id,description,asset_id,status
+WO-1,Replace gasket,ASSET-1,OPEN
+WO-2,Inspect valve,ASSET-2,CLOSED
+WO-3,Test pump,ASSET-3,OPEN

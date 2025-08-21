@@ -1,0 +1,9 @@
+- id: ASSET-1
+  description: Pump A
+  location: Plant 1
+- id: ASSET-2
+  description: Valve B
+  location: Plant 2
+- id: ASSET-3
+  description: Tank C
+  location: Plant 3
