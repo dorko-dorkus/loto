@@ -61,7 +61,7 @@ class IntegrationAdapter(abc.ABC):
 from .demo_adapter import DemoIntegrationAdapter  # noqa: E402
 
 
-def get_integration_adapter() -> IntegrationAdapter:
+def get_integration_adapter() -> IntegrationAdapter | MaximoAdapter:
     """Return an adapter instance based on environment configuration.
 
     If required environment variables are missing, a
@@ -74,11 +74,8 @@ def get_integration_adapter() -> IntegrationAdapter:
         "MAXIMO_OS_WORKORDER",
         "MAXIMO_OS_ASSET",
     ]
-
-    if not all(os.environ.get(var) for var in required):
-        return DemoIntegrationAdapter()
-
-    # Placeholder: return demo adapter until a real one is available
+    if all(os.environ.get(var) for var in required):
+        return MaximoAdapter()
     return DemoIntegrationAdapter()
 
 
