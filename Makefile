@@ -1,4 +1,4 @@
-.PHONY: fmt lint typecheck test run-demo demo-up check-prereqs
+.PHONY: fmt lint typecheck test run-demo demo-up check-prereqs seed-demo
 
 fmt:
 	black loto tests
@@ -42,3 +42,5 @@ demo-up:
 check-prereqs:
 	./scripts/check-prereqs.sh
 
+seed-demo:
+	python scripts/seed_demo.py
