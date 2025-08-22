@@ -54,7 +54,21 @@ MAXIMO_OS_ASSET=ASSET
 NEXT_PUBLIC_USE_API=false
 ```
 
-### Demo
+## Local Development
+
+Install Python dependencies and run the Next.js development server:
+
+```bash
+pip install -e .[dev]
+pnpm install
+pnpm -F maximo-extension-ui dev
+```
+
+This starts the UI at <http://localhost:3000>. In another terminal you can
+launch the API with `uvicorn loto.main:app --reload` which will listen on
+<http://localhost:8000>.
+
+## Docker Demo
 
 Run the API and UI with demo data using Docker. Ensure Docker and Docker Compose are installed and the Docker daemon is running:
 
@@ -84,3 +98,15 @@ To run the CLI demo instead:
 ```bash
 make run-demo
 ```
+
+## Screenshots
+
+Due to repository constraints, screenshots are not stored in git. Run the demo and capture your own screenshots of the API and UI, or view placeholder images below.
+
+### API
+
+![API screenshot placeholder](https://via.placeholder.com/800x400?text=API+Screenshot)
+
+### UI
+
+![UI screenshot placeholder](https://via.placeholder.com/800x400?text=UI+Screenshot)
