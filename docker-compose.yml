@@ -8,6 +8,7 @@ services:
     ports:
       - "8000:8000"
     env_file: .env.example
+    profiles: ["demo"]
   ui:
     build:
       context: .
@@ -17,3 +18,13 @@ services:
     env_file: .env.example
     depends_on:
       - api
+    profiles: ["demo"]
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: loto
+      POSTGRES_USER: loto
+      POSTGRES_PASSWORD: loto
+    ports:
+      - "5432:5432"
+    profiles: ["pilot"]
