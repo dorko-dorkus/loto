@@ -1,18 +1,21 @@
 """Seed hats ranking with synthetic KPI events.
 
 This script fabricates KPI metrics for a set of historical demo work orders
-and writes them to the hats ledger.  After backfilling the ledger it prints a
+and writes them to the hats ledger. After backfilling the ledger it logs a
 ranking snapshot so that ranks and sample counts can be inspected manually.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
+
+import structlog
+
+logger = structlog.get_logger()
 
 # Allow running the script without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -96,7 +99,7 @@ def main() -> None:
         )
 
     snapshots.sort(key=lambda s: int(s["rank"]))
-    print(json.dumps(snapshots, default=str, indent=2))
+    logger.info("ranking_snapshot", snapshots=snapshots)
 
 
 if __name__ == "__main__":  # pragma: no cover - manual script
