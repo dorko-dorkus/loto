@@ -67,6 +67,7 @@ UI at <http://localhost:3000>. Verify the API is running:
 
 ```bash
 curl :8000/healthz
+curl :8000/version
 ```
 
 Open the UI in your browser to view the Portfolio page at
