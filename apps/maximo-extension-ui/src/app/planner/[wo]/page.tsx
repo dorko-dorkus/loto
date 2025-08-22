@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useWorkOrder, useBlueprint } from '../../../lib/hooks';
+import { useWorkOrderApi, useBlueprintApi } from '../../../lib/hooks';
 import Exports from '../../../components/Exports';
 import CommitPanel from './CommitPanel';
 import PidTab from './PidTab';
@@ -14,8 +14,8 @@ const queryClient = new QueryClient();
 
 function PlannerContent({ wo }: { wo: string }) {
   const [activeTab, setActiveTab] = useState('Plan');
-  const { data: workOrder } = useWorkOrder(wo);
-  const { data: blueprint } = useBlueprint(wo);
+  const { data: workOrder } = useWorkOrderApi(wo);
+  const { data: blueprint } = useBlueprintApi(wo);
 
   if (!workOrder) return null;
 

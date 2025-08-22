@@ -1,6 +1,6 @@
 'use client';
 
-import { useBlueprint } from '../../../lib/hooks';
+import { useBlueprintApi } from '../../../lib/hooks';
 import Button from '../../../components/Button';
 
 interface CommitPanelProps {
@@ -8,7 +8,7 @@ interface CommitPanelProps {
 }
 
 export default function CommitPanel({ wo }: CommitPanelProps) {
-  const { data } = useBlueprint(wo);
+  const { data } = useBlueprintApi(wo);
   const role = (process.env.NEXT_PUBLIC_ROLE || 'TEST').toUpperCase();
   const canCommit = role !== 'TEST';
   const diff = data?.diff;
