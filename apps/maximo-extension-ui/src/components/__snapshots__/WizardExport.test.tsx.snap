@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`matches snapshot 1`] = `
+<div
+  aria-label="Export options"
+  class="mb-4 flex items-center space-x-2"
+  role="toolbar"
+>
+  <button
+    aria-label="Export PDF"
+    class="rounded-[var(--mxc-radius-sm)] bg-[var(--mxc-topbar-bg)] px-4 py-2 text-[var(--mxc-topbar-fg)] shadow-[var(--mxc-shadow-sm)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mxc-topbar-bg)]"
+    type="button"
+  >
+    Export PDF
+  </button>
+  <button
+    aria-label="Export JSON"
+    class="rounded-[var(--mxc-radius-sm)] bg-[var(--mxc-topbar-bg)] px-4 py-2 text-[var(--mxc-topbar-fg)] shadow-[var(--mxc-shadow-sm)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mxc-topbar-bg)]"
+    type="button"
+  >
+    Export JSON
+  </button>
+</div>
+`;

@@ -20,6 +20,11 @@ exports[`matches snapshot 1`] = `
     >
       Step Three
     </li>
+    <li
+      class="rounded px-3 py-1 bg-[var(--mxc-sheet)] text-[var(--mxc-fg-subtle)]"
+    >
+      Export
+    </li>
   </ol>
   <div>
     <label>
