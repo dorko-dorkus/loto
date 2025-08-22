@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install application and API dependencies
 COPY pyproject.toml README.md ./
+COPY config ./config
 COPY loto ./loto
 COPY apps/api ./apps/api
 COPY demo ./demo
