@@ -11,7 +11,7 @@ from loto.roster import storage, update_ranking
 
 from .schemas import HatKpiRequest, HatSnapshot
 
-router = APIRouter(prefix="/hats", tags=["hats"])
+router = APIRouter(prefix="/hats", tags=["hats", "LOTO"])
 
 
 def _ledger_path() -> Path:
