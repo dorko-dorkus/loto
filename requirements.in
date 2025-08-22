@@ -1,0 +1,28 @@
+# Production dependencies
+pydantic
+pydantic-settings
+PyYAML
+networkx
+jinja2
+reportlab
+qrcode
+requests
+typer
+python-dotenv
+pandas
+PyPDF2
+weasyprint
+tqdm
+
+# Development dependencies
+pytest
+hypothesis
+black
+isort
+ruff
+mypy
+responses
+pre-commit
+httpx
+fastapi
+types-PyYAML
