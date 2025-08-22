@@ -28,7 +28,14 @@ export function usePortfolioApi(): UseQueryResult<PortfolioData> {
   const useApi = process.env.NEXT_PUBLIC_USE_API === 'true';
   return useQuery({
     queryKey: ['portfolio'],
-    queryFn: useApi ? fetchPortfolioApi : fetchPortfolio
+    queryFn: async () => {
+      if (!useApi) return fetchPortfolio();
+      try {
+        return await fetchPortfolioApi();
+      } catch {
+        return fetchPortfolio();
+      }
+    }
   });
 }
 
@@ -43,7 +50,14 @@ export function useWorkOrderApi(id: string): UseQueryResult<WorkOrderSummary> {
   const useApi = process.env.NEXT_PUBLIC_USE_API === 'true';
   return useQuery({
     queryKey: ['workOrder', id],
-    queryFn: () => (useApi ? fetchWorkOrder(id) : fetchWorkOrderMock(id))
+    queryFn: async () => {
+      if (!useApi) return fetchWorkOrderMock(id);
+      try {
+        return await fetchWorkOrder(id);
+      } catch {
+        return fetchWorkOrderMock(id);
+      }
+    }
   });
 }
 
