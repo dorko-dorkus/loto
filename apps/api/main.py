@@ -19,6 +19,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from loto.config import validate_env_vars
+from loto.errors import GenerationError
+from loto.errors import ImportError as LotoImportError
+from loto.errors import LotoError, ValidationError
 from loto.impact_config import load_impact_config
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
@@ -122,7 +125,22 @@ async def log_context(request: Request, call_next):
 @app.exception_handler(HTTPException)
 async def _handle_http_exception(request: Request, exc: HTTPException) -> JSONResponse:
     """Return errors in a consistent JSON envelope."""
-    return JSONResponse(status_code=exc.status_code, content={"error": str(exc.detail)})
+    content = exc.detail if isinstance(exc.detail, dict) else {"error": str(exc.detail)}
+    return JSONResponse(status_code=exc.status_code, content=content)
+
+
+@app.exception_handler(LotoError)
+async def _handle_loto_error(request: Request, exc: LotoError) -> None:
+    """Convert internal errors into HTTP errors."""
+    status_map = {
+        ValidationError: status.HTTP_400_BAD_REQUEST,
+        LotoImportError: status.HTTP_500_INTERNAL_SERVER_ERROR,
+        GenerationError: status.HTTP_500_INTERNAL_SERVER_ERROR,
+    }
+    status_code = status_map.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
+    raise HTTPException(
+        status_code=status_code, detail={"code": exc.code, "message": exc.hint}
+    )
 
 
 @app.exception_handler(Exception)
