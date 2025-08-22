@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import yaml from 'js-yaml';
 import { useBlueprintApi } from '../../../lib/hooks';
 import PidViewer from '../../../components/PidViewer';
+import Skeleton from '../../../components/Skeleton';
 import { applyPidOverlay, type Overlay } from '../../../lib/pidOverlay';
 import { apiFetch } from '../../../lib/api';
 import type { BlueprintData } from '../../../types/api';
@@ -46,8 +47,8 @@ async function fetchOverlay(wo: string, blueprint: BlueprintData): Promise<Overl
 }
 
 export default function PidTab({ wo }: { wo: string }) {
-  const { data: blueprint } = useBlueprintApi(wo);
-  const { data } = useQuery({
+  const { data: blueprint, isLoading: blueprintLoading } = useBlueprintApi(wo);
+  const { data, isLoading } = useQuery({
     queryKey: ['pid', wo],
     enabled: !!blueprint,
     queryFn: async () => {
@@ -84,6 +85,9 @@ export default function PidTab({ wo }: { wo: string }) {
     });
   }, [data, showSimFails, showSourcePath]);
 
+  if (blueprintLoading || isLoading) {
+    return <Skeleton className="h-64 w-full" />;
+  }
   if (!data) return null;
 
   const src = `/pid/${data.drawingId}/svg`;
