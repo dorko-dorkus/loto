@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
 
 from dotenv import load_dotenv
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class ConfigError(Exception):
@@ -51,13 +53,52 @@ class AppConfig:
     coupa: IntegrationConfig
 
 
+class Settings(BaseSettings):
+    app_env: str = Field(default="demo", alias="APP_ENV")
+    data_in: str = Field(alias="DATA_IN")
+    data_out: str = Field(alias="DATA_OUT")
+    rulepack_file: str = Field(alias="RULEPACK_FILE")
+
+    maximo_mode: str = Field(default="MOCK", alias="MAXIMO_MODE")
+    maximo_base_url: str | None = Field(default=None, alias="MAXIMO_BASE_URL")
+    maximo_apikey: str | None = Field(default=None, alias="MAXIMO_APIKEY")
+    maximo_os: Dict[str, str] = Field(default_factory=dict)
+
+    wapr_mode: str = Field(default="MOCK", alias="WAPR_MODE")
+    wapr_base_url: str | None = Field(default=None, alias="WAPR_BASE_URL")
+    wapr_apikey: str | None = Field(default=None, alias="WAPR_APIKEY")
+
+    coupa_mode: str = Field(default="MOCK", alias="COUPA_MODE")
+    coupa_base_url: str | None = Field(default=None, alias="COUPA_BASE_URL")
+    coupa_apikey: str | None = Field(default=None, alias="COUPA_APIKEY")
+
+    model_config = SettingsConfigDict(
+        env_file=Path(f".env.{os.getenv('APP_ENV', 'demo').lower()}"),
+        extra="ignore",
+    )
+
+    @field_validator("maximo_os", mode="before")
+    @classmethod
+    def _gather_maximo_os(cls, v: Dict[str, str] | None) -> Dict[str, str]:
+        if v:
+            return v
+        return {
+            k.removeprefix("MAXIMO_OS_"): value
+            for k, value in os.environ.items()
+            if k.startswith("MAXIMO_OS_")
+        }
+
+
 CONFIG_ERROR_CODE = "CONFIG/ENV"
 
 
 def _required(keys: list[str]) -> None:
     missing = [k for k in keys if not os.getenv(k)]
     if missing:
-        raise ConfigError(code=CONFIG_ERROR_CODE, hint=f"Missing environment variables: {', '.join(missing)}")
+        raise ConfigError(
+            code=CONFIG_ERROR_CODE,
+            hint=f"Missing environment variables: {', '.join(missing)}",
+        )
 
 
 def load_config() -> AppConfig:
@@ -65,7 +106,9 @@ def load_config() -> AppConfig:
 
     app_env = os.getenv("APP_ENV", "demo").lower()
     if app_env not in {"demo", "live"}:
-        raise ConfigError(code=CONFIG_ERROR_CODE, hint="APP_ENV must be 'demo' or 'live'")
+        raise ConfigError(
+            code=CONFIG_ERROR_CODE, hint="APP_ENV must be 'demo' or 'live'"
+        )
 
     # load .env file for the selected environment if present
     load_dotenv(Path(f".env.{app_env}"), override=False)
@@ -137,7 +180,9 @@ def load_config() -> AppConfig:
                 code=CONFIG_ERROR_CODE,
                 hint="Missing Coupa configuration: " + ", ".join(missing),
             )
-    coupa = IntegrationConfig(mode=coupa_mode, base_url=coupa_base_url, apikey=coupa_apikey)
+    coupa = IntegrationConfig(
+        mode=coupa_mode, base_url=coupa_base_url, apikey=coupa_apikey
+    )
 
     return AppConfig(
         app_env=app_env,
