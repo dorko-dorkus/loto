@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import yaml from 'js-yaml';
-import { useBlueprint } from '../../../lib/hooks';
+import { useBlueprintApi } from '../../../lib/hooks';
 import PidViewer from '../../../components/PidViewer';
 import { applyPidOverlay, type Overlay } from '../../../lib/pidOverlay';
 import { apiFetch } from '../../../lib/api';
@@ -45,7 +45,7 @@ async function fetchOverlay(wo: string, blueprint: BlueprintData): Promise<Overl
 }
 
 export default function PidTab({ wo }: { wo: string }) {
-  const { data: blueprint } = useBlueprint(wo);
+  const { data: blueprint } = useBlueprintApi(wo);
   const { data } = useQuery({
     queryKey: ['pid', wo],
     enabled: !!blueprint,

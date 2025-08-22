@@ -31,6 +31,7 @@ test('renders material status chips', async () => {
     ok: true,
     json: async () => shortage
   } as Response);
+  vi.stubEnv('NEXT_PUBLIC_USE_API', 'true');
 
   render(<Page params={{ wo: 'WO-1' }} />);
   const tab = await screen.findByRole('tab', { name: 'Materials' });

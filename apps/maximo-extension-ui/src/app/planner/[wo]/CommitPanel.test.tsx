@@ -11,6 +11,7 @@ afterEach(() => {
 
 test('renders audit metadata and disables commit in TEST role', async () => {
   vi.stubEnv('NEXT_PUBLIC_ROLE', 'TEST');
+  vi.stubEnv('NEXT_PUBLIC_USE_API', 'true');
   const blueprint = { diff: 'diff text', audit_metadata: { user: 'alice' } };
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(blueprint) }));
   const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ test('renders audit metadata and disables commit in TEST role', async () => {
 
 test('requires typing COMMIT to confirm', async () => {
   vi.stubEnv('NEXT_PUBLIC_ROLE', 'DEV');
+  vi.stubEnv('NEXT_PUBLIC_USE_API', 'true');
   const blueprint = { diff: 'diff text' };
   const fetchMock = vi
     .fn()

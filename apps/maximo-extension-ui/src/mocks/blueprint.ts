@@ -1,15 +1,14 @@
 import type { BlueprintData } from '../types/api';
-import { apiFetch } from '../lib/api';
 
-export async function fetchBlueprint(id: string): Promise<BlueprintData> {
-  const res = await apiFetch('/blueprint', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ workorder_id: id })
-  });
-  if (!res.ok) {
-    throw new Error('Failed to fetch blueprint');
-  }
-  return res.json();
+export async function fetchBlueprint(_id: string): Promise<BlueprintData> {
+  return {
+    steps: [
+      { component_id: 'PUMP-1', method: 'Remove' },
+      { component_id: 'PUMP-1', method: 'Install' }
+    ],
+    unavailable_assets: [],
+    unit_mw_delta: {},
+    parts_status: {}
+  };
 }
 
