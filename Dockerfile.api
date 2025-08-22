@@ -11,6 +11,10 @@ COPY demo ./demo
 RUN pip install --no-cache-dir -r apps/api/requirements.txt && \
     pip install --no-cache-dir .
 
+# Create non-root user
+RUN useradd --create-home appuser && chown -R appuser /app
+USER appuser
+
 EXPOSE 8000
 
 CMD ["./apps/api/entrypoint.sh"]
