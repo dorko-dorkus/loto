@@ -17,14 +17,27 @@ run-demo:
 	python -m loto.cli --demo
 
 demo-up:
-	@if docker compose version >/dev/null 2>&1; then \
-		docker compose up --build -d; \
+	@COMPOSE="docker compose"; \
+	if docker compose version >/dev/null 2>&1; then \
+	COMPOSE="docker compose"; \
 	elif command -v docker-compose >/dev/null 2>&1; then \
-		docker-compose up --build -d; \
+	COMPOSE="docker-compose"; \
 	else \
-		echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
-		exit 1; \
-	fi
+	echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
+	exit 1; \
+	fi; \
+	$$COMPOSE up --build -d; \
+	end_time=$$(($(date +%s)+30)); \
+	until curl --silent --fail http://localhost:8000/healthz >/dev/null 2>&1; do \
+	[ $$(date +%s) -ge $$end_time ] && { echo "Health check failed"; exit 1; }; \
+	sleep 1; \
+	done; \
+	if command -v xdg-open >/dev/null 2>&1; then \
+	xdg-open http://localhost:3000; \
+	elif command -v open >/dev/null 2>&1; then \
+	open http://localhost:3000; \
+	fi; \
+	$$COMPOSE logs -f
 
 check-prereqs:
 	./scripts/check-prereqs.sh
