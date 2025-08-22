@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 from pathlib import Path
 from typing import Optional
+from uuid import uuid4
 
 import networkx as nx  # type: ignore
 import typer
@@ -174,6 +176,12 @@ def demo(out: Path = Path("./out"), open_pdf: bool = False) -> None:
         with tqdm(total=1, desc="Generating demo", unit="step") as progress:
             main(["--demo", "--output", str(out)])
             progress.update(1)
+
+        doclinks_dir = out / "doclinks"
+        doclinks_dir.mkdir(parents=True, exist_ok=True)
+        doc_id = uuid4().hex
+        shutil.copy(out / "LOTO_A.pdf", doclinks_dir / f"{doc_id}.pdf")
+        shutil.copy(out / "LOTO_A.json", doclinks_dir / f"{doc_id}.json")
 
         typer.echo(f"✅ PDF + JSON saved to {out}")
         if open_pdf:

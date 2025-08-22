@@ -442,6 +442,13 @@ async def post_schedule(
     )
 
 
+@app.post("/plans", response_model=ScheduleResponse, tags=["LOTO"])
+async def post_plans(payload: ScheduleRequest) -> ScheduleResponse:
+    """Temporary alias for :func:`post_schedule` used in tests."""
+
+    return await post_schedule(payload)
+
+
 @app.get("/workorders/{workorder_id}/jobpack", tags=["LOTO"])
 async def get_jobpack(
     workorder_id: str,
