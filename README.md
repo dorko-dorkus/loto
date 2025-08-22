@@ -59,10 +59,16 @@ NEXT_PUBLIC_USE_API=false
 Run the API and UI with demo data using Docker. Ensure Docker and Docker Compose are installed and the Docker daemon is running:
 
 ```bash
-make demo-up
+docker compose --profile demo up
 ```
 
-This reads `.env.example` and starts the API at <http://localhost:8000> and the
+To start the pilot stack, which includes a Postgres service:
+
+```bash
+docker compose --profile pilot up
+```
+
+These commands read `.env.example` and start the API at <http://localhost:8000> and the
 UI at <http://localhost:3000>. Verify the API is running:
 
 ```bash
