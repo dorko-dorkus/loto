@@ -14,7 +14,7 @@ test:
 	pytest
 
 run-demo:
-	python -m loto.cli --demo
+	python -m loto.cli demo
 
 demo-up:
 	@COMPOSE="docker compose"; \
@@ -41,3 +41,4 @@ demo-up:
 
 check-prereqs:
 	./scripts/check-prereqs.sh
+

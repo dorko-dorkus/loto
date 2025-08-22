@@ -14,6 +14,8 @@ from pathlib import Path
 from typing import Optional
 
 import networkx as nx  # type: ignore
+import typer
+from tqdm import tqdm
 
 from .graph_builder import GraphBuilder
 from .isolation_planner import IsolationPlanner
@@ -21,6 +23,14 @@ from .models import SimReport, Stimulus
 from .renderer import Renderer
 from .rule_engine import RuleEngine
 from .sim_engine import SimEngine
+
+cli = typer.Typer()
+
+
+@cli.callback()
+def main_callback() -> None:
+    """LOTO command line interface."""
+    return None
 
 
 def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
@@ -157,5 +167,25 @@ def main(argv: Optional[list[str]] = None) -> None:
     return None
 
 
+@cli.command()
+def demo(out: Path = Path("./out"), open_pdf: bool = False) -> None:
+    """Generate demo PDF and JSON outputs."""
+    try:
+        with tqdm(total=1, desc="Generating demo", unit="step") as progress:
+            main(["--demo", "--output", str(out)])
+            progress.update(1)
+
+        typer.echo(f"✅ PDF + JSON saved to {out}")
+        if open_pdf:
+            pdf_path = out / "LOTO_A.pdf"
+            try:
+                typer.launch(str(pdf_path))
+            except Exception:  # pragma: no cover - opening may fail in CI
+                pass
+    except Exception as exc:  # pragma: no cover - ensure friendly error
+        typer.secho(f"Error: {exc}", err=True)
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
-    main()
+    cli()
