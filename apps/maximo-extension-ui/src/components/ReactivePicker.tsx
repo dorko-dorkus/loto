@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../lib/api';
 import { toastError } from '../lib/toast';
+import Skeleton from './Skeleton';
 
 interface HatCandidate {
   hat_id: string;
@@ -16,7 +17,7 @@ async function fetchCandidates(): Promise<HatCandidate[]> {
 }
 
 export default function ReactivePicker({ wo }: { wo: string }) {
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['reactive', wo],
     queryFn: async () => {
       try {
@@ -27,10 +28,24 @@ export default function ReactivePicker({ wo }: { wo: string }) {
       }
     }
   });
+  if (isLoading) {
+    return (
+      <section className="mt-4">
+        <h2 className="mb-2 text-lg font-semibold">Reactive candidates</h2>
+        <ul className="space-y-1">
+          {Array.from({ length: 3 }).map((_, idx) => (
+            <li key={idx}>
+              <Skeleton className="h-4 w-48" />
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
   if (!data) return null;
   return (
     <section className="mt-4">
-      <h2 className="text-lg font-semibold mb-2">Reactive candidates</h2>
+      <h2 className="mb-2 text-lg font-semibold">Reactive candidates</h2>
       <ul className="space-y-1">
         {data.map((hat) => {
           const delta = 1 - hat.c_r; // predicted finish delta from ranking coeff

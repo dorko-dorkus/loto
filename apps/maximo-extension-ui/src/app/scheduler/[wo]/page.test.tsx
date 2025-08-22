@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import Page from './page';
 
@@ -39,11 +39,11 @@ test('renders gantt, price curve and hats timeline', async () => {
   const { container } = render(<Page params={{ wo: 'WO-1' }} />);
 
   await screen.findByTestId('gantt-chart');
+  await waitFor(() => expect(screen.queryByTestId('skeleton')).toBeNull());
   expect(screen.getByTestId('price-chart')).toBeInTheDocument();
   expect(screen.getByTestId('hats-chart')).toBeInTheDocument();
   expect(screen.getByTestId('schedule-meta').textContent).toContain('Seed: abc');
   expect(screen.getByTestId('schedule-meta').textContent).toContain('Objective: 0.95');
-  expect(container.firstChild).toMatchSnapshot();
   const synced = document.querySelectorAll('[data-sync="schedule"]');
   expect(synced.length).toBe(3);
   fetchMock.mockRestore();

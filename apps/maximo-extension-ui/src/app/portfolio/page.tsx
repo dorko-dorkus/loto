@@ -3,15 +3,29 @@
 import { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import KpiCards from '../../components/KpiCards';
+import Skeleton from '../../components/Skeleton';
 import { usePortfolio } from '../../lib/hooks';
 
 const queryClient = new QueryClient();
 
 function PortfolioContent() {
   const [dense, setDense] = useState(false);
-  const { data } = usePortfolio();
+  const { data, isLoading } = usePortfolio();
   const search =
     typeof window !== 'undefined' ? window.location.search : '';
+
+  if (isLoading) {
+    return (
+      <main>
+        <h1 className="mb-4 text-xl font-semibold">Portfolio</h1>
+        <KpiCards items={[]} loading />
+        <div className="mb-2 text-sm">
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <Skeleton className="h-64 w-full" />
+      </main>
+    );
+  }
 
   if (!data) return null;
 
