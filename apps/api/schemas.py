@@ -13,6 +13,11 @@ class BlueprintRequest(BaseModel):
 
     class Config:
         extra = "forbid"
+        json_schema_extra = {
+            "example": {
+                "workorder_id": "WO-1001",
+            }
+        }
 
 
 class Step(BaseModel):
@@ -46,6 +51,18 @@ class BlueprintResponse(BaseModel):
 
     class Config:
         extra = "forbid"
+        json_schema_extra = {
+            "example": {
+                "steps": [
+                    {"component_id": "VALVE-1", "method": "lock"},
+                    {"component_id": "BREAKER-2", "method": "tag"},
+                ],
+                "unavailable_assets": ["GENERATOR-3"],
+                "unit_mw_delta": {"UNIT-1": -1.5},
+                "blocked_by_parts": False,
+                "parts_status": {"MAT-1": "available"},
+            }
+        }
 
 
 class ScheduleRequest(BaseModel):
@@ -55,6 +72,11 @@ class ScheduleRequest(BaseModel):
 
     class Config:
         extra = "forbid"
+        json_schema_extra = {
+            "example": {
+                "workorder": "WO-1001",
+            }
+        }
 
 
 class SchedulePoint(BaseModel):
@@ -91,6 +113,26 @@ class ScheduleResponse(BaseModel):
 
     class Config:
         extra = "forbid"
+        json_schema_extra = {
+            "example": {
+                "schedule": [
+                    {
+                        "date": "2024-05-01",
+                        "p10": 1.0,
+                        "p50": 2.0,
+                        "p90": 3.0,
+                        "price": 100.0,
+                        "hats": 2,
+                    }
+                ],
+                "seed": "12345",
+                "objective": 50.0,
+                "blocked_by_parts": False,
+                "rulepack_sha256": "abc123",
+                "rulepack_id": "default",
+                "rulepack_version": "1.0.0",
+            }
+        }
 
 
 class HatKpiRequest(BaseModel):
@@ -105,6 +147,16 @@ class HatKpiRequest(BaseModel):
 
     class Config:
         extra = "forbid"
+        json_schema_extra = {
+            "example": {
+                "wo_id": "WO-1001",
+                "hat_id": "HAT-7",
+                "SA": 0.9,
+                "SP": 0.8,
+                "RQ": 0.7,
+                "OF": 0.6,
+            }
+        }
 
 
 class HatSnapshot(BaseModel):
@@ -121,3 +173,12 @@ class HatSnapshot(BaseModel):
 
     class Config:
         extra = "forbid"
+        json_schema_extra = {
+            "example": {
+                "hat_id": "HAT-7",
+                "rank": 1,
+                "c_r": 0.75,
+                "n_samples": 10,
+                "last_event_at": "2024-05-01T12:00:00Z",
+            }
+        }
