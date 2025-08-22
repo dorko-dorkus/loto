@@ -17,6 +17,7 @@ dependencies = [
     "reportlab",
     "qrcode",
     "requests",
+    "structlog",
     "typer",
     "python-dotenv",
     "pandas",

@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
+import structlog
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -104,7 +105,10 @@ async def auth_guard(request: Request, call_next):
 @app.middleware("http")
 async def log_context(request: Request, call_next):
     req_id = str(uuid4())
+    traceparent = request.headers.get("traceparent")
+    trace_id = traceparent.split("-")[1] if traceparent else str(uuid4())
     token = request_id_var.set(req_id)
+    structlog.contextvars.bind_contextvars(trace_id=trace_id)
     try:
         response = await call_next(request)
         return response
@@ -112,6 +116,7 @@ async def log_context(request: Request, call_next):
         request_id_var.reset(token)
         seed_var.set(None)
         rule_hash_var.set(None)
+        structlog.contextvars.unbind_contextvars("trace_id")
 
 
 @app.exception_handler(HTTPException)

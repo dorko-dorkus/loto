@@ -5,9 +5,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Optional
 
+import structlog
 from dotenv import load_dotenv
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = structlog.get_logger()
 
 
 class ConfigError(Exception):
@@ -104,7 +107,7 @@ def validate_env_vars(example: Path | None = None) -> None:
     Raises
     ------
     ConfigError
-        If any expected variable is missing. The function prints a table of
+        If any expected variable is missing. The function logs a table of
         expected keys with ``Y``/``N`` indicating presence before raising.
     """
 
@@ -126,9 +129,9 @@ def validate_env_vars(example: Path | None = None) -> None:
 
     if missing:
         col = max(len("Key"), *(len(k) for k, _ in rows))
-        print(f"{'Key'.ljust(col)} Present")
+        logger.info(f"{'Key'.ljust(col)} Present")
         for key, flag in rows:
-            print(f"{key.ljust(col)} {flag}")
+            logger.info(f"{key.ljust(col)} {flag}")
         raise ConfigError(
             code=CONFIG_ERROR_CODE,
             hint="Missing environment variables: " + ", ".join(missing),

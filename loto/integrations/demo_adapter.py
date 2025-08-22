@@ -6,9 +6,12 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, TypedDict, cast
 
+import structlog
 import yaml
 
 from . import IntegrationAdapter
+
+logger = structlog.get_logger()
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
     from ..isolation_planner import IsolationPlan
@@ -107,3 +110,9 @@ class DemoIntegrationAdapter(IntegrationAdapter):
         pdf_path = output_dir / f"{parent_object_id}.pdf"
         json_path.write_text(json.dumps(as_json))
         pdf_path.write_bytes(pdf_bytes)
+        logger.info(
+            "artifacts_attached",
+            parent_id=parent_object_id,
+            json_path=str(json_path),
+            pdf_path=str(pdf_path),
+        )

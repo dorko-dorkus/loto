@@ -19,5 +19,5 @@ def test_validate_env_vars_reports_missing(monkeypatch, capsys):
     out = capsys.readouterr().out
     assert key in out
     lines = out.strip().splitlines()
-    row = next(line for line in lines if line.startswith(key))
-    assert row.endswith("N")
+    row = next(line for line in lines if key in line)
+    assert row.rstrip().endswith("N")
