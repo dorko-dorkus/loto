@@ -18,6 +18,13 @@ from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from jwt import PyJWTError
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Histogram,
+    generate_latest,
+)
 from pydantic import BaseModel, Field
 
 from loto.config import validate_env_vars
@@ -89,6 +96,26 @@ app.add_middleware(
 app.include_router(pid_router)
 app.include_router(hats_router)
 app.include_router(workorder_router)
+
+REGISTRY = CollectorRegistry()
+plans_generated_total = Counter(
+    "plans_generated_total",
+    "Total number of plans generated",
+    registry=REGISTRY,
+)
+errors_total = Counter(
+    "errors_total", "Total number of plan generation errors", registry=REGISTRY
+)
+plan_generation_duration_seconds = Histogram(
+    "plan_generation_duration_seconds",
+    "Plan generation duration in seconds",
+    registry=REGISTRY,
+)
+
+
+@app.get("/metrics")
+def get_metrics() -> Response:
+    return Response(generate_latest(REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
 
 AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "").lower() == "true"
@@ -340,20 +367,28 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         open(ctx["drain_csv"]) as drain,
         open(ctx["source_csv"]) as source,
     ):
-        plan, _, impact, prov = plan_and_evaluate(
-            line,
-            valve,
-            drain,
-            source,
-            asset_tag=str(ctx["asset_tag"]),
-            rule_pack=RulePack(),
-            stimuli=[],
-            asset_units=impact_cfg.asset_units,
-            unit_data=impact_cfg.unit_data,
-            unit_areas=impact_cfg.unit_areas,
-            penalties=impact_cfg.penalties,
-            asset_areas=impact_cfg.asset_areas,
-        )
+        start = time.perf_counter()
+        try:
+            plan, _, impact, prov = plan_and_evaluate(
+                line,
+                valve,
+                drain,
+                source,
+                asset_tag=str(ctx["asset_tag"]),
+                rule_pack=RulePack(),
+                stimuli=[],
+                asset_units=impact_cfg.asset_units,
+                unit_data=impact_cfg.unit_data,
+                unit_areas=impact_cfg.unit_areas,
+                penalties=impact_cfg.penalties,
+                asset_areas=impact_cfg.asset_areas,
+            )
+            plans_generated_total.inc()
+        except Exception:
+            errors_total.inc()
+            raise
+        finally:
+            plan_generation_duration_seconds.observe(time.perf_counter() - start)
     seed_var.set(prov.seed)
     rule_hash_var.set(prov.rule_hash)
     logging.info("request complete")
