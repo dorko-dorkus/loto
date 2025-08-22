@@ -11,7 +11,7 @@ test('renders gantt, price curve and hats timeline', async () => {
   // @ts-ignore
   global.ResizeObserver = ResizeObserver;
 
-  const apiBase = 'http://localhost:8000';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
   process.env.NEXT_PUBLIC_API_BASE = apiBase;
 
   const sample = {
