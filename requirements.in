@@ -25,4 +25,7 @@ responses
 pre-commit
 httpx
 fastapi
+opentelemetry-sdk
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-requests
 types-PyYAML

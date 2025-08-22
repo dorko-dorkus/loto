@@ -97,6 +97,21 @@ app.include_router(pid_router)
 app.include_router(hats_router)
 app.include_router(workorder_router)
 
+if os.getenv("TRACE_ENABLED", "").lower() == "true":
+    from opentelemetry import trace
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
+    from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+
+    provider = TracerProvider(resource=Resource.create({SERVICE_NAME: "loto-api"}))
+    if os.getenv("PROFILE", "").lower() == "pilot":
+        provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+    trace.set_tracer_provider(provider)
+    FastAPIInstrumentor.instrument_app(app)
+    RequestsInstrumentor().instrument()
+
 REGISTRY = CollectorRegistry()
 plans_generated_total = Counter(
     "plans_generated_total",
