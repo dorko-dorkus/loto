@@ -22,10 +22,18 @@ make test
 
 ### Frontend
 
+Requires Node.js 20+.
+
 ```bash
+# Install pnpm
+corepack enable
+
 # Install dependencies and run tests for the Next.js app
 pnpm install
 pnpm -F maximo-extension-ui test
+
+# Start the local development server
+pnpm -F maximo-extension-ui dev
 ```
 
 ### Environment variables
