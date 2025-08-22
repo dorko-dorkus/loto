@@ -92,6 +92,49 @@ class Settings(BaseSettings):
 CONFIG_ERROR_CODE = "CONFIG/ENV"
 
 
+def validate_env_vars(example: Path | None = None) -> None:
+    """Validate presence of environment variables listed in ``.env.example``.
+
+    Parameters
+    ----------
+    example:
+        Optional path to the ``.env.example`` file. Defaults to the project
+        root's ``.env.example``.
+
+    Raises
+    ------
+    ConfigError
+        If any expected variable is missing. The function prints a table of
+        expected keys with ``Y``/``N`` indicating presence before raising.
+    """
+
+    example = example or Path(__file__).resolve().parent.parent / ".env.example"
+    keys: list[str] = []
+    for line in example.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        keys.append(line.split("=", 1)[0])
+
+    rows: list[tuple[str, str]] = []
+    missing: list[str] = []
+    for key in keys:
+        present = os.getenv(key) is not None
+        rows.append((key, "Y" if present else "N"))
+        if not present:
+            missing.append(key)
+
+    if missing:
+        col = max(len("Key"), *(len(k) for k, _ in rows))
+        print(f"{'Key'.ljust(col)} Present")
+        for key, flag in rows:
+            print(f"{key.ljust(col)} {flag}")
+        raise ConfigError(
+            code=CONFIG_ERROR_CODE,
+            hint="Missing environment variables: " + ", ".join(missing),
+        )
+
+
 def _required(keys: list[str]) -> None:
     missing = [k for k in keys if not os.getenv(k)]
     if missing:
