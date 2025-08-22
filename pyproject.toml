@@ -21,6 +21,7 @@ dependencies = [
     "pandas",
     "PyPDF2",
     "weasyprint",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
