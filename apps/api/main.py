@@ -61,14 +61,16 @@ logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
 app = FastAPI(title="loto API")
 
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
-if origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+if "http://localhost:3000" not in origins:
+    origins.append("http://localhost:3000")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(pid_router)
 app.include_router(hats_router)
