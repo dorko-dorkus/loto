@@ -4,7 +4,8 @@ This directory contains a minimal [FastAPI](https://fastapi.tiangolo.com/) servi
 
 ## Endpoints
 
-- `GET /healthz` – basic health check (excluded from OpenAPI schema).
+- `GET /healthz` – basic health check.
+- `GET /version` – return the application version.
 - `POST /blueprint` – placeholder accepting a CSV upload or work order ID.
 - `POST /schedule` – placeholder endpoint for creating schedules.
 - `GET /workorders/{id}` – mock endpoint returning a work order.
@@ -25,4 +26,4 @@ Start the development server:
 uvicorn apps.api.main:app --reload
 ```
 
-OpenAPI documentation is available at `/docs` and lists the three placeholder endpoints.
+OpenAPI documentation is available at `/docs`.

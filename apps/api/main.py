@@ -3,8 +3,11 @@ from __future__ import annotations
 import logging
 import os
 import time
+import tomllib
 from dataclasses import dataclass
 from datetime import date, timedelta
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
@@ -56,6 +59,11 @@ RULE_PACK = _rule_engine.load(_rulepack_path)
 RULE_PACK_HASH = _rule_engine.hash(RULE_PACK)
 RULE_PACK_ID = RULE_PACK.metadata.get("id")
 RULE_PACK_VERSION = RULE_PACK.metadata.get("version")
+try:
+    APP_VERSION = pkg_version("loto")
+except PackageNotFoundError:
+    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    APP_VERSION = tomllib.loads(pyproject.read_text())["project"]["version"]
 logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
 
 app = FastAPI(title="loto API")
@@ -191,7 +199,7 @@ class ProposeResponse(BaseModel):
         extra = "forbid"
 
 
-@app.get("/healthz", include_in_schema=False, tags=["LOTO"])
+@app.get("/healthz", tags=["LOTO"])
 async def healthz() -> dict[str, Any]:
     """Health check endpoint including rate limit counters."""
     return {
@@ -204,6 +212,12 @@ async def healthz() -> dict[str, Any]:
             },
         },
     }
+
+
+@app.get("/version", tags=["LOTO"])
+async def version() -> dict[str, str]:
+    """Return the application version."""
+    return {"version": APP_VERSION}
 
 
 class DemoMaximoAdapter:
