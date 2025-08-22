@@ -39,7 +39,7 @@ class PortfolioResponse(BaseModel):
         extra = "forbid"
 
 
-router = APIRouter(tags=["workorders"])
+router = APIRouter(tags=["workorders", "LOTO"])
 
 
 @router.get("/workorders/{workorder_id}", response_model=WorkOrderSummary)

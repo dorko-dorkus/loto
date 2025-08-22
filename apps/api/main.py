@@ -189,7 +189,7 @@ class ProposeResponse(BaseModel):
         extra = "forbid"
 
 
-@app.get("/healthz", include_in_schema=False)
+@app.get("/healthz", include_in_schema=False, tags=["LOTO"])
 async def healthz() -> dict[str, Any]:
     """Health check endpoint including rate limit counters."""
     return {
@@ -224,7 +224,7 @@ class DemoMaximoAdapter:
         }
 
 
-@app.post("/blueprint", response_model=BlueprintResponse)
+@app.post("/blueprint", response_model=BlueprintResponse, tags=["LOTO"])
 async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     """Plan isolations for a work order and return impact metrics."""
 
@@ -319,7 +319,7 @@ def _diff(
     return delta
 
 
-@app.post("/propose", response_model=ProposeResponse)
+@app.post("/propose", response_model=ProposeResponse, tags=["LOTO"])
 async def post_propose(payload: ProposeRequest) -> ProposeResponse:
     """Return diffs between proposed plan/schedule and current state."""
 
@@ -336,7 +336,7 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
     return ProposeResponse(diff=diff, idempotency_key=str(uuid4()))
 
 
-@app.post("/schedule", response_model=ScheduleResponse)
+@app.post("/schedule", response_model=ScheduleResponse, tags=["LOTO"])
 async def post_schedule(
     payload: ScheduleRequest, strict: bool = False
 ) -> ScheduleResponse:
@@ -426,7 +426,7 @@ async def post_schedule(
     )
 
 
-@app.get("/workorders/{workorder_id}/jobpack")
+@app.get("/workorders/{workorder_id}/jobpack", tags=["LOTO"])
 async def get_jobpack(
     workorder_id: str,
     permit_start: date | None = None,

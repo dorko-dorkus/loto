@@ -14,7 +14,7 @@ from loto.models import IsolationPlan
 from loto.pid import build_overlay
 from loto.pid.validator import validate_svg_map
 
-router = APIRouter(prefix="/pid", tags=["pid"])
+router = APIRouter(prefix="/pid", tags=["pid", "LOTO"])
 
 
 def _stat_path(path: Path) -> tuple[float, bool]:
