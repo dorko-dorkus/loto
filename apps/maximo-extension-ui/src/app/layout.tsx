@@ -3,21 +3,6 @@ import '../styles/globals.css';
 import ThemeToggle from '../components/ThemeToggle';
 import DensityToggle from '../components/DensityToggle';
 
-if (
-  process.env.NODE_ENV === 'development' &&
-  process.env.NEXT_PUBLIC_API_TOKEN
-) {
-  const token = process.env.NEXT_PUBLIC_API_TOKEN;
-  const originalFetch = global.fetch;
-  global.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-    const headers = new Headers(init?.headers || {});
-    if (!headers.has('Authorization')) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-    return originalFetch(input, { ...init, headers });
-  };
-}
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="h-full">

@@ -12,10 +12,12 @@ from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
+import jwt
 import structlog
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from jwt import PyJWTError
 from pydantic import BaseModel, Field
 
 from loto.config import validate_env_vars
@@ -90,15 +92,40 @@ app.include_router(workorder_router)
 
 
 AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "").lower() == "true"
-AUTH_TOKEN = os.getenv("AUTH_TOKEN", "")
+JWT_SECRET = os.getenv("JWT_SECRET", "secret")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+
+
+@app.post("/login", response_model=TokenResponse, tags=["auth"])
+def login(payload: LoginRequest) -> TokenResponse:
+    expected = os.getenv("AUTH_TOKEN", "")
+    if AUTH_REQUIRED and expected and payload.password != expected:
+        raise HTTPException(status_code=401, detail="invalid credentials")
+    token = jwt.encode({"sub": payload.username}, JWT_SECRET, algorithm="HS256")
+    return TokenResponse(access_token=token)
 
 
 @app.middleware("http")
 async def auth_guard(request: Request, call_next):
-    """Enforce bearer token on non-read-only requests when required."""
+    """Enforce JWT bearer token on non-read-only requests when required."""
     if AUTH_REQUIRED and request.method not in {"GET", "HEAD", "OPTIONS"}:
         auth_header = request.headers.get("Authorization")
-        if auth_header != f"Bearer {AUTH_TOKEN}":
+        if not auth_header or not auth_header.startswith("Bearer "):
+            resp = Response(status_code=401)
+            resp.headers["X-Env"] = ENV_BADGE
+            return resp
+        token = auth_header.split(" ", 1)[1]
+        try:
+            jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        except PyJWTError:
             resp = Response(status_code=401)
             resp.headers["X-Env"] = ENV_BADGE
             return resp

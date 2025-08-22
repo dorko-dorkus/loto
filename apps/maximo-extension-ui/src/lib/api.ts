@@ -13,8 +13,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const base = process.env.NEXT_PUBLIC_API_BASE ?? '';
-  const token = process.env.NEXT_PUBLIC_API_TOKEN;
   const headers = new Headers(init?.headers || {});
+  const token =
+    typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }

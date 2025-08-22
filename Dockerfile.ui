@@ -11,6 +11,10 @@ RUN pnpm install --filter maximo-extension-ui... --frozen-lockfile
 
 COPY apps/maximo-extension-ui apps/maximo-extension-ui
 
+# Create non-root user
+RUN adduser -D appuser && chown -R appuser /app
+USER appuser
+
 EXPOSE 3000
 
 CMD ["pnpm", "-F", "maximo-extension-ui", "dev"]

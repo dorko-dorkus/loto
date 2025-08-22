@@ -8,7 +8,8 @@ const originalFetch = global.fetch;
 
 afterEach(() => {
   global.fetch = originalFetch;
-  delete process.env.NEXT_PUBLIC_API_TOKEN;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  delete (global as any).localStorage;
   vi.clearAllMocks();
 });
 
@@ -16,7 +17,8 @@ describe('apiFetch', () => {
   it('adds authorization header when token is set', async () => {
     const mock = vi.fn().mockResolvedValue(new Response());
     global.fetch = mock as any;
-    process.env.NEXT_PUBLIC_API_TOKEN = 'token';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).localStorage = { getItem: () => 'token' };
 
     await apiFetch('/test');
 
@@ -27,7 +29,8 @@ describe('apiFetch', () => {
   it('does not override existing authorization header', async () => {
     const mock = vi.fn().mockResolvedValue(new Response());
     global.fetch = mock as any;
-    process.env.NEXT_PUBLIC_API_TOKEN = 'token';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).localStorage = { getItem: () => 'token' };
 
     await apiFetch('/test', { headers: { Authorization: 'Bearer existing' } });
 
@@ -46,6 +49,8 @@ describe('apiFetch', () => {
         })
       );
     global.fetch = mock as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (global as any).localStorage = { getItem: () => null };
 
     await apiFetch('/test');
 
