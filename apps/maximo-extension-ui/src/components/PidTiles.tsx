@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/pid.css';
+import { toastError } from '../lib/toast';
 
 type Highlight = 'primary' | 'warning' | null;
 
@@ -27,9 +28,11 @@ export default function PidTiles({ src, highlight = null }: PidTilesProps) {
   const debounceTimer = useRef<number>();
 
   useEffect(() => {
-    fetch(src)
-      .then((r) => r.text())
-      .then((txt) => {
+    async function load() {
+      try {
+        const r = await fetch(src);
+        if ('ok' in r && !r.ok) throw new Error('Failed to load PID');
+        const txt = await r.text();
         const div = hiddenRef.current;
         if (!div) return;
         div.innerHTML = txt;
@@ -48,7 +51,11 @@ export default function PidTiles({ src, highlight = null }: PidTilesProps) {
         elementsRef.current = entries;
         div.innerHTML = '';
         fitToScreen(svg);
-      });
+      } catch (err) {
+        toastError('Failed to load PID');
+      }
+    }
+    load();
   }, [src]);
 
   useEffect(() => {

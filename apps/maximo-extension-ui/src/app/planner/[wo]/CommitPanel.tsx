@@ -2,6 +2,7 @@
 
 import { useBlueprintApi } from '../../../lib/hooks';
 import Button from '../../../components/Button';
+import { toastError } from '../../../lib/toast';
 
 interface CommitPanelProps {
   wo: string;
@@ -17,7 +18,12 @@ export default function CommitPanel({ wo }: CommitPanelProps) {
   const handleCommit = async () => {
     const input = window.prompt('Type COMMIT to confirm');
     if (input !== 'COMMIT') return;
-    await fetch(`/api/commit/${wo}`, { method: 'POST' });
+    try {
+      const res = await fetch(`/api/commit/${wo}`, { method: 'POST' });
+      if ('ok' in res && !res.ok) throw new Error('Failed to commit');
+    } catch (err) {
+      toastError('Failed to commit');
+    }
   };
 
   return (

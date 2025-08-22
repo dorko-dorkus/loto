@@ -8,6 +8,7 @@ import PidViewer from '../../../components/PidViewer';
 import { applyPidOverlay, type Overlay } from '../../../lib/pidOverlay';
 import { apiFetch } from '../../../lib/api';
 import type { BlueprintData } from '../../../types/api';
+import { toastError } from '../../../lib/toast';
 
 interface OverlayResponse extends Overlay {
   drawingId: string;
@@ -15,7 +16,7 @@ interface OverlayResponse extends Overlay {
 
 async function fetchOverlay(wo: string, blueprint: BlueprintData): Promise<OverlayResponse> {
   const mapRes = await fetch('/demo/pids/pid_map.yaml');
-  if (!mapRes.ok) {
+  if ('ok' in mapRes && !mapRes.ok) {
     throw new Error('Failed to fetch pid map');
   }
   const pidMap = yaml.load(await mapRes.text()) as Record<string, unknown>;
@@ -37,7 +38,7 @@ async function fetchOverlay(wo: string, blueprint: BlueprintData): Promise<Overl
       pid_map: pidMap
     })
   });
-  if (!res.ok) {
+  if ('ok' in res && !res.ok) {
     throw new Error('Failed to fetch overlay');
   }
   const overlay = await res.json();
@@ -49,7 +50,14 @@ export default function PidTab({ wo }: { wo: string }) {
   const { data } = useQuery({
     queryKey: ['pid', wo],
     enabled: !!blueprint,
-    queryFn: () => fetchOverlay(wo, blueprint as BlueprintData)
+    queryFn: async () => {
+      try {
+        return await fetchOverlay(wo, blueprint as BlueprintData);
+      } catch (err) {
+        toastError('Failed to fetch PID overlay');
+        throw err;
+      }
+    }
   });
   const [showSimFails, setShowSimFails] = useState(false);
   const [showSourcePath, setShowSourcePath] = useState(false);

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import '../styles/pid.css';
+import { toastError } from '../lib/toast';
 
 type Highlight = 'primary' | 'warning' | null;
 
@@ -31,9 +32,11 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
   }
 
   useEffect(() => {
-    fetch(src)
-      .then((r) => r.text())
-      .then((txt) => {
+    async function load() {
+      try {
+        const r = await fetch(src);
+        if ('ok' in r && !r.ok) throw new Error('Failed to load PID');
+        const txt = await r.text();
         if (svgContainerRef.current) {
           svgContainerRef.current.innerHTML = txt;
           svgRef.current = svgContainerRef.current.querySelector('svg');
@@ -41,7 +44,11 @@ export default function PidViewer({ src, highlight = null, warnings = [] }: PidV
           applyHighlight();
           fitToScreen();
         }
-      });
+      } catch (err) {
+        toastError('Failed to load PID');
+      }
+    }
+    load();
   }, [src]);
 
   useEffect(() => {
