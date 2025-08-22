@@ -16,6 +16,6 @@ def test_rate_limit(monkeypatch):
     res = client.post("/schedule", json=payload)
     assert res.status_code == 429
     assert res.headers["X-Env"] == main.ENV_BADGE
-    monkeypatch.delenv("RATE_LIMIT_CAPACITY", raising=False)
-    monkeypatch.delenv("RATE_LIMIT_INTERVAL", raising=False)
+    monkeypatch.setenv("RATE_LIMIT_CAPACITY", "10")
+    monkeypatch.setenv("RATE_LIMIT_INTERVAL", "60")
     importlib.reload(main)

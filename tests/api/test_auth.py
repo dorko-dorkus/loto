@@ -20,6 +20,6 @@ def test_bearer_token(monkeypatch):
     assert resp_fail.headers["X-Env"] == main.ENV_BADGE
     resp_public = client.get("/healthz")
     assert resp_public.status_code == 200
-    monkeypatch.delenv("AUTH_REQUIRED", raising=False)
-    monkeypatch.delenv("AUTH_TOKEN", raising=False)
+    monkeypatch.setenv("AUTH_REQUIRED", "false")
+    monkeypatch.setenv("AUTH_TOKEN", "devtoken")
     importlib.reload(main)

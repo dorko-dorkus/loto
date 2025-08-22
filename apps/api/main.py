@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from loto.config import validate_env_vars
 from loto.impact_config import load_impact_config
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
@@ -44,6 +45,7 @@ from .schemas import (
 from .workorder_endpoints import router as workorder_router
 
 configure_logging()
+validate_env_vars()
 
 _rule_engine = RuleEngine()
 _default_rulepack = (

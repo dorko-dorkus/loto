@@ -20,6 +20,6 @@ def test_healthz_reports_rate_limit(monkeypatch):
         assert path in data["rate_limit"]["counters"]
     assert res.headers["X-Env"] == main.ENV_BADGE
 
-    monkeypatch.delenv("RATE_LIMIT_CAPACITY", raising=False)
-    monkeypatch.delenv("RATE_LIMIT_INTERVAL", raising=False)
+    monkeypatch.setenv("RATE_LIMIT_CAPACITY", "10")
+    monkeypatch.setenv("RATE_LIMIT_INTERVAL", "60")
     importlib.reload(main)
