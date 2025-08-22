@@ -1,13 +1,18 @@
+from typing import Any, Type
+
 import pytest
 
 from loto.errors import (
     ConfigError,
+    GenerationError,
     GraphError,
+    ImportError,
     IntegrationError,
     LotoError,
     PlanError,
     RenderError,
     RulesError,
+    ValidationError,
 )
 
 
@@ -23,6 +28,22 @@ def test_error_subclassing(exc_cls: type[LotoError]) -> None:
     # The string representation should include both the code and hint
     msg = str(err)
     assert "E001" in msg and "something went wrong" in msg
+
+
+@pytest.mark.parametrize(
+    "exc_cls, code",
+    [
+        (ValidationError, "VALIDATION_ERROR"),
+        (ImportError, "IMPORT_ERROR"),
+        (GenerationError, "GENERATION_ERROR"),
+    ],
+)
+def test_fixed_code_errors(exc_cls: Type[Any], code: str) -> None:
+    err = exc_cls("something went wrong")
+    assert err.code == code
+    assert err.hint == "something went wrong"
+    msg = str(err)
+    assert code in msg and "something went wrong" in msg
 
 
 def test_loto_error_str_contains_code() -> None:

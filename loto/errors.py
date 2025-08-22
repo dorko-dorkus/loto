@@ -71,6 +71,33 @@ class RenderError(LotoError):
     """Failures while rendering documents or reports."""
 
 
+class ValidationError(LotoError):
+    """Input failed validation."""
+
+    code = "VALIDATION_ERROR"
+
+    def __init__(self, hint: str):
+        super().__init__(self.code, hint)
+
+
+class ImportError(LotoError):  # noqa: A001 - intended name clash with builtin
+    """Importing external data failed."""
+
+    code = "IMPORT_ERROR"
+
+    def __init__(self, hint: str):
+        super().__init__(self.code, hint)
+
+
+class GenerationError(LotoError):
+    """Generating output failed."""
+
+    code = "GENERATION_ERROR"
+
+    def __init__(self, hint: str):
+        super().__init__(self.code, hint)
+
+
 __all__ = [
     "LotoError",
     "ConfigError",
@@ -79,4 +106,7 @@ __all__ = [
     "PlanError",
     "IntegrationError",
     "RenderError",
+    "ValidationError",
+    "ImportError",
+    "GenerationError",
 ]
