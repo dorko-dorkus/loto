@@ -26,7 +26,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[dev]
+          pip install -r requirements.txt
+          pnpm install --frozen-lockfile
           pre-commit install
       - name: Dependency vulnerability scan
         run: |
@@ -35,7 +36,6 @@ jobs:
           pnpm audit --audit-level=high
       - name: Frontend build and test
         run: |
-          pnpm -C apps/maximo-extension-ui i
           pnpm -C apps/maximo-extension-ui build
           pnpm -C apps/maximo-extension-ui test
       - name: Lint
