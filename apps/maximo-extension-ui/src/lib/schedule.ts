@@ -1,5 +1,6 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
 import { apiFetch } from './api';
+import { toastError } from './toast';
 
 export interface SchedulePoint {
   date: string;
@@ -38,6 +39,16 @@ export async function fetchSchedule(wo: string): Promise<ScheduleResponse> {
  * React Query hook for schedule data.
  */
 export function useSchedule(wo: string): UseQueryResult<ScheduleResponse> {
-  return useQuery({ queryKey: ['schedule', wo], queryFn: () => fetchSchedule(wo) });
+  return useQuery({
+    queryKey: ['schedule', wo],
+    queryFn: async () => {
+      try {
+        return await fetchSchedule(wo);
+      } catch (err) {
+        toastError('Failed to fetch schedule');
+        throw err;
+      }
+    }
+  });
 }
 

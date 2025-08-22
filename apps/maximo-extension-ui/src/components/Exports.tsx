@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react';
 import Button from './Button';
 import { apiFetch } from '../lib/api';
+import { toastError } from '../lib/toast';
 
 interface ExportProps {
   wo: string;
@@ -14,59 +15,67 @@ export default function Exports({ wo }: ExportProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   async function handleExport(format: 'pdf' | 'json') {
-    const res = await apiFetch('/blueprint', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: format === 'pdf' ? 'application/pdf' : 'application/json'
-      },
-      body: JSON.stringify({ workorder_id: wo })
-    });
-    if (!res.ok) return;
+    try {
+      const res = await apiFetch('/blueprint', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: format === 'pdf' ? 'application/pdf' : 'application/json'
+        },
+        body: JSON.stringify({ workorder_id: wo })
+      });
+      if ('ok' in res && !res.ok) throw new Error('Failed to export blueprint');
 
-    const h = res.headers.get('x-loto-hash');
-    const s = res.headers.get('x-loto-seed');
-    if (h) setHash(h);
-    if (s) setSeed(s);
+      const h = res.headers.get('x-loto-hash');
+      const s = res.headers.get('x-loto-seed');
+      if (h) setHash(h);
+      if (s) setSeed(s);
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const ext = format === 'pdf' ? 'pdf' : 'json';
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `WO-${wo}_${h ?? 'unknown'}.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const ext = format === 'pdf' ? 'pdf' : 'json';
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `WO-${wo}_${h ?? 'unknown'}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError('Failed to export blueprint');
+    }
   }
 
   async function downloadPid(a3 = false) {
-    const res = await apiFetch('/pid/pdf', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/pdf'
-      },
-      body: JSON.stringify({ workorder_id: wo })
-    });
-    if (!res.ok) return;
+    try {
+      const res = await apiFetch('/pid/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/pdf'
+        },
+        body: JSON.stringify({ workorder_id: wo })
+      });
+      if ('ok' in res && !res.ok) throw new Error('Failed to export PID');
 
-    const h = res.headers.get('x-loto-hash');
-    const s = res.headers.get('x-loto-seed');
-    if (h) setHash(h);
-    if (s) setSeed(s);
+      const h = res.headers.get('x-loto-hash');
+      const s = res.headers.get('x-loto-seed');
+      if (h) setHash(h);
+      if (s) setSeed(s);
 
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    const suffix = a3 ? '_pid_a3' : '_pid';
-    a.download = `WO-${wo}_${h ?? 'unknown'}${suffix}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const suffix = a3 ? '_pid_a3' : '_pid';
+      a.download = `WO-${wo}_${h ?? 'unknown'}${suffix}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toastError('Failed to export PID');
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {

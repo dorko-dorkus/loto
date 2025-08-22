@@ -4,10 +4,12 @@
 import { useEffect, useState } from 'react';
 import { SimulationResult } from '../../types/api';
 import { apiFetch } from '../../lib/api';
+import { toastError } from '../../lib/toast';
 
 // Fetch candidate bundling options for a work order
 async function fetchCandidates(): Promise<SimulationResult[]> {
   const res = await apiFetch('/bundling?wo=1');
+  if ('ok' in res && !res.ok) throw new Error('Failed to fetch candidates');
   return res.json();
 }
 
@@ -17,7 +19,9 @@ export default function ConflictsPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCandidates().then(setCandidates);
+    fetchCandidates().then(setCandidates).catch(() => {
+      toastError('Failed to fetch bundling candidates');
+    });
   }, []);
 
   const toggle = (id: number) => {
@@ -67,15 +71,20 @@ export default function ConflictsPage() {
       <button
         className="mt-4 rounded border border-[var(--mxc-border)] px-4 py-2"
         onClick={async () => {
-          const res = await apiFetch('/bundling/recommend', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ selected: Array.from(selected) })
-          });
-          const ids: number[] = await res.json();
-          setSelected(new Set(ids));
-          setToast(`Recommended: ${ids.join(', ')}`);
-          console.log('Recommend', ids);
+          try {
+            const res = await apiFetch('/bundling/recommend', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ selected: Array.from(selected) })
+            });
+            if ('ok' in res && !res.ok) throw new Error('Failed to recommend bundles');
+            const ids: number[] = await res.json();
+            setSelected(new Set(ids));
+            setToast(`Recommended: ${ids.join(', ')}`);
+            console.log('Recommend', ids);
+          } catch (err) {
+            toastError('Failed to recommend bundles');
+          }
         }}
       >
         Recommend

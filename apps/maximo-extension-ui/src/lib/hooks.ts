@@ -6,6 +6,7 @@ import type { WorkOrderSummary, BlueprintData } from '../types/api';
 import { apiFetch } from './api';
 import { fetchWorkOrder } from './workorders';
 import { fetchBlueprint } from './blueprint';
+import { toastError } from './toast';
 
 /**
  * Fetch portfolio data from the API.
@@ -32,7 +33,8 @@ export function usePortfolioApi(): UseQueryResult<PortfolioData> {
       if (!useApi) return fetchPortfolio();
       try {
         return await fetchPortfolioApi();
-      } catch {
+      } catch (err) {
+        toastError('Failed to fetch portfolio');
         return fetchPortfolio();
       }
     }
@@ -54,7 +56,8 @@ export function useWorkOrderApi(id: string): UseQueryResult<WorkOrderSummary> {
       if (!useApi) return fetchWorkOrderMock(id);
       try {
         return await fetchWorkOrder(id);
-      } catch {
+      } catch (err) {
+        toastError('Failed to fetch work order');
         return fetchWorkOrderMock(id);
       }
     }
@@ -71,7 +74,15 @@ export function useBlueprintApi(id: string): UseQueryResult<BlueprintData> {
   const useApi = process.env.NEXT_PUBLIC_USE_API === 'true';
   return useQuery({
     queryKey: ['blueprint', id],
-    queryFn: () => (useApi ? fetchBlueprint(id) : fetchBlueprintMock(id))
+    queryFn: async () => {
+      if (!useApi) return fetchBlueprintMock(id);
+      try {
+        return await fetchBlueprint(id);
+      } catch (err) {
+        toastError('Failed to fetch blueprint');
+        return fetchBlueprintMock(id);
+      }
+    }
   });
 }
 

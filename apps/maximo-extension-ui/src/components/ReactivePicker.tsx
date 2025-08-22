@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../lib/api';
+import { toastError } from '../lib/toast';
 
 interface HatCandidate {
   hat_id: string;
@@ -15,7 +16,17 @@ async function fetchCandidates(): Promise<HatCandidate[]> {
 }
 
 export default function ReactivePicker({ wo }: { wo: string }) {
-  const { data } = useQuery({ queryKey: ['reactive', wo], queryFn: fetchCandidates });
+  const { data } = useQuery({
+    queryKey: ['reactive', wo],
+    queryFn: async () => {
+      try {
+        return await fetchCandidates();
+      } catch (err) {
+        toastError('Failed to fetch reactive candidates');
+        throw err;
+      }
+    }
+  });
   if (!data) return null;
   return (
     <section className="mt-4">
