@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Stepper from '../../components/Stepper';
+import WizardExport from '../../components/WizardExport';
 
 interface WizardData {
   name: string;
   age: string;
 }
 
-const steps = ['Step One', 'Step Two', 'Step Three'];
+const steps = ['Step One', 'Step Two', 'Step Three', 'Export'];
 
 export default function WizardPage() {
   const [step, setStep] = useState(0);
@@ -75,11 +76,23 @@ export default function WizardPage() {
       <p>
         Name: {data.name || '-'}, Age: {data.age || '-'}
       </p>
+      <button onClick={() => setStep(3)}>Next</button>
+    </div>
+  );
+
+  const StepFour = () => (
+    <div>
+      <WizardExport plan={data} />
       <button onClick={() => setStep(0)}>Restart</button>
     </div>
   );
 
-  const stepComponents = [<StepOne key={0} />, <StepTwo key={1} />, <StepThree key={2} />];
+  const stepComponents = [
+    <StepOne key={0} />,
+    <StepTwo key={1} />,
+    <StepThree key={2} />,
+    <StepFour key={3} />
+  ];
 
   return (
     <main>
