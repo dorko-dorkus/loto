@@ -1,4 +1,4 @@
-.PHONY: fmt lint typecheck test run-demo demo-up
+.PHONY: fmt lint typecheck test run-demo demo-up check-prereqs
 
 fmt:
 	black loto tests
@@ -25,3 +25,6 @@ demo-up:
 		echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
 		exit 1; \
 	fi
+
+check-prereqs:
+	./scripts/check-prereqs.sh
