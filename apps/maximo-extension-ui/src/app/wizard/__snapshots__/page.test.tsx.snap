@@ -1,0 +1,37 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`matches snapshot 1`] = `
+<main>
+  <ol
+    class="flex gap-2"
+  >
+    <li
+      class="rounded px-3 py-1 bg-[var(--mxc-topbar-bg)] text-[var(--mxc-topbar-fg)]"
+    >
+      Step One
+    </li>
+    <li
+      class="rounded px-3 py-1 bg-[var(--mxc-sheet)] text-[var(--mxc-fg-subtle)]"
+    >
+      Step Two
+    </li>
+    <li
+      class="rounded px-3 py-1 bg-[var(--mxc-sheet)] text-[var(--mxc-fg-subtle)]"
+    >
+      Step Three
+    </li>
+  </ol>
+  <div>
+    <label>
+      Name
+      <input
+        aria-label="name"
+        value=""
+      />
+    </label>
+    <button>
+      Next
+    </button>
+  </div>
+</main>
+`;
