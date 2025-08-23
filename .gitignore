@@ -21,3 +21,6 @@ storybook-static/
 playwright-report/
 **/.next/
 apps/maximo-extension-ui/test-results/
+
+# Production environment configuration
+prod.env
