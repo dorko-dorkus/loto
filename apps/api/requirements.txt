@@ -8,3 +8,4 @@ prometheus_client
 opentelemetry-sdk
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-requests
+fastapi-oidc

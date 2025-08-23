@@ -15,7 +15,7 @@ from uuid import uuid4
 
 import jwt
 import structlog
-from fastapi import FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from jwt import PyJWTError
@@ -27,6 +27,8 @@ from prometheus_client import (
     generate_latest,
 )
 from pydantic import BaseModel, Field
+from fastapi_oidc import get_auth
+from fastapi_oidc.types import IDToken
 
 from loto.config import validate_env_vars
 from loto.errors import GenerationError
@@ -154,6 +156,43 @@ AUTH_REQUIRED = os.getenv("AUTH_REQUIRED", "").lower() == "true"
 JWT_SECRET = os.getenv("JWT_SECRET", "secret")
 
 
+# OIDC configuration
+OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID", "")
+OIDC_ISSUER = os.getenv("OIDC_ISSUER", "https://example.com")
+OIDC_SERVER = os.getenv("OIDC_SERVER", OIDC_ISSUER)
+OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", OIDC_CLIENT_ID)
+OIDC_CACHE_TTL = int(os.getenv("OIDC_CACHE_TTL", "3600"))
+
+
+class OIDCUser(IDToken):
+    roles: List[str] = Field(default_factory=list)
+
+
+authenticate_user = get_auth(
+    client_id=OIDC_CLIENT_ID,
+    audience=OIDC_AUDIENCE,
+    base_authorization_server_uri=OIDC_SERVER,
+    issuer=OIDC_ISSUER,
+    signature_cache_ttl=OIDC_CACHE_TTL,
+    token_type=OIDCUser,
+)
+
+
+def _require_role(role: str):
+    def checker(user: OIDCUser = Depends(authenticate_user)) -> OIDCUser:
+        if role not in user.roles:
+            raise HTTPException(status_code=403, detail="forbidden")
+        return user
+
+    return checker
+
+
+require_worker = _require_role("worker")
+require_supervisor = _require_role("supervisor")
+require_hs_rep = _require_role("HS rep")
+require_admin = _require_role("admin")
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -170,6 +209,26 @@ def login(payload: LoginRequest) -> TokenResponse:
         raise HTTPException(status_code=401, detail="invalid credentials")
     token = jwt.encode({"sub": payload.username}, JWT_SECRET, algorithm="HS256")
     return TokenResponse(access_token=token)
+
+
+@app.get("/roles/worker", dependencies=[Depends(require_worker)], tags=["auth"])
+def worker_role() -> dict[str, bool]:
+    return {"ok": True}
+
+
+@app.get("/roles/supervisor", dependencies=[Depends(require_supervisor)], tags=["auth"])
+def supervisor_role() -> dict[str, bool]:
+    return {"ok": True}
+
+
+@app.get("/roles/hsrep", dependencies=[Depends(require_hs_rep)], tags=["auth"])
+def hs_rep_role() -> dict[str, bool]:
+    return {"ok": True}
+
+
+@app.get("/roles/admin", dependencies=[Depends(require_admin)], tags=["auth"])
+def admin_role() -> dict[str, bool]:
+    return {"ok": True}
 
 
 @app.middleware("http")
