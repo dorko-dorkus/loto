@@ -1,9 +1,11 @@
 'use client';
 
+import { notFound } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Gantt from '../../../components/Gantt';
 import ReactivePicker from '../../../components/ReactivePicker';
 import { useSchedule } from '../../../lib/schedule';
+import { isFeatureEnabled } from '../../../lib/featureFlags';
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,9 @@ function SchedulerContent({ wo }: { wo: string }) {
 }
 
 export default function SchedulerPage({ params }: { params: { wo: string } }) {
+  if (!isFeatureEnabled('scheduler')) {
+    notFound();
+  }
   return (
     <QueryClientProvider client={queryClient}>
       <SchedulerContent wo={params.wo} />

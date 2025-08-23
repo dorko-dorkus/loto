@@ -57,7 +57,12 @@ def test_load_config_valid(tmp_path, monkeypatch, app_env, contents, check):
             "DATA_OUT",
             "RULEPACK_FILE",
         }
-        if k.startswith("MAXIMO") or k.startswith("WAPR") or k.startswith("COUPA") or k in tracked:
+        if (
+            k.startswith("MAXIMO")
+            or k.startswith("WAPR")
+            or k.startswith("COUPA")
+            or k in tracked
+        ):
             monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("APP_ENV", app_env)
     cfg = load_config()
@@ -106,10 +111,49 @@ def test_load_config_invalid(tmp_path, monkeypatch, app_env, contents, missing):
             "DATA_OUT",
             "RULEPACK_FILE",
         }
-        if k.startswith("MAXIMO") or k.startswith("WAPR") or k.startswith("COUPA") or k in tracked:
+        if (
+            k.startswith("MAXIMO")
+            or k.startswith("WAPR")
+            or k.startswith("COUPA")
+            or k in tracked
+        ):
             monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("APP_ENV", app_env)
     with pytest.raises(ConfigError) as exc:
         load_config()
     assert exc.value.code == "CONFIG/ENV"
     assert missing in exc.value.hint
+
+
+def test_load_config_feature_flags(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env.demo"
+    env_file.write_text(
+        "\n".join(
+            [
+                "APP_ENV=demo",
+                "DATA_IN=in",
+                "DATA_OUT=out",
+                "RULEPACK_FILE=rules.yml",
+                "FEATURE_FLAGS=wizard,planner",
+            ]
+        )
+    )
+    monkeypatch.chdir(tmp_path)
+    for k in list(os.environ):
+        tracked = {
+            "APP_ENV",
+            "DATA_IN",
+            "DATA_OUT",
+            "RULEPACK_FILE",
+            "FEATURE_FLAGS",
+        }
+        if (
+            k.startswith("MAXIMO")
+            or k.startswith("WAPR")
+            or k.startswith("COUPA")
+            or k in tracked
+        ):
+            monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("APP_ENV", "demo")
+    cfg = load_config()
+    assert cfg.feature_flags == {"wizard": True, "planner": True}
