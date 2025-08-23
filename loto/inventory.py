@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from functools import lru_cache
+from pathlib import Path
 from typing import Callable, Iterable, List, Mapping, Optional
+
+import yaml
 
 
 @dataclass
@@ -47,6 +51,29 @@ class InventoryRecord:
     reorder_point: int
     site: str | None = None
     bin: str | None = None
+
+
+_UNIT_MAP_PATH = Path(__file__).resolve().parents[1] / "config" / "inventory_units.yaml"
+
+
+@lru_cache
+def _load_unit_map() -> dict[str, str]:
+    try:
+        with _UNIT_MAP_PATH.open() as fh:
+            data = yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        data = {}
+    return {k.lower(): v for k, v in data.items()}
+
+
+def ingest_inventory(records: Iterable[InventoryRecord]) -> list[InventoryRecord]:
+    """Normalise units on ``records`` using configured mappings."""
+    unit_map = _load_unit_map()
+    normalised: list[InventoryRecord] = []
+    for rec in records:
+        unit = unit_map.get(rec.unit.lower(), rec.unit)
+        normalised.append(replace(rec, unit=unit))
+    return normalised
 
 
 def normalize_units(

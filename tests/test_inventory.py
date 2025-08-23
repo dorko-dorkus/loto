@@ -7,10 +7,12 @@ from fastapi.testclient import TestClient
 from apps.api.main import app
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
+    InventoryRecord,
     InventoryStatus,
     Reservation,
     StockItem,
     check_wo_parts_required,
+    ingest_inventory,
 )
 
 
@@ -62,3 +64,20 @@ def test_blueprint_inventory_gating():
         assert res.json()["blocked_by_parts"] is False
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
+
+
+def test_ingest_inventory_normalizes_units():
+    records = [
+        InventoryRecord(description="Bolt", unit="Each", qty_onhand=1, reorder_point=0),
+        InventoryRecord(
+            description="Pipe", unit="Metre", qty_onhand=1, reorder_point=0
+        ),
+        InventoryRecord(
+            description="Sand", unit="Kilogram", qty_onhand=1, reorder_point=0
+        ),
+        InventoryRecord(
+            description="Water", unit="Litre", qty_onhand=1, reorder_point=0
+        ),
+    ]
+    normalised = ingest_inventory(records)
+    assert [r.unit for r in normalised] == ["ea", "m", "kg", "L"]
