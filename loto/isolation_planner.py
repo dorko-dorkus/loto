@@ -117,6 +117,8 @@ class IsolationPlanner:
                     )
                 )
         verifications: List[str] = []
+        hazards: List[str] = []
+        controls: List[str] = []
         for domain, edges in plan.items():
             if not edges:
                 continue
@@ -130,15 +132,26 @@ class IsolationPlanner:
                 ddbb_found = False
                 for node in component:
                     has_upstream_iso = any(
-                        any(data.get("is_isolation_point") for data in graphs[domain].get_edge_data(pred, node).values())
+                        any(
+                            data.get("is_isolation_point")
+                            for data in graphs[domain]
+                            .get_edge_data(pred, node)
+                            .values()
+                        )
                         for pred in graphs[domain].predecessors(node)
                     )
                     has_downstream_iso = any(
-                        any(data.get("is_isolation_point") for data in graphs[domain].get_edge_data(node, succ).values())
+                        any(
+                            data.get("is_isolation_point")
+                            for data in graphs[domain]
+                            .get_edge_data(node, succ)
+                            .values()
+                        )
                         for succ in graphs[domain].successors(node)
                     )
                     has_bleed = any(
-                        data.get("is_bleed") for _, _, data in graphs[domain].out_edges(node, data=True)
+                        data.get("is_bleed")
+                        for _, _, data in graphs[domain].out_edges(node, data=True)
                     )
                     if has_upstream_iso and has_downstream_iso and has_bleed:
                         verifications.append(f"{branch_label} DDBB")
@@ -147,4 +160,10 @@ class IsolationPlanner:
                 if ddbb_found:
                     continue
 
-        return IsolationPlan(plan_id=asset_tag, actions=actions, verifications=verifications)
+        return IsolationPlan(
+            plan_id=asset_tag,
+            actions=actions,
+            verifications=verifications,
+            hazards=hazards,
+            controls=controls,
+        )

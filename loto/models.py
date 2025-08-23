@@ -117,6 +117,12 @@ class IsolationPlan(BaseModel):
     verifications: List[str] = Field(
         default_factory=list, description="Optional verification checks"
     )
+    hazards: List[str] = Field(
+        default_factory=list, description="Identified hazards associated with the plan"
+    )
+    controls: List[str] = Field(
+        default_factory=list, description="Controls implemented to mitigate hazards"
+    )
 
     class Config:
         extra = "forbid"

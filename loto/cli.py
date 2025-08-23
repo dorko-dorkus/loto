@@ -17,6 +17,7 @@ from uuid import uuid4
 
 import networkx as nx  # type: ignore
 import typer
+import yaml
 from tqdm import tqdm
 
 from .graph_builder import GraphBuilder
@@ -58,6 +59,8 @@ def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--air-map", help="Path to instrument air map CSV", default=None
     )
+    parser.add_argument("--hazards", help="Path to hazards file", default=None)
+    parser.add_argument("--controls", help="Path to controls file", default=None)
     parser.add_argument("--output", help="Directory for outputs", default="./out")
     parser.add_argument("--no-sim", action="store_true", help="Skip simulation testing")
     parser.add_argument("--demo", action="store_true", help="Run in demo mode")
@@ -93,6 +96,8 @@ def main(argv: Optional[list[str]] = None) -> None:
         args.valves = args.valves or str(demo_dir / "valves.csv")
         args.drains = args.drains or str(demo_dir / "drains.csv")
         args.sources = args.sources or str(demo_dir / "sources.csv")
+        args.hazards = args.hazards or str(demo_dir / "hazards.yaml")
+        args.controls = args.controls or str(demo_dir / "controls.yaml")
 
     # Instantiate engine components
     rule_engine = RuleEngine()
@@ -136,6 +141,24 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     # Compute the isolation plan
     plan = planner.compute(graphs, args.asset, rule_pack)
+
+    # Load hazards and controls if provided
+    if args.hazards:
+        try:
+            with Path(args.hazards).open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or []
+                if isinstance(data, list):
+                    plan.hazards.extend(str(item) for item in data)
+        except Exception:  # pragma: no cover - ignore loading failures
+            pass
+    if args.controls:
+        try:
+            with Path(args.controls).open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or []
+                if isinstance(data, list):
+                    plan.controls.extend(str(item) for item in data)
+        except Exception:  # pragma: no cover - ignore loading failures
+            pass
 
     # Run simulation if not skipped.  If the simulation engine is not
     # implemented, keep an empty report.
