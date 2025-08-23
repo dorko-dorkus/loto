@@ -7,6 +7,7 @@ basic metadata/units for numeric values.
 
 from __future__ import annotations
 
+import datetime
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -199,6 +200,18 @@ class ArtifactBundle(BaseModel):
         extra = "forbid"
 
 
+class RulePackReview(BaseModel):
+    """Record of a governance review for a rule pack."""
+
+    version: str = Field(..., description="Reviewed rule pack version")
+    date: datetime.date = Field(..., description="Date of the review")
+    reviewer: str = Field(..., description="Person who performed the review")
+    outcome: str = Field(..., description="Outcome of the review")
+
+    class Config:
+        extra = "forbid"
+
+
 class RulePack(BaseModel):
     """Collection of domain and verification rules with optional risk policies."""
 
@@ -222,6 +235,9 @@ class RulePack(BaseModel):
     )
     risk_policies: Optional[RiskPolicies] = Field(
         None, description="Associated risk policies"
+    )
+    review: Optional[List[RulePackReview]] = Field(
+        default=None, description="Review history for the rule pack"
     )
 
     class Config:
