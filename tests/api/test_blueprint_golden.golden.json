@@ -1,0 +1,15 @@
+{
+  "blocked_by_parts": false,
+  "parts_status": {
+    "P-100": "ok",
+    "P-200": "ok"
+  },
+  "steps": [
+    {
+      "component_id": "VALVE-1",
+      "method": "lock"
+    }
+  ],
+  "unavailable_assets": [],
+  "unit_mw_delta": {}
+}
