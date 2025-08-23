@@ -13,12 +13,32 @@ these signatures as a starting point for a full implementation.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple
 
 import networkx as nx  # type: ignore
 
 from .models import IsolationAction, IsolationPlan
 from .rule_engine import RulePack
+
+
+@dataclass
+class VerificationGate:
+    """Require approvals from two distinct users before energization."""
+
+    approved_by: Set[str] = field(default_factory=set)
+
+    def approve(self, user: str) -> bool:
+        """Record approval by ``user`` and return readiness state."""
+
+        self.approved_by.add(user)
+        return self.is_ready
+
+    @property
+    def is_ready(self) -> bool:
+        """Whether energization can proceed."""
+
+        return len(self.approved_by) >= 2
 
 
 class IsolationPlanner:
