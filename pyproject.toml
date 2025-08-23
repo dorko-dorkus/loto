@@ -39,6 +39,7 @@ dev = [
     "httpx",
     "fastapi",
     "types-PyYAML",
+    "fastapi-oidc",
 ]
 
 [tool.black]

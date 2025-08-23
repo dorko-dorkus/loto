@@ -16,3 +16,15 @@ To populate `prod.env` with secrets:
    ```
 
 `prod.env` is ignored by git and should never be committed.
+
+## OIDC Configuration
+
+The API uses OpenID Connect for authentication. Register a client with your identity
+provider and add the credentials to `prod.env`:
+
+```bash
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+```
+
+These values are read by `apps/api/main.py` during startup.
