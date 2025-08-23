@@ -1,6 +1,6 @@
 import networkx as nx
 
-from loto.isolation_planner import IsolationPlanner
+from loto.isolation_planner import IsolationPlanner, VerificationGate
 from loto.rule_engine import RulePack
 
 
@@ -28,7 +28,9 @@ def ddbb_graph():
 
 def test_basic_verifications():
     planner = IsolationPlanner()
-    plan = planner.compute({"p": simple_graph()}, asset_tag="asset", rule_pack=RulePack())
+    plan = planner.compute(
+        {"p": simple_graph()}, asset_tag="asset", rule_pack=RulePack()
+    )
     assert len(plan.verifications) == 2
     assert any("PT=0" in v for v in plan.verifications)
     assert any("no-movement" in v for v in plan.verifications)
@@ -41,3 +43,18 @@ def test_ddbb_hint():
     assert any("PT=0" in v for v in plan.verifications)
     assert any("no-movement" in v for v in plan.verifications)
     assert any("DDBB" in v for v in plan.verifications)
+
+
+def test_gate_single_user_insufficient():
+    gate = VerificationGate()
+    gate.approve("user1")
+    assert not gate.is_ready
+
+
+def test_gate_two_distinct_users_required():
+    gate = VerificationGate()
+    gate.approve("user1")
+    gate.approve("user1")
+    assert not gate.is_ready
+    gate.approve("user2")
+    assert gate.is_ready

@@ -13,6 +13,7 @@ from subprocess import CalledProcessError, run
 from typing import Any, Dict, List
 from uuid import uuid4
 
+import sqlite3
 import jwt
 import structlog
 import sentry_sdk
@@ -98,6 +99,8 @@ def _git_sha() -> str:
 
 GIT_SHA = _git_sha()
 logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
+
+_APPROVAL_DB = Path(__file__).resolve().parents[2] / "approvals.db"
 
 app = FastAPI(title="loto API")
 
@@ -201,6 +204,12 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+
+
+class ApprovalRequest(BaseModel):
+    """Approval payload containing the approver identifier."""
+
+    user_id: str
 
 
 @app.post("/login", response_model=TokenResponse, tags=["auth"])
@@ -388,6 +397,27 @@ async def healthz() -> dict[str, Any]:
 async def version() -> dict[str, str]:
     """Return the application version."""
     return {"version": APP_VERSION, "git_sha": GIT_SHA}
+
+
+@app.post("/plans/{plan_id}/approve", tags=["LOTO"])
+def approve_plan(plan_id: str, payload: ApprovalRequest) -> Dict[str, Any]:
+    """Persist approval for a plan and report readiness."""
+
+    conn = sqlite3.connect(_APPROVAL_DB)
+    with conn:
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS approvals (plan_id TEXT, user_id TEXT, UNIQUE(plan_id, user_id))"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO approvals (plan_id, user_id) VALUES (?, ?)",
+            (plan_id, payload.user_id),
+        )
+        cur = conn.execute(
+            "SELECT COUNT(DISTINCT user_id) FROM approvals WHERE plan_id = ?",
+            (plan_id,),
+        )
+        (count,) = cur.fetchone()
+    return {"plan_id": plan_id, "approvals": count, "ready": count >= 2}
 
 
 class DemoMaximoAdapter:
