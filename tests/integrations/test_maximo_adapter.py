@@ -1,7 +1,9 @@
 from typing import Any, Dict
 
+import pytest
 import requests  # type: ignore[import-untyped]
 
+from loto.integrations._errors import AdapterRequestError
 from loto.integrations.maximo_adapter import MaximoAdapter
 
 
@@ -42,21 +44,28 @@ def test_get_work_order(monkeypatch) -> None:
 def test_list_open_work_orders(monkeypatch) -> None:
     _set_env(monkeypatch)
 
+    calls: Dict[str, int] = {"count": 0}
+
     def fake_get(url, headers=None, params=None, timeout=None):
-        assert url == "http://maximo.local/os/WORKORDER"
-        assert params == {"status": "OPEN", "window": 7}
+        calls["count"] += 1
         assert timeout == (3.05, 10)
-        data = {
-            "members": [
-                {"id": "WO-1", "description": "A", "asset_id": "A-1"},
-                {"id": "WO-2", "description": "B", "asset_id": "A-2"},
-            ]
-        }
+        if calls["count"] == 1:
+            assert url == "http://maximo.local/os/WORKORDER"
+            assert params == {"status": "OPEN", "window": 7}
+            data = {
+                "members": [{"id": "WO-1", "description": "A", "asset_id": "A-1"}],
+                "next": "os/WORKORDER?page=2",
+            }
+            return DummyResponse(data)
+        assert url == "http://maximo.local/os/WORKORDER?page=2"
+        assert params is None
+        data = {"members": [{"id": "WO-2", "description": "B", "asset_id": "A-2"}]}
         return DummyResponse(data)
 
     adapter = MaximoAdapter()
     monkeypatch.setattr(adapter._session, "get", fake_get)
     work_orders = adapter.list_open_work_orders(7)
+    assert calls["count"] == 2
     assert work_orders == [
         {"id": "WO-1", "description": "A", "asset_id": "A-1"},
         {"id": "WO-2", "description": "B", "asset_id": "A-2"},
@@ -90,3 +99,37 @@ def test_get_asset_timeout_retry(monkeypatch) -> None:
     asset = adapter.get_asset("A-1")
     assert asset == {"id": "A-1", "description": "Pump", "location": "LOC-1"}
     assert calls["count"] == 2
+
+
+def test_get_asset_server_error(monkeypatch) -> None:
+    _set_env(monkeypatch)
+
+    calls: Dict[str, int] = {"count": 0}
+
+    def fake_get(url, headers=None, params=None, timeout=None):
+        calls["count"] += 1
+        return DummyResponse({}, status_code=500)
+
+    adapter = MaximoAdapter()
+    monkeypatch.setattr(adapter._session, "get", fake_get)
+    with pytest.raises(AdapterRequestError) as excinfo:
+        adapter.get_asset("A-1")
+    assert excinfo.value.status_code == 502
+    assert calls["count"] == 3
+
+
+def test_get_asset_timeout_failure(monkeypatch) -> None:
+    _set_env(monkeypatch)
+
+    calls: Dict[str, int] = {"count": 0}
+
+    def fake_get(url, headers=None, params=None, timeout=None):
+        calls["count"] += 1
+        raise requests.exceptions.ReadTimeout()
+
+    adapter = MaximoAdapter()
+    monkeypatch.setattr(adapter._session, "get", fake_get)
+    with pytest.raises(AdapterRequestError) as excinfo:
+        adapter.get_asset("A-1")
+    assert excinfo.value.status_code == 502
+    assert calls["count"] == 3
