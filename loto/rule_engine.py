@@ -113,5 +113,5 @@ class RuleEngine:
         """
 
         data = rule_pack.model_dump(exclude_none=True)
-        canonical = json.dumps(data, sort_keys=True, separators=(",", ":"))
+        canonical = json.dumps(data, sort_keys=True, separators=(",", ":"), default=str)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
