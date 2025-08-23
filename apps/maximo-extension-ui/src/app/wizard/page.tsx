@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notFound } from 'next/navigation';
 import Stepper from '../../components/Stepper';
 import WizardExport from '../../components/WizardExport';
+import { isFeatureEnabled } from '../../lib/featureFlags';
 
 interface WizardData {
   name: string;
@@ -12,6 +14,9 @@ interface WizardData {
 const steps = ['Step One', 'Step Two', 'Step Three', 'Export'];
 
 export default function WizardPage() {
+  if (!isFeatureEnabled('wizard')) {
+    notFound();
+  }
   const [step, setStep] = useState(0);
   const [data, setData] = useState<WizardData>({ name: '', age: '' });
 

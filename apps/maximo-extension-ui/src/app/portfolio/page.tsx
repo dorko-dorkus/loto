@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import KpiCards from '../../components/KpiCards';
 import Skeleton from '../../components/Skeleton';
 import { usePortfolio } from '../../lib/hooks';
+import { isFeatureEnabled } from '../../lib/featureFlags';
 
 const queryClient = new QueryClient();
 
@@ -59,8 +60,12 @@ function PortfolioContent() {
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{wo.status}</td>
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'}`}>{wo.owner}</td>
               <td className={`px-4 ${dense ? 'py-1' : 'py-2'} space-x-2`}>
-                <a href={`/planner/${wo.id}${search}`}>Planner</a>
-                <a href={`/scheduler/${wo.id}${search}`}>Scheduler</a>
+                {isFeatureEnabled('planner') && (
+                  <a href={`/planner/${wo.id}${search}`}>Planner</a>
+                )}
+                {isFeatureEnabled('scheduler') && (
+                  <a href={`/scheduler/${wo.id}${search}`}>Scheduler</a>
+                )}
               </td>
             </tr>
           ))}

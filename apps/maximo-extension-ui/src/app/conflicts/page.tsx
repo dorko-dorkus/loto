@@ -2,9 +2,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { notFound } from 'next/navigation';
 import { SimulationResult } from '../../types/api';
 import { apiFetch } from '../../lib/api';
 import { toastError } from '../../lib/toast';
+import { isFeatureEnabled } from '../../lib/featureFlags';
 
 // Fetch candidate bundling options for a work order
 async function fetchCandidates(): Promise<SimulationResult[]> {
@@ -14,6 +16,9 @@ async function fetchCandidates(): Promise<SimulationResult[]> {
 }
 
 export default function ConflictsPage() {
+  if (!isFeatureEnabled('conflicts')) {
+    notFound();
+  }
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [candidates, setCandidates] = useState<SimulationResult[]>([]);
   const [toast, setToast] = useState<string | null>(null);

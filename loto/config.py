@@ -54,6 +54,7 @@ class AppConfig:
     maximo: MaximoConfig
     wapr: IntegrationConfig
     coupa: IntegrationConfig
+    feature_flags: Dict[str, bool] = field(default_factory=dict)
 
 
 class Settings(BaseSettings):
@@ -61,6 +62,7 @@ class Settings(BaseSettings):
     data_in: str = Field(alias="DATA_IN")
     data_out: str = Field(alias="DATA_OUT")
     rulepack_file: str = Field(alias="RULEPACK_FILE")
+    feature_flags: Dict[str, bool] = Field(default_factory=dict, alias="FEATURE_FLAGS")
 
     maximo_mode: str = Field(default="MOCK", alias="MAXIMO_MODE")
     maximo_base_url: str | None = Field(default=None, alias="MAXIMO_BASE_URL")
@@ -90,6 +92,13 @@ class Settings(BaseSettings):
             for k, value in os.environ.items()
             if k.startswith("MAXIMO_OS_")
         }
+
+    @field_validator("feature_flags", mode="before")
+    @classmethod
+    def _parse_feature_flags(cls, v: str | Dict[str, bool] | None) -> Dict[str, bool]:
+        if isinstance(v, str):
+            return {f.strip(): True for f in v.split(",") if f.strip()}
+        return v or {}
 
 
 CONFIG_ERROR_CODE = "CONFIG/ENV"
@@ -165,6 +174,10 @@ def load_config() -> AppConfig:
     data_out = os.getenv("DATA_OUT")
     rulepack_file = os.getenv("RULEPACK_FILE")
 
+    feature_flags = {
+        f.strip(): True for f in os.getenv("FEATURE_FLAGS", "").split(",") if f.strip()
+    }
+
     # maximo settings
     maximo_mode = os.getenv("MAXIMO_MODE", "MOCK").upper()
     maximo_base_url = os.getenv("MAXIMO_BASE_URL")
@@ -235,6 +248,7 @@ def load_config() -> AppConfig:
         data_in=data_in,  # type: ignore[arg-type]
         data_out=data_out,  # type: ignore[arg-type]
         rulepack_file=rulepack_file,  # type: ignore[arg-type]
+        feature_flags=feature_flags,
         maximo=maximo,
         wapr=wapr,
         coupa=coupa,

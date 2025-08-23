@@ -1,12 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { notFound } from 'next/navigation';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useWorkOrderApi, useBlueprintApi } from '../../../lib/hooks';
 import Exports from '../../../components/Exports';
 import CommitPanel from './CommitPanel';
 import PidTab from './PidTab';
 import type { MaterialStatus } from '../../../types/api';
+import { isFeatureEnabled } from '../../../lib/featureFlags';
 
 const tabs = ['Plan', 'Materials', 'P&ID', 'Simulation', 'Impact', 'Commit'];
 
@@ -151,6 +153,9 @@ function PlannerContent({ wo }: { wo: string }) {
 }
 
 export default function PlannerPage({ params }: { params: { wo: string } }) {
+  if (!isFeatureEnabled('planner')) {
+    notFound();
+  }
   return (
     <QueryClientProvider client={queryClient}>
       <PlannerContent wo={params.wo} />
