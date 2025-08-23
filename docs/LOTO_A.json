@@ -1,0 +1,7 @@
+{
+  "document": "LOTO_A",
+  "annotations": [
+    {"step": 1, "note": "Tagged disconnects"},
+    {"step": 2, "note": "Confirm zero energy state"}
+  ]
+}
