@@ -9,10 +9,12 @@ qrcode
 requests
 typer
 python-dotenv
+pyjwt
 pandas
 PyPDF2
 weasyprint
 tqdm
+prometheus-client
 
 # Development dependencies
 pytest
