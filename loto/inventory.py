@@ -54,6 +54,11 @@ class InventoryRecord:
 
 
 _UNIT_MAP_PATH = Path(__file__).resolve().parents[1] / "config" / "inventory_units.yaml"
+_ITEM_UNIT_MAP_PATH = (
+    Path(__file__).resolve().parents[1] / "config" / "inventory_item_units.yaml"
+)
+
+CANONICAL_UNITS = {"ea", "kg", "L", "m"}
 
 
 @lru_cache
@@ -64,6 +69,18 @@ def _load_unit_map() -> dict[str, str]:
     except FileNotFoundError:
         data = {}
     return {k.lower(): v for k, v in data.items()}
+
+
+@lru_cache
+def load_item_unit_map() -> dict[str, str]:
+    """Return mapping of item description to canonical unit."""
+
+    try:
+        with _ITEM_UNIT_MAP_PATH.open() as fh:
+            data = yaml.safe_load(fh) or {}
+    except FileNotFoundError:
+        data = {}
+    return data
 
 
 def ingest_inventory(records: Iterable[InventoryRecord]) -> list[InventoryRecord]:
