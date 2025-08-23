@@ -30,6 +30,15 @@ governance:
   rulepack_id: hswa
   rulepack_version: "1.1"
   seed: 12345
+review:
+  - version: "1.0"
+    date: 2024-01-15
+    reviewer: "John Smith"
+    outcome: approved
+  - version: "1.1"
+    date: 2024-06-15
+    reviewer: "Jane Doe"
+    outcome: approved
 datasets:
   drains_register: []
   line_list: []
