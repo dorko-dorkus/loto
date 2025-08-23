@@ -1,0 +1,26 @@
+[
+  {
+    "id": "WO-1",
+    "description": "Pump replacement",
+    "status": "Active",
+    "owner": "Jane",
+    "plannedStart": "2024-05-01",
+    "plannedFinish": "2024-05-03"
+  },
+  {
+    "id": "WO-2",
+    "description": "Motor upgrade",
+    "status": "Draft",
+    "owner": "John",
+    "plannedStart": "2024-05-10",
+    "plannedFinish": "2024-05-12"
+  },
+  {
+    "id": "WO-3",
+    "description": "Energy audit",
+    "status": "Completed",
+    "owner": "Ben",
+    "plannedStart": "2024-04-20",
+    "plannedFinish": "2024-04-21"
+  }
+]

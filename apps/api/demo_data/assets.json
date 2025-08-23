@@ -1,0 +1,4 @@
+[
+  {"id": "A-1", "description": "Pump A", "location": "L-1"},
+  {"id": "A-2", "description": "Motor B", "location": "L-2"}
+]
