@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import random
 import time
 from dataclasses import dataclass
@@ -13,6 +14,8 @@ import structlog
 
 from ..graph_builder import GraphBuilder
 from ..impact import ImpactEngine, ImpactResult
+from ..integrations import MaximoAdapter
+from ..integrations._errors import AdapterRequestError
 from ..isolation_planner import IsolationPlanner
 from ..models import IsolationPlan, RulePack, SimReport, Stimulus
 from ..scheduling import gates
@@ -30,6 +33,46 @@ class Provenance:
     rule_hash: str
 
 
+def validate_fk_integrity(
+    asset_id: str | None,
+    location_id: str | None,
+    *,
+    adapter: MaximoAdapter | None = None,
+) -> None:
+    """Validate that asset and location identifiers exist in Maximo.
+
+    Parameters
+    ----------
+    asset_id:
+        Asset identifier to check.
+    location_id:
+        Location identifier to check.
+    adapter:
+        Optional :class:`~loto.integrations.maximo_adapter.MaximoAdapter`
+        instance. A new one is created when omitted.
+
+    Raises
+    ------
+    ValueError
+        If the asset or location cannot be found.
+    """
+
+    adapter = adapter or MaximoAdapter()
+    if not getattr(adapter, "base_url", None):
+        return
+    if asset_id:
+        try:
+            adapter.get_asset(asset_id)
+        except AdapterRequestError as exc:  # pragma: no cover - sanity
+            raise ValueError(f"Unknown asset '{asset_id}'") from exc
+    if location_id:
+        os_location = os.environ.get("MAXIMO_OS_LOCATION", "LOCATION")
+        try:
+            adapter._get(f"os/{os_location}/{location_id}")
+        except AdapterRequestError as exc:  # pragma: no cover - sanity
+            raise ValueError(f"Unknown location '{location_id}'") from exc
+
+
 def plan_and_evaluate(
     line_csv: str | Path | IO[str],
     valve_csv: str | Path | IO[str],
@@ -37,6 +80,7 @@ def plan_and_evaluate(
     source_csv: str | Path | IO[str] | None = None,
     *,
     asset_tag: str,
+    location_id: str | None = None,
     rule_pack: RulePack,
     stimuli: Iterable[Stimulus],
     asset_units: Dict[str, str],
@@ -57,6 +101,8 @@ def plan_and_evaluate(
 
     if seed is not None:
         random.seed(seed)
+
+    validate_fk_integrity(asset_tag, location_id)
 
     builder = GraphBuilder()
     graphs = builder.from_csvs(line_csv, valve_csv, drain_csv, source_csv)

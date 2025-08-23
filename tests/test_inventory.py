@@ -49,7 +49,10 @@ def test_adequate_stock_marks_work_order_ready():
     assert not status.missing
 
 
-def test_blueprint_inventory_gating():
+def test_blueprint_inventory_gating(monkeypatch):
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
     client = TestClient(app)
     original = DemoStoresAdapter._INVENTORY["P-200"]["available"]
     try:
