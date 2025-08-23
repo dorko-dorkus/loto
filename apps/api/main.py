@@ -4,7 +4,7 @@ import logging
 import os
 import time
 import tomllib
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
@@ -39,10 +39,14 @@ from loto.errors import LotoError, ValidationError
 from loto.impact_config import load_impact_config
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
+    CANONICAL_UNITS,
+    InventoryRecord,
     InventoryStatus,
     Reservation,
     StockItem,
     check_wo_parts_required,
+    load_item_unit_map,
+    normalize_units,
 )
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
@@ -406,6 +410,19 @@ class ValidationReport(BaseModel):
     missing_locations: List[Dict[str, str | None]] = Field(default_factory=list)
 
 
+class InventoryItemPayload(BaseModel):
+    description: str
+    unit: str
+    qty_onhand: int
+    reorder_point: int
+    site: str | None = None
+    bin: str | None = None
+
+
+class NormalizeRequest(BaseModel):
+    items: List[InventoryItemPayload]
+
+
 @app.get("/healthz", tags=["LOTO"])
 async def healthz() -> dict[str, Any]:
     """Health check endpoint including rate limit counters."""
@@ -434,6 +451,27 @@ def admin_validate() -> JSONResponse:
     if report["missing_assets"] or report["missing_locations"]:
         status = 400
     return JSONResponse(status_code=status, content=report)
+
+
+@app.post("/admin/normalize", tags=["admin"])
+def admin_normalize(payload: NormalizeRequest, dry_run: bool = True) -> Dict[str, Any]:
+    """Normalise inventory units and report anomalies."""
+
+    mapping = load_item_unit_map()
+    records = [InventoryRecord(**item.model_dump()) for item in payload.items]
+    normalised = normalize_units(records, mapping)
+    diffs = [
+        {"description": o.description, "from": o.unit, "to": n.unit}
+        for o, n in zip(records, normalised)
+        if o.unit != n.unit
+    ]
+    if dry_run:
+        return {"diffs": diffs}
+    anomalies = [rec for rec in normalised if rec.unit not in CANONICAL_UNITS]
+    return {
+        "items": [asdict(rec) for rec in normalised],
+        "anomalies": len(anomalies),
+    }
 
 
 @app.get("/version", tags=["LOTO"])
