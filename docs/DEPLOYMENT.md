@@ -17,6 +17,19 @@ To populate `prod.env` with secrets:
 
 `prod.env` is ignored by git and should never be committed.
 
+## CORS configuration
+
+The API only responds to requests from approved web origins. Populate
+`CORS_ORIGINS` in both `.env` and `prod.env` with the hostnames that will
+serve the frontend:
+
+```bash
+# Example pilot origins
+CORS_ORIGINS=http://localhost:3000,https://loto.example.com
+```
+
+Replace the values with the actual deployment hostnames as necessary.
+
 ## OIDC Configuration
 
 The API uses OpenID Connect for authentication. Register a client with your identity
