@@ -13,9 +13,14 @@ serialize plan data to JSON.
 from __future__ import annotations
 
 import os
+import tomllib
 from collections.abc import Mapping
 from datetime import datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
 from io import BytesIO
+from pathlib import Path
+from subprocess import CalledProcessError, run
 from typing import Any, Dict
 from zoneinfo import ZoneInfo
 
@@ -26,6 +31,28 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 from .isolation_planner import IsolationPlan
 from .models import SimReport
+
+try:
+    APP_VERSION = pkg_version("loto")
+except PackageNotFoundError:
+    pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
+    APP_VERSION = tomllib.loads(pyproject.read_text())["project"]["version"]
+
+
+def _git_sha() -> str:
+    try:
+        result = run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+    except (CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+GIT_SHA = _git_sha()
 
 
 class Renderer:
@@ -164,10 +191,11 @@ class Renderer:
             env_badge = "DRY-RUN"
 
         nz_timestamp = datetime.now(ZoneInfo("Pacific/Auckland"))
+        version_str = f"{APP_VERSION} ({GIT_SHA})"
         footer_text = (
             f"WO: {plan.plan_id} | Seed: {seed if seed is not None else 'N/A'} | "
             f"Rule Hash: {rule_hash} | Generated: {nz_timestamp.strftime('%Y-%m-%d %H:%M %Z')} | "
-            f"ENV: {env_badge}"
+            f"ENV: {env_badge} | Version: {version_str}"
         )
 
         def _footer(canvas, doc):

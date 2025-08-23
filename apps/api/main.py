@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
+from subprocess import CalledProcessError, run
 from typing import Any, Dict, List
 from uuid import uuid4
 
@@ -77,6 +78,22 @@ try:
 except PackageNotFoundError:
     pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
     APP_VERSION = tomllib.loads(pyproject.read_text())["project"]["version"]
+
+
+def _git_sha() -> str:
+    try:
+        result = run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+    except (CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+GIT_SHA = _git_sha()
 logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
 
 app = FastAPI(title="loto API")
@@ -309,7 +326,7 @@ async def healthz() -> dict[str, Any]:
 @app.get("/version", tags=["LOTO"])
 async def version() -> dict[str, str]:
     """Return the application version."""
-    return {"version": APP_VERSION}
+    return {"version": APP_VERSION, "git_sha": GIT_SHA}
 
 
 class DemoMaximoAdapter:

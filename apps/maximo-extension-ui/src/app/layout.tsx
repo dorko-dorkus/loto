@@ -2,8 +2,18 @@ import type { ReactNode } from 'react';
 import '../styles/globals.css';
 import ThemeToggle from '../components/ThemeToggle';
 import DensityToggle from '../components/DensityToggle';
+import Footer from '../components/Footer';
+import { apiFetch } from '../lib/api';
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  let version = 'unknown';
+  try {
+    const res = await apiFetch('/version');
+    const data = (await res.json()) as { version: string; git_sha?: string };
+    version = data.git_sha ? `${data.version} (${data.git_sha})` : data.version;
+  } catch {
+    /* ignore */
+  }
   return (
     <html lang="en" className="h-full">
       <body className="min-h-screen">
@@ -26,6 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               {/* Right drawer placeholder */}
             </aside>
           </div>
+          <Footer version={version} />
         </div>
       </body>
     </html>

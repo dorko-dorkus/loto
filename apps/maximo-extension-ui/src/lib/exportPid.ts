@@ -7,10 +7,12 @@ import jsPDF from 'jspdf';
  *
  * @param filename - Name of the downloaded PDF file
  * @param elementId - DOM element id that contains the SVG and overlays
+ * @param version - Version string to stamp on the document
  */
 export async function exportPid(
   filename: string,
-  elementId = 'pid-container'
+  elementId = 'pid-container',
+  version = ''
 ): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) return;
@@ -24,5 +26,9 @@ export async function exportPid(
   const pageHeight = pdf.internal.pageSize.getHeight();
 
   pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+  if (version) {
+    pdf.setFontSize(10);
+    pdf.text(version, 10, pageHeight - 10);
+  }
   pdf.save(filename);
 }
