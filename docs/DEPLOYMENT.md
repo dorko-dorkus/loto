@@ -41,3 +41,13 @@ OIDC_CLIENT_SECRET=your-client-secret
 ```
 
 These values are read by `apps/api/main.py` during startup.
+
+## Sentry configuration
+
+Set `SENTRY_DSN` in `.env` and `prod.env` to enable error reporting to Sentry:
+
+```bash
+SENTRY_DSN=https://public@example.ingest.sentry.io/0
+```
+
+Omit the variable to disable Sentry in a given environment.

@@ -3,8 +3,11 @@ from __future__ import annotations
 import contextvars
 import json
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Any
+
+import sentry_sdk
 
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "request_id", default=""
@@ -46,3 +49,7 @@ def configure_logging() -> None:
     root.handlers.clear()
     root.addHandler(handler)
     root.setLevel(logging.INFO)
+
+    dsn = os.getenv("SENTRY_DSN")
+    if dsn:
+        sentry_sdk.init(dsn=dsn)

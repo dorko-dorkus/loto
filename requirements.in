@@ -15,6 +15,7 @@ PyPDF2
 weasyprint
 tqdm
 prometheus-client
+sentry-sdk
 
 # Development dependencies
 pytest
