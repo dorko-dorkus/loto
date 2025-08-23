@@ -16,7 +16,7 @@ import abc
 import os
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from .coupa_adapter import CoupaAdapter, DemoCoupaAdapter
+from .coupa_adapter import CoupaAdapter, DemoCoupaAdapter, HttpCoupaAdapter
 from .maximo_adapter import MaximoAdapter
 from .stores_adapter import DemoStoresAdapter, StoresAdapter
 from .wapr_adapter import DemoWaprAdapter, WaprAdapter
@@ -85,6 +85,7 @@ __all__ = [
     "get_integration_adapter",
     "CoupaAdapter",
     "DemoCoupaAdapter",
+    "HttpCoupaAdapter",
     "StoresAdapter",
     "DemoStoresAdapter",
     "WaprAdapter",

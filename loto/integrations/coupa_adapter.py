@@ -8,7 +8,14 @@ would call the Coupa API to raise a request for quotation (RFQ).
 from __future__ import annotations
 
 import abc
+import os
+import time
 import uuid
+from typing import Any, Dict
+
+import requests  # type: ignore[import-untyped]
+
+from ._errors import AdapterRequestError
 
 
 class CoupaAdapter(abc.ABC):
@@ -54,3 +61,68 @@ class DemoCoupaAdapter(CoupaAdapter):
             return self._PO_STATUSES[po_number]
         except KeyError as exc:  # pragma: no cover - simple error path
             raise KeyError(f"Unknown purchase order {po_number}") from exc
+
+
+class HttpCoupaAdapter(CoupaAdapter):
+    """HTTP-based Coupa adapter."""
+
+    def __init__(self, *, session: requests.Session | None = None) -> None:
+        self.base_url = os.environ.get("COUPA_BASE_URL", "")
+        self.apikey = os.environ.get("COUPA_APIKEY")
+        self._session = session or requests.Session()
+        self._timeout = (3.05, 10)
+        self._retries = 3
+
+    def _get(self, path: str, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
+        url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
+        headers = {"apikey": self.apikey} if self.apikey else {}
+        backoff = 1.0
+        for attempt in range(self._retries):
+            try:
+                resp = self._session.get(
+                    url, headers=headers, params=params, timeout=self._timeout
+                )
+            except requests.RequestException as exc:
+                if attempt == self._retries - 1:
+                    raise AdapterRequestError(status_code=0, retry_after=None) from exc
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+
+            status = resp.status_code
+            if status == 429 or status >= 500:
+                retry_after_header = resp.headers.get("Retry-After")
+                try:
+                    retry_after = (
+                        float(retry_after_header) if retry_after_header else None
+                    )
+                except ValueError:
+                    retry_after = None
+                if attempt == self._retries - 1:
+                    raise AdapterRequestError(
+                        status_code=status, retry_after=retry_after
+                    )
+                time.sleep(retry_after or backoff)
+                backoff *= 2
+                continue
+
+            if status >= 400:
+                raise AdapterRequestError(status_code=status, retry_after=None)
+
+            return resp.json()
+        raise RuntimeError("Unreachable")
+
+    # Real implementations would call Coupa endpoints. For now these
+    # methods simply raise ``NotImplementedError`` to satisfy the abstract
+    # interface without performing any actions.
+    def raise_urgent_enquiry(
+        self, part_number: str, quantity: int
+    ) -> str:  # pragma: no cover - stub
+        raise NotImplementedError
+
+    def get_po_status(self, po_number: str) -> str:  # pragma: no cover - stub
+        data = self._get(f"po/{po_number}")
+        return data.get("status", "")
+
+
+__all__ = ["CoupaAdapter", "DemoCoupaAdapter", "HttpCoupaAdapter"]

@@ -6,11 +6,10 @@ from loto.integrations.maximo_adapter import MaximoAdapter
 
 
 class DummyResponse:
-    def __init__(self, data: Dict[str, Any]):
+    def __init__(self, data: Dict[str, Any], status_code: int = 200):
         self._data = data
-
-    def raise_for_status(self) -> None:  # pragma: no cover - does nothing
-        return None
+        self.status_code = status_code
+        self.headers: Dict[str, str] = {}
 
     def json(self) -> Dict[str, Any]:
         return self._data
