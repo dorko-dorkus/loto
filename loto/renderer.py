@@ -177,6 +177,18 @@ class Renderer:
             story.append(stim_table)
             story.append(Spacer(1, 12))
 
+        if plan.hazards:
+            story.append(Paragraph("Hazards", styles["Heading2"]))
+            for hazard in plan.hazards:
+                story.append(Paragraph(hazard, styles["Normal"]))
+            story.append(Spacer(1, 12))
+
+        if plan.controls:
+            story.append(Paragraph("Controls", styles["Heading2"]))
+            for control in plan.controls:
+                story.append(Paragraph(control, styles["Normal"]))
+            story.append(Spacer(1, 12))
+
         if plan.verifications:
             story.append(Paragraph("Footnotes", styles["Heading2"]))
             for note in plan.verifications:

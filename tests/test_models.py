@@ -64,6 +64,8 @@ MODEL_DATA = [
                 {"component_id": "valve1", "method": "lock", "duration_s": 5.0}
             ],
             "verifications": [],
+            "hazards": [],
+            "controls": [],
         },
     ),
     (Stimulus, {"name": "pulse", "magnitude": 3.0, "duration_s": 1.0}),
