@@ -64,6 +64,7 @@ from .schemas import (
     Step,
 )
 from .workorder_endpoints import router as workorder_router
+from .audit import add_record
 
 configure_logging()
 validate_env_vars()
@@ -275,6 +276,27 @@ async def log_context(request: Request, call_next):
         seed_var.set(None)
         rule_hash_var.set(None)
         structlog.contextvars.unbind_contextvars("trace_id")
+
+
+@app.middleware("http")
+async def audit_log(request: Request, call_next):
+    """Record basic request information to the audit log."""
+    response = await call_next(request)
+    user = "anonymous"
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            user = str(payload.get("sub", user))
+        except PyJWTError:
+            user = "invalid"
+    action = f"{request.method} {request.url.path}"
+    try:
+        add_record(user=user, action=action)
+    except Exception:
+        logging.exception("failed to record audit log")
+    return response
 
 
 @app.exception_handler(HTTPException)

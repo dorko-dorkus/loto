@@ -27,3 +27,23 @@ uvicorn apps.api.main:app --reload
 ```
 
 OpenAPI documentation is available at `/docs`.
+
+## Audit logging
+
+Requests are recorded in an append-only `audit_records` table.  Run the
+Alembic migrations to create the table:
+
+```bash
+alembic -c apps/api/alembic/alembic.ini upgrade head
+```
+
+Logs can be periodically exported to immutable storage.  The helper below
+uploads all records to an S3 bucket with object lock enabled and retains them
+for seven years:
+
+```bash
+python -m apps.api.audit my-audit-log-bucket
+```
+
+Plan a scheduled job (for example, cron) to run this command regularly.  This
+implements the retention policy of keeping audit logs for seven years.
