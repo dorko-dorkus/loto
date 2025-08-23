@@ -23,6 +23,7 @@ certifi==2025.8.3
     #   httpcore
     #   httpx
     #   requests
+    #   sentry-sdk
 cffi==1.17.1
     # via weasyprint
 cfgv==3.4.0
@@ -196,6 +197,8 @@ rich==14.1.0
     # via typer
 ruff==0.12.10
     # via -r requirements.in
+sentry-sdk==2.35.0
+    # via -r requirements.in
 shellingham==1.5.4
     # via typer
 six==1.17.0
@@ -241,6 +244,7 @@ urllib3==2.5.0
     # via
     #   requests
     #   responses
+    #   sentry-sdk
 virtualenv==20.34.0
     # via pre-commit
 weasyprint==66.0

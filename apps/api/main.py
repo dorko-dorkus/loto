@@ -15,6 +15,7 @@ from uuid import uuid4
 
 import jwt
 import structlog
+import sentry_sdk
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -292,6 +293,7 @@ async def _handle_loto_error(request: Request, exc: LotoError) -> None:
 async def _handle_exception(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all handler to wrap unexpected exceptions."""
     logging.exception("Unhandled exception: %s", exc)
+    sentry_sdk.capture_exception(exc)
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 

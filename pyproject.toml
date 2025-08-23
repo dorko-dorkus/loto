@@ -24,6 +24,7 @@ dependencies = [
     "PyPDF2",
     "weasyprint",
     "tqdm",
+    "sentry-sdk",
 ]
 
 [project.optional-dependencies]
