@@ -5,7 +5,9 @@
     "status": "Active",
     "owner": "Jane",
     "plannedStart": "2024-05-01",
-    "plannedFinish": "2024-05-03"
+    "plannedFinish": "2024-05-03",
+    "assetnum": "A-1",
+    "location": "L-1"
   },
   {
     "id": "WO-2",
@@ -13,7 +15,9 @@
     "status": "Draft",
     "owner": "John",
     "plannedStart": "2024-05-10",
-    "plannedFinish": "2024-05-12"
+    "plannedFinish": "2024-05-12",
+    "assetnum": "A-2",
+    "location": "L-2"
   },
   {
     "id": "WO-3",
@@ -21,6 +25,8 @@
     "status": "Completed",
     "owner": "Ben",
     "plannedStart": "2024-04-20",
-    "plannedFinish": "2024-04-21"
+    "plannedFinish": "2024-04-21",
+    "assetnum": "A-1",
+    "location": "L-1"
   }
 ]

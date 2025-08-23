@@ -19,6 +19,8 @@ class WorkOrderSummary(BaseModel):
     planned_finish: str | None = Field(
         None, alias="plannedFinish", description="Planned finish date"
     )
+    assetnum: str | None = Field(None, description="Associated asset identifier")
+    location: str | None = Field(None, description="Associated location identifier")
 
     class Config:
         extra = "forbid"
@@ -59,6 +61,12 @@ async def get_workorder(workorder_id: str) -> WorkOrderSummary:
         data = demo_data.get_work_order(workorder_id)
     except KeyError as exc:  # pragma: no cover - simple error path
         raise HTTPException(status_code=404, detail="work order not found") from exc
+    asset = data.get("assetnum")
+    if not asset or asset not in demo_data.asset_ids:
+        raise HTTPException(status_code=400, detail=f"unknown asset: {asset}")
+    loc = data.get("location")
+    if not loc or loc not in demo_data.location_ids:
+        raise HTTPException(status_code=400, detail=f"unknown location: {loc}")
     return WorkOrderSummary(**data)
 
 

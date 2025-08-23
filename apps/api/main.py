@@ -401,9 +401,15 @@ class ProposeResponse(BaseModel):
         extra = "forbid"
 
 
+class ValidationReport(BaseModel):
+    missing_assets: List[Dict[str, str | None]] = Field(default_factory=list)
+    missing_locations: List[Dict[str, str | None]] = Field(default_factory=list)
+
+
 @app.get("/healthz", tags=["LOTO"])
 async def healthz() -> dict[str, Any]:
     """Health check endpoint including rate limit counters."""
+    report = demo_data.validate()
     return {
         "status": "ok",
         "rate_limit": {
@@ -413,7 +419,21 @@ async def healthz() -> dict[str, Any]:
                 path: state["tokens"] for path, state in _rate_limit_state.items()
             },
         },
+        "integrity": {
+            "missing_assets": len(report["missing_assets"]),
+            "missing_locations": len(report["missing_locations"]),
+        },
     }
+
+
+@app.post("/admin/validate", tags=["admin"], response_model=ValidationReport)
+def admin_validate() -> JSONResponse:
+    """Return structured report of referential integrity issues."""
+    report = demo_data.validate()
+    status = 200
+    if report["missing_assets"] or report["missing_locations"]:
+        status = 400
+    return JSONResponse(status_code=status, content=report)
 
 
 @app.get("/version", tags=["LOTO"])
