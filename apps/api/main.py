@@ -52,6 +52,7 @@ from loto.scheduling.des_engine import Task
 from loto.scheduling.monte_carlo import simulate
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import inventory_state
+from .demo_data import demo_data
 
 from .hats_endpoints import router as hats_router  # provides hats KPI endpoints
 from .pid_endpoints import router as pid_router
@@ -466,10 +467,6 @@ class DemoMaximoAdapter:
 async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     """Plan isolations for a work order and return impact metrics."""
 
-    adapter = DemoMaximoAdapter()
-    ctx = adapter.load_context(payload.workorder_id)
-    impact_cfg = ctx["impact_cfg"]
-
     stores = DemoStoresAdapter()
     work_order = WorkOrder(
         id=payload.workorder_id,
@@ -490,6 +487,7 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         assert isinstance(wo, WorkOrder)
         return check_wo_parts_required(wo, lookup_stock)
 
+    inv_status = check_parts(work_order)
     parts_status: Dict[str, str] = {}
     for res in work_order.reservations:
         stock = lookup_stock(res.item_id)
@@ -501,7 +499,19 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         else:
             parts_status[res.item_id] = "short"
 
-    inv_status = check_parts(work_order)
+    bp = demo_data.get_blueprint(payload.workorder_id)
+    if bp is not None:
+        return BlueprintResponse(
+            steps=[Step(**s) for s in bp.get("steps", [])],
+            unavailable_assets=bp.get("unavailable_assets", []),
+            unit_mw_delta=bp.get("unit_mw_delta", {}),
+            blocked_by_parts=inv_status.blocked,
+            parts_status=parts_status,
+        )
+
+    adapter = DemoMaximoAdapter()
+    ctx = adapter.load_context(payload.workorder_id)
+    impact_cfg = ctx["impact_cfg"]
 
     global STATE
     STATE = dict(inventory_state(work_order, check_parts, STATE))

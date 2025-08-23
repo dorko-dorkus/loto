@@ -1,0 +1,16 @@
+{
+  "WO-1": {
+    "steps": [{"component_id": "VALVE-1", "method": "lock"}],
+    "unavailable_assets": [],
+    "unit_mw_delta": {},
+    "blocked_by_parts": false,
+    "parts_status": {"P-100": "ok"}
+  },
+  "WO-2": {
+    "steps": [{"component_id": "VALVE-2", "method": "tag"}],
+    "unavailable_assets": [],
+    "unit_mw_delta": {},
+    "blocked_by_parts": false,
+    "parts_status": {"P-200": "low"}
+  }
+}
