@@ -29,6 +29,8 @@ jobs:
           pip install -r requirements.txt
           pnpm install --frozen-lockfile
           pre-commit install
+      - name: Pre-commit
+        run: pre-commit run --all-files
       - name: Dependency vulnerability scan
         run: |
           pip install pip-audit

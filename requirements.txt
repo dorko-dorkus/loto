@@ -142,6 +142,8 @@ pluggy==1.6.0
     # via pytest
 pre-commit==4.3.0
     # via -r requirements.in
+prometheus-client==0.22.1
+    # via -r requirements.in
 pycparser==2.22
     # via cffi
 pydantic==2.11.7
@@ -159,6 +161,8 @@ pygments==2.19.2
     # via
     #   pytest
     #   rich
+pyjwt==2.10.1
+    # via -r requirements.in
 pypdf2==3.0.1
     # via -r requirements.in
 pyphen==0.17.2
