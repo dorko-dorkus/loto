@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Callable, Iterable, List, Optional
+from dataclasses import dataclass, field, replace
+from typing import Callable, Iterable, List, Mapping, Optional
 
 
 @dataclass
@@ -30,6 +30,49 @@ class InventoryStatus:
     @property
     def ready(self) -> bool:  # pragma: no cover - trivial property
         return not self.blocked
+
+
+@dataclass
+class InventoryRecord:
+    """Detailed representation of an inventory row.
+
+    These records are intentionally lightweight and primarily used by helper
+    utilities that normalise unit descriptions and flag low stock.  The fields
+    mirror the common columns present in scraped CSV exports.
+    """
+
+    description: str
+    unit: str
+    qty_onhand: int
+    reorder_point: int
+    site: str | None = None
+    bin: str | None = None
+
+
+def normalize_units(
+    records: Iterable[InventoryRecord], unit_map: Mapping[str, str]
+) -> list[InventoryRecord]:
+    """Return ``records`` with units normalised via ``unit_map``.
+
+    Parameters
+    ----------
+    records:
+        Inventory rows whose units may be inconsistent across sites or bins.
+    unit_map:
+        Mapping of item description to canonical unit string.
+    """
+
+    normalised: list[InventoryRecord] = []
+    for rec in records:
+        unit = unit_map.get(rec.description, rec.unit)
+        normalised.append(replace(rec, unit=unit))
+    return normalised
+
+
+def reorder_flags(records: Iterable[InventoryRecord]) -> list[InventoryRecord]:
+    """Return records at or below their reorder point."""
+
+    return [rec for rec in records if rec.qty_onhand <= rec.reorder_point]
 
 
 def check_wo_parts_required(
