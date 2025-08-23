@@ -1,0 +1,26 @@
+{
+  "blocked_by_parts": false,
+  "objective": 0.0,
+  "rulepack_id": "hswa",
+  "rulepack_sha256": "71fca39f45228dd22946c44559aef9b40b68e29e4c2b307c6593731d72ae0938",
+  "rulepack_version": "1.1",
+  "schedule": [
+    {
+      "date": "2024-01-01",
+      "hats": 1,
+      "p10": 1.0,
+      "p50": 1.0,
+      "p90": 1.0,
+      "price": 0.0
+    },
+    {
+      "date": "2024-01-02",
+      "hats": 2,
+      "p10": 3.0,
+      "p50": 3.0,
+      "p90": 3.0,
+      "price": 0.0
+    }
+  ],
+  "seed": "0"
+}
