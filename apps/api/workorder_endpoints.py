@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from .demo_data import demo_data
 
@@ -22,9 +22,7 @@ class WorkOrderSummary(BaseModel):
     assetnum: str | None = Field(None, description="Associated asset identifier")
     location: str | None = Field(None, description="Associated location identifier")
 
-    class Config:
-        extra = "forbid"
-        allow_population_by_field_name = True
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 class KpiItem(BaseModel):
@@ -33,8 +31,7 @@ class KpiItem(BaseModel):
     label: str
     value: int
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class PortfolioResponse(BaseModel):
@@ -45,9 +42,7 @@ class PortfolioResponse(BaseModel):
         default_factory=list, alias="workOrders", description="Open work orders"
     )
 
-    class Config:
-        extra = "forbid"
-        allow_population_by_field_name = True
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
 
 router = APIRouter(tags=["workorders", "LOTO"])
