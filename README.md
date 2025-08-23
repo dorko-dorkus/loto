@@ -99,6 +99,10 @@ To run the CLI demo instead:
 make run-demo
 ```
 
+## On-Call Support
+
+See [On-Call Guide](docs/on_call.md) for contact rotations, escalation paths, and rollback steps.
+
 ## Screenshots
 
 Due to repository constraints, screenshots are not stored in git. Run the demo and capture your own screenshots of the API and UI, or view placeholder images below.

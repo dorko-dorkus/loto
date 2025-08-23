@@ -26,6 +26,7 @@ All deadlines are recorded in New Zealand time; for example
 ## Support
 
 Contact the platform team via `#pilot-support` for assistance.
+Refer to [On-Call Guide](on_call.md) for contact rotations, escalation paths, and rollback procedures.
 
 ## References
 
