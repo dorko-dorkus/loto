@@ -68,7 +68,7 @@ def test_maximo_structured_error_on_500(monkeypatch) -> None:
     with pytest.raises(AdapterRequestError) as excinfo:
         adapter._get("/foo")
     err = excinfo.value
-    assert err.status_code == 500
+    assert err.status_code == 502
     assert err.retry_after is None
 
 

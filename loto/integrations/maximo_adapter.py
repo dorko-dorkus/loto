@@ -48,7 +48,10 @@ class MaximoAdapter:
 
     # internal helper
     def _get(self, path: str, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
-        url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
+        if path.startswith("http://") or path.startswith("https://"):
+            url = path
+        else:
+            url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
         headers = {"apikey": self.apikey} if self.apikey else {}
         backoff = 1.0
         for attempt in range(self._retries):
@@ -58,13 +61,15 @@ class MaximoAdapter:
                 )
             except requests.RequestException as exc:
                 if attempt == self._retries - 1:
-                    raise AdapterRequestError(status_code=0, retry_after=None) from exc
+                    raise AdapterRequestError(
+                        status_code=502, retry_after=None
+                    ) from exc
                 time.sleep(backoff)
                 backoff *= 2
                 continue
 
             status = resp.status_code
-            if status == 429 or status >= 500:
+            if status == 429:
                 retry_after_header = resp.headers.get("Retry-After")
                 try:
                     retry_after = (
@@ -73,9 +78,21 @@ class MaximoAdapter:
                 except ValueError:
                     retry_after = None
                 if attempt == self._retries - 1:
-                    raise AdapterRequestError(
-                        status_code=status, retry_after=retry_after
+                    raise AdapterRequestError(status_code=429, retry_after=retry_after)
+                time.sleep(retry_after or backoff)
+                backoff *= 2
+                continue
+
+            if 500 <= status:
+                retry_after_header = resp.headers.get("Retry-After")
+                try:
+                    retry_after = (
+                        float(retry_after_header) if retry_after_header else None
                     )
+                except ValueError:
+                    retry_after = None
+                if attempt == self._retries - 1:
+                    raise AdapterRequestError(status_code=502, retry_after=retry_after)
                 time.sleep(retry_after or backoff)
                 backoff *= 2
                 continue
@@ -97,17 +114,27 @@ class MaximoAdapter:
 
     def list_open_work_orders(self, window: int) -> List[WorkOrder]:
         """List open work orders within the specified window."""
-        data = self._get(
-            f"os/{self.os_workorder}", params={"status": "OPEN", "window": window}
-        )
-        return [
-            {
-                "id": item["id"],
-                "description": item.get("description", ""),
-                "asset_id": item.get("asset_id", ""),
-            }
-            for item in data.get("members", [])
-        ]
+        path = f"os/{self.os_workorder}"
+        params: Dict[str, Any] | None = {"status": "OPEN", "window": window}
+        work_orders: List[WorkOrder] = []
+        while True:
+            data = self._get(path, params=params)
+            work_orders.extend(
+                {
+                    "id": item["id"],
+                    "description": item.get("description", ""),
+                    "asset_id": item.get("asset_id", ""),
+                }
+                for item in data.get("members", [])
+            )
+            next_path = data.get("next")
+            if not next_path:
+                break
+            if next_path.startswith(self.base_url):
+                next_path = next_path[len(self.base_url) :]
+            path = next_path.lstrip("/")
+            params = None
+        return work_orders
 
     def get_asset(self, asset_id: str) -> Asset:
         """Retrieve asset details by identifier."""
