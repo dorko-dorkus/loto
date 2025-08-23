@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import os
+import time
 from typing import Any, Dict, List, TypedDict
 
 import requests  # type: ignore[import-untyped]
+
+from ._errors import AdapterRequestError
 
 
 class WorkOrder(TypedDict):
@@ -41,21 +44,46 @@ class MaximoAdapter:
         self.os_asset = os.environ.get("MAXIMO_OS_ASSET", "ASSET")
         self._session = session or requests.Session()
         self._timeout = (3.05, 10)
+        self._retries = 3
 
     # internal helper
     def _get(self, path: str, params: Dict[str, Any] | None = None) -> Dict[str, Any]:
         url = f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
         headers = {"apikey": self.apikey} if self.apikey else {}
-        for attempt in range(2):
+        backoff = 1.0
+        for attempt in range(self._retries):
             try:
                 resp = self._session.get(
                     url, headers=headers, params=params, timeout=self._timeout
                 )
-                resp.raise_for_status()
-                return resp.json()
-            except requests.RequestException:
-                if attempt == 1:
-                    raise
+            except requests.RequestException as exc:
+                if attempt == self._retries - 1:
+                    raise AdapterRequestError(status_code=0, retry_after=None) from exc
+                time.sleep(backoff)
+                backoff *= 2
+                continue
+
+            status = resp.status_code
+            if status == 429 or status >= 500:
+                retry_after_header = resp.headers.get("Retry-After")
+                try:
+                    retry_after = (
+                        float(retry_after_header) if retry_after_header else None
+                    )
+                except ValueError:
+                    retry_after = None
+                if attempt == self._retries - 1:
+                    raise AdapterRequestError(
+                        status_code=status, retry_after=retry_after
+                    )
+                time.sleep(retry_after or backoff)
+                backoff *= 2
+                continue
+
+            if status >= 400:
+                raise AdapterRequestError(status_code=status, retry_after=None)
+
+            return resp.json()
         raise RuntimeError("Unreachable")
 
     def get_work_order(self, work_order_id: str) -> WorkOrder:
