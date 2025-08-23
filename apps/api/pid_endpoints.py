@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, cast
 import yaml
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from loto.models import IsolationPlan
 from loto.pid import build_overlay
@@ -50,24 +50,21 @@ class OverlayRequest(BaseModel):
         description="Mapping of component tags to CSS selectors",
     )
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class OverlayBadge(BaseModel):
     selector: str
     type: str
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class OverlayPath(BaseModel):
     id: str
     selectors: List[str]
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class OverlayResponse(BaseModel):
@@ -76,8 +73,7 @@ class OverlayResponse(BaseModel):
     paths: List[OverlayPath] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 @router.get("/{drawing_id}/svg")

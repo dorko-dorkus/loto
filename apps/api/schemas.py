@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BlueprintRequest(BaseModel):
@@ -11,13 +11,10 @@ class BlueprintRequest(BaseModel):
 
     workorder_id: str = Field(..., description="Identifier of the work order")
 
-    class Config:
-        extra = "forbid"
-        json_schema_extra = {
-            "example": {
-                "workorder_id": "WO-1001",
-            }
-        }
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={"example": {"workorder_id": "WO-1001"}},
+    )
 
 
 class Step(BaseModel):
@@ -26,8 +23,7 @@ class Step(BaseModel):
     component_id: str = Field(..., description="Component identifier")
     method: str = Field(..., description="Isolation method")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class BlueprintResponse(BaseModel):
@@ -49,9 +45,9 @@ class BlueprintResponse(BaseModel):
         default_factory=dict, description="Inventory status per material line"
     )
 
-    class Config:
-        extra = "forbid"
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "steps": [
                     {"component_id": "VALVE-1", "method": "lock"},
@@ -62,7 +58,8 @@ class BlueprintResponse(BaseModel):
                 "blocked_by_parts": False,
                 "parts_status": {"MAT-1": "available"},
             }
-        }
+        },
+    )
 
 
 class ScheduleRequest(BaseModel):
@@ -70,13 +67,9 @@ class ScheduleRequest(BaseModel):
 
     workorder: str = Field(..., description="Identifier of the work order")
 
-    class Config:
-        extra = "forbid"
-        json_schema_extra = {
-            "example": {
-                "workorder": "WO-1001",
-            }
-        }
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra={"example": {"workorder": "WO-1001"}}
+    )
 
 
 class SchedulePoint(BaseModel):
@@ -89,8 +82,7 @@ class SchedulePoint(BaseModel):
     price: float = Field(..., description="Energy price for the interval")
     hats: int = Field(..., description="Crew size (number of hard hats)")
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class ScheduleResponse(BaseModel):
@@ -102,8 +94,7 @@ class ScheduleResponse(BaseModel):
     seed: str = Field(..., description="Seed used for deterministic simulation")
     objective: float = Field(..., description="Objective value for the schedule")
     blocked_by_parts: bool = Field(
-        False,
-        description="Whether execution is blocked due to missing parts",
+        False, description="Whether execution is blocked due to missing parts"
     )
     rulepack_sha256: str = Field(
         ..., description="SHA-256 digest of the rule pack used"
@@ -111,9 +102,9 @@ class ScheduleResponse(BaseModel):
     rulepack_id: str | None = Field(None, description="Identifier of the rule pack")
     rulepack_version: str | None = Field(None, description="Version of the rule pack")
 
-    class Config:
-        extra = "forbid"
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "schedule": [
                     {
@@ -132,7 +123,8 @@ class ScheduleResponse(BaseModel):
                 "rulepack_id": "default",
                 "rulepack_version": "1.0.0",
             }
-        }
+        },
+    )
 
 
 class HatKpiRequest(BaseModel):
@@ -145,9 +137,9 @@ class HatKpiRequest(BaseModel):
     RQ: float | None = Field(None, description="Optional RQ metric")
     OF: float | None = Field(None, description="Optional OF metric")
 
-    class Config:
-        extra = "forbid"
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "wo_id": "WO-1001",
                 "hat_id": "HAT-7",
@@ -156,7 +148,8 @@ class HatKpiRequest(BaseModel):
                 "RQ": 0.7,
                 "OF": 0.6,
             }
-        }
+        },
+    )
 
 
 class HatSnapshot(BaseModel):
@@ -167,13 +160,12 @@ class HatSnapshot(BaseModel):
     c_r: float = Field(0.5, description="Ranking coefficient")
     n_samples: int = Field(0, description="Number of KPI events")
     last_event_at: datetime | None = Field(
-        None,
-        description="Timestamp of the most recent event",
+        None, description="Timestamp of the most recent event"
     )
 
-    class Config:
-        extra = "forbid"
-        json_schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "hat_id": "HAT-7",
                 "rank": 1,
@@ -181,4 +173,5 @@ class HatSnapshot(BaseModel):
                 "n_samples": 10,
                 "last_event_at": "2024-05-01T12:00:00Z",
             }
-        }
+        },
+    )
