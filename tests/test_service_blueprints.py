@@ -6,7 +6,10 @@ from loto.models import RulePack
 from loto.service.blueprints import plan_and_evaluate
 
 
-def test_plan_and_evaluate_deterministic():
+def test_plan_and_evaluate_deterministic(monkeypatch):
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},

@@ -8,13 +8,18 @@ from ..models import IsolationPlan
 from ..scheduling import assemble, des_engine, monte_carlo
 from ..scheduling.des_engine import RunResult, Task
 from ..scheduling.monte_carlo import MonteCarloResult
+from .blueprints import validate_fk_integrity
 
 
 def assemble_tasks(
-    work_order: object, plan: IsolationPlan, check_parts: assemble.InventoryFn | None = None
+    work_order: object,
+    plan: IsolationPlan,
+    check_parts: assemble.InventoryFn | None = None,
 ) -> dict[str, Task]:
     """Return tasks assembled from a work order and plan."""
-
+    validate_fk_integrity(
+        getattr(work_order, "asset_id", None), getattr(work_order, "location", None)
+    )
     return assemble.from_work_order(work_order, plan, check_parts)
 
 
