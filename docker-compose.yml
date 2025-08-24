@@ -22,6 +22,12 @@ services:
     ports:
       - "3000:3000"
     env_file: .env.example
+    user: root
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./scripts/restrict-egress.sh:/app/scripts/restrict-egress.sh:ro
+    entrypoint: ["/bin/sh", "/app/scripts/restrict-egress.sh"]
     depends_on:
       - api
     profiles: ["demo"]
