@@ -4,11 +4,13 @@ import contextvars
 import logging
 import os
 import sys
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as pkg_version
+from typing import Any, MutableMapping
 
 import sentry_sdk
 import structlog
 from structlog.typing import Processor
-from typing import Any, MutableMapping
 
 # context variables for request scoped metadata
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
@@ -68,4 +70,10 @@ def configure_logging() -> None:
 
     dsn = os.getenv("SENTRY_DSN")
     if dsn:
-        sentry_sdk.init(dsn=dsn)
+        release = os.getenv("SENTRY_RELEASE")
+        if not release:
+            try:
+                release = pkg_version("loto")
+            except PackageNotFoundError:
+                release = "unknown"
+        sentry_sdk.init(dsn=dsn, release=release)
