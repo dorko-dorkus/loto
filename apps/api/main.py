@@ -42,6 +42,7 @@ from pydantic import BaseModel, Field
 from fastapi_oidc import get_auth
 from fastapi_oidc.types import IDToken
 from starlette.datastructures import MutableHeaders
+import requests  # type: ignore[import-untyped]
 
 from loto.config import validate_env_vars
 from loto.errors import GenerationError
@@ -547,7 +548,50 @@ class NormalizeRequest(BaseModel):
 @app.get("/healthz", tags=["LOTO"])
 async def healthz(request: Request) -> dict[str, Any]:
     """Health check endpoint including rate limit counters."""
+
+    def _ping_service(base_url_env: str, mode_env: str) -> dict[str, str]:
+        mode = os.getenv(mode_env, "MOCK").upper()
+        if mode == "MOCK":
+            return {"status": "mock"}
+        url = os.getenv(base_url_env, "")
+        if not url:
+            return {"status": "unconfigured"}
+        try:
+            requests.head(url, timeout=5)
+        except requests.RequestException as exc:
+            return {"status": "error", "detail": exc.__class__.__name__}
+        return {"status": "ok"}
+
+    def _db_status() -> dict[str, Any]:
+        versions_dir = Path(__file__).with_name("alembic") / "versions"
+        head = None
+        for path in sorted(versions_dir.glob("*.py")):
+            head = path.stem.split("_")[0]
+        db_path = Path(__file__).resolve().parents[2] / "loto.db"
+        revision = None
+        if db_path.exists():
+            conn = sqlite3.connect(db_path)
+            try:
+                row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
+                revision = row[0] if row else None
+            except sqlite3.Error:
+                revision = None
+            finally:
+                conn.close()
+        return {"revision": revision, "head": head}
+
     report = demo_data.validate()
+    missing_assets = len(report["missing_assets"])
+    missing_locations = len(report["missing_locations"])
+    if missing_assets or missing_locations:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "missing_assets": missing_assets,
+                "missing_locations": missing_locations,
+            },
+        )
+
     role = "anonymous"
     auth_header = request.headers.get("Authorization")
     if auth_header:
@@ -567,9 +611,14 @@ async def healthz(request: Request) -> dict[str, Any]:
                 **{path: state["tokens"] for path, state in _route_rate_limits.items()},
             },
         },
+        "adapters": {
+            "maximo": _ping_service("MAXIMO_BASE_URL", "MAXIMO_MODE"),
+            "coupa": _ping_service("COUPA_BASE_URL", "COUPA_MODE"),
+        },
+        "db": _db_status(),
         "integrity": {
-            "missing_assets": len(report["missing_assets"]),
-            "missing_locations": len(report["missing_locations"]),
+            "missing_assets": missing_assets,
+            "missing_locations": missing_locations,
         },
     }
 
