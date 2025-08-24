@@ -44,16 +44,37 @@ export function applyPidOverlay(svg: SVGSVGElement, overlay: Overlay): string[] 
   badgeLayer.setAttribute('data-badge-layer', '');
   svg.appendChild(badgeLayer);
 
+  function bboxFor(target: SVGGraphicsElement): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } {
+    const vb = svg.viewBox?.baseVal;
+    const client = svg.getBoundingClientRect();
+    if (vb && client.width && client.height) {
+      const rect = target.getBoundingClientRect();
+      const scaleX = vb.width / client.width;
+      const scaleY = vb.height / client.height;
+      return {
+        x: vb.x + (rect.left - client.left) * scaleX,
+        y: vb.y + (rect.top - client.top) * scaleY,
+        width: rect.width * scaleX,
+        height: rect.height * scaleY,
+      };
+    }
+    try {
+      return target.getBBox();
+    } catch {
+      return { x: 0, y: 0, width: 0, height: 0 };
+    }
+  }
+
   overlay.badges.forEach((badge) => {
     const target = svg.querySelector<SVGGraphicsElement>(badge.selector);
     if (!target) return;
 
-    let bbox: DOMRect | { x: number; y: number; width: number; height: number };
-    try {
-      bbox = target.getBBox();
-    } catch {
-      bbox = { x: 0, y: 0, width: 0, height: 0 };
-    }
+    const bbox = bboxFor(target);
 
     const fo = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
     fo.setAttribute('x', String(bbox.x));
