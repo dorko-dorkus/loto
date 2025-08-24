@@ -13,6 +13,18 @@ def test_bearer_token(monkeypatch):
     client = TestClient(main.app)
     payload = {"workorder": "WO-1"}
     token = jwt.encode({"sub": "tester"}, "secret", algorithm="HS256")
+    monkeypatch.setattr(
+        main,
+        "authenticate_user",
+        lambda *_, **__: main.OIDCUser(
+            iss="iss",
+            sub="sub",
+            aud="aud",
+            exp=0,
+            iat=0,
+            roles=["planner"],
+        ),
+    )
     resp_ok = client.post(
         "/schedule", json=payload, headers={"Authorization": f"Bearer {token}"}
     )

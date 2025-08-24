@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from apps.api.main import app
+import apps.api.main as main
 from apps.api.schemas import BlueprintResponse
 
 
@@ -22,7 +23,8 @@ def golden(request):
 
 
 def test_blueprint_golden(golden):
-    client = TestClient(app)
+    importlib.reload(main)
+    client = TestClient(main.app)
     payload = {"workorder_id": "WO-1"}
     res1 = client.post("/blueprint", json=payload)
     assert res1.status_code == 200
