@@ -9,4 +9,25 @@
     background-color: var(--mxc-bg);
     color: var(--mxc-fg);
   }
+
+  *:focus-visible {
+    outline: 2px solid var(--mxc-status-info);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+
+  @media print {
+    body {
+      background-color: #ffffff;
+      color: #000000;
+    }
+  }
 }
