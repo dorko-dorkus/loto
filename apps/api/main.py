@@ -31,6 +31,7 @@ from prometheus_client import (
 from pydantic import BaseModel, Field
 from fastapi_oidc import get_auth
 from fastapi_oidc.types import IDToken
+from starlette.datastructures import MutableHeaders
 
 from loto.config import validate_env_vars
 from loto.errors import GenerationError
@@ -74,6 +75,14 @@ from .audit import add_record
 configure_logging()
 validate_env_vars()
 
+ENV = os.getenv("APP_ENV", "").lower()
+if ENV == "live":
+    ENV_BADGE = "PROD"
+elif ENV == "test":
+    ENV_BADGE = "TEST"
+else:
+    ENV_BADGE = "DRY-RUN"
+
 _rule_engine = RuleEngine()
 _default_rulepack = (
     Path(__file__).resolve().parents[2] / "config" / "hswa_rules_v1.1.yaml"
@@ -110,12 +119,24 @@ _APPROVAL_DB = Path(__file__).resolve().parents[2] / "approvals.db"
 
 app = FastAPI(title="loto API")
 
+
+class CORSMiddlewareWithEnv(CORSMiddleware):
+    async def __call__(self, scope, receive, send):
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers.append("X-Env", ENV_BADGE)
+            await send(message)
+
+        await super().__call__(scope, receive, send_wrapper)
+
+
 origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "").split(",") if o.strip()]
 if "http://localhost:3000" not in origins:
     origins.append("http://localhost:3000")
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddlewareWithEnv,
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
@@ -333,41 +354,49 @@ async def _handle_exception(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=500, content={"error": str(exc)})
 
 
-ENV = os.getenv("APP_ENV", "").lower()
-if ENV == "live":
-    ENV_BADGE = "PROD"
-elif ENV == "test":
-    ENV_BADGE = "TEST"
-else:
-    ENV_BADGE = "DRY-RUN"
-
 RATE_LIMIT_PATHS = {"/pid/overlay", "/schedule"}
-RATE_LIMIT_CAPACITY = int(os.getenv("RATE_LIMIT_CAPACITY", "10"))
+RATE_LIMIT_CAPACITY = int(os.getenv("RATE_LIMIT_CAPACITY", "100000"))
 RATE_LIMIT_INTERVAL = float(os.getenv("RATE_LIMIT_INTERVAL", "60"))
-_rate_limit_state = {
+_global_rate_limit = {"tokens": RATE_LIMIT_CAPACITY, "ts": time.monotonic()}
+_route_rate_limits = {
     path: {"tokens": RATE_LIMIT_CAPACITY, "ts": time.monotonic()}
     for path in RATE_LIMIT_PATHS
 }
 
 
 @app.middleware("http")
-async def add_env_and_rate_limit(request: Request, call_next):
+async def rate_limit(request: Request, call_next):
+    now = time.monotonic()
+
+    bucket = _global_rate_limit
+    elapsed = now - bucket["ts"]
+    if elapsed > RATE_LIMIT_INTERVAL:
+        bucket["tokens"] = RATE_LIMIT_CAPACITY
+        bucket["ts"] = now
+    if bucket["tokens"] <= 0:
+        retry_after = RATE_LIMIT_INTERVAL - elapsed
+        response = Response(status_code=429)
+        response.headers["Retry-After"] = str(int(retry_after) + 1)
+        response.headers["X-Env"] = ENV_BADGE
+        return response
+    bucket["tokens"] -= 1
+
     path = request.url.path
-    if path in _rate_limit_state:
-        bucket = _rate_limit_state[path]
-        now = time.monotonic()
+    if path in _route_rate_limits:
+        bucket = _route_rate_limits[path]
         elapsed = now - bucket["ts"]
         if elapsed > RATE_LIMIT_INTERVAL:
             bucket["tokens"] = RATE_LIMIT_CAPACITY
             bucket["ts"] = now
         if bucket["tokens"] <= 0:
+            retry_after = RATE_LIMIT_INTERVAL - elapsed
             response = Response(status_code=429)
+            response.headers["Retry-After"] = str(int(retry_after) + 1)
             response.headers["X-Env"] = ENV_BADGE
             return response
         bucket["tokens"] -= 1
-    response = await call_next(request)
-    response.headers["X-Env"] = ENV_BADGE
-    return response
+
+    return await call_next(request)
 
 
 STATE: Dict[str, Any] = {}
@@ -433,7 +462,8 @@ async def healthz() -> dict[str, Any]:
             "capacity": RATE_LIMIT_CAPACITY,
             "interval": RATE_LIMIT_INTERVAL,
             "counters": {
-                path: state["tokens"] for path, state in _rate_limit_state.items()
+                "global": _global_rate_limit["tokens"],
+                **{path: state["tokens"] for path, state in _route_rate_limits.items()},
             },
         },
         "integrity": {
