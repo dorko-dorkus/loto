@@ -89,6 +89,7 @@ def build_overlay(
     badges: List[Dict[str, str]] = []
     paths: List[Dict[str, object]] = []
     missing: Set[str] = set()
+    warnings: List[str] = []
 
     asset_selectors = _selectors(asset, mapping)
     if asset_selectors:
@@ -130,12 +131,20 @@ def build_overlay(
                 if not _selectors(node, mapping):
                     missing.add(node)
 
-    if missing and asset_selectors:
-        for sel in asset_selectors:
-            badges.append({"selector": sel, "type": "warning"})
+    if missing:
+        # If any tag is missing a selector, attach a warning badge to the
+        # asset (if available) and surface the missing tags in the warnings
+        # list.  This allows the front-end to draw attention to the asset and
+        # display an explanatory message to the user.
+        if asset_selectors:
+            for sel in asset_selectors:
+                badges.append({"selector": sel, "type": "warning"})
+        for tag in sorted(missing):
+            warnings.append(f"missing selector for tag '{tag}'")
 
     return {
         "highlight": sorted(highlight),
         "badges": badges,
         "paths": paths,
+        "warnings": warnings,
     }
