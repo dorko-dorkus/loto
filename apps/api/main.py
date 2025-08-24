@@ -17,7 +17,7 @@ import sqlite3
 import jwt
 import structlog
 import sentry_sdk
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from jwt import PyJWTError
@@ -193,9 +193,11 @@ OIDC_ISSUER = os.getenv("OIDC_ISSUER", "https://example.com")
 OIDC_SERVER = os.getenv("OIDC_SERVER", OIDC_ISSUER)
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", OIDC_CLIENT_ID)
 OIDC_CACHE_TTL = int(os.getenv("OIDC_CACHE_TTL", "3600"))
+PLANNER_EMAIL_DOMAIN = os.getenv("PLANNER_EMAIL_DOMAIN", "")
 
 
 class OIDCUser(IDToken):
+    email: str | None = None
     roles: List[str] = Field(default_factory=list)
 
 
@@ -209,8 +211,34 @@ authenticate_user = get_auth(
 )
 
 
+def _assign_roles(user: OIDCUser) -> OIDCUser:
+    if not user.roles:
+        domain = (user.email or "").split("@")[-1]
+        if PLANNER_EMAIL_DOMAIN and domain == PLANNER_EMAIL_DOMAIN:
+            user.roles = ["planner"]
+        else:
+            user.roles = ["viewer"]
+    return user
+
+
+def _auth_header(authorization: str | None = Header(default=None)) -> str:
+    if authorization is None:
+        raise HTTPException(status_code=401, detail="unauthorized")
+    return authorization
+
+
+def get_current_user(auth_header: str = Depends(_auth_header)) -> OIDCUser:
+    user = authenticate_user(auth_header)
+    return _assign_roles(user)
+
+
+def current_user_from_header(auth_header: str) -> OIDCUser:
+    user = authenticate_user(auth_header)
+    return _assign_roles(user)
+
+
 def _require_role(role: str):
-    def checker(user: OIDCUser = Depends(authenticate_user)) -> OIDCUser:
+    def checker(user: OIDCUser = Depends(get_current_user)) -> OIDCUser:
         if role not in user.roles:
             raise HTTPException(status_code=403, detail="forbidden")
         return user
@@ -222,6 +250,7 @@ require_worker = _require_role("worker")
 require_supervisor = _require_role("supervisor")
 require_hs_rep = _require_role("HS rep")
 require_admin = _require_role("admin")
+require_planner = _require_role("planner")
 
 
 class LoginRequest(BaseModel):
@@ -453,11 +482,20 @@ class NormalizeRequest(BaseModel):
 
 
 @app.get("/healthz", tags=["LOTO"])
-async def healthz() -> dict[str, Any]:
+async def healthz(request: Request) -> dict[str, Any]:
     """Health check endpoint including rate limit counters."""
     report = demo_data.validate()
+    role = "anonymous"
+    auth_header = request.headers.get("Authorization")
+    if auth_header:
+        try:
+            user = current_user_from_header(auth_header)
+            role = user.roles[0] if user.roles else role
+        except HTTPException:
+            pass
     return {
         "status": "ok",
+        "role": role,
         "rate_limit": {
             "capacity": RATE_LIMIT_CAPACITY,
             "interval": RATE_LIMIT_INTERVAL,
@@ -682,7 +720,9 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
 
 @app.post("/schedule", response_model=ScheduleResponse, tags=["LOTO"])
 async def post_schedule(
-    payload: ScheduleRequest, strict: bool = False
+    payload: ScheduleRequest,
+    strict: bool = False,
+    user: OIDCUser = Depends(require_planner),
 ) -> ScheduleResponse:
     """Return a synthetic schedule for the given work order.
 
