@@ -76,6 +76,7 @@ from .pid_endpoints import router as pid_router
 from .schemas import (
     BlueprintRequest,
     BlueprintResponse,
+    CommitRequest,
     JobInfo,
     JobStatus,
     SchedulePoint,
@@ -1055,3 +1056,14 @@ async def get_jobpack(
         rulepack_version=RULE_PACK_VERSION,
         seed=str(seed_int),
     )
+
+
+@app.post("/commit/{workorder_id}", tags=["LOTO"], status_code=204)
+async def post_commit(workorder_id: str, payload: CommitRequest) -> Response:
+    """Commit changes for *workorder_id* after enforcing safety gates."""
+
+    if not payload.sim_ok:
+        raise HTTPException(status_code=400, detail={"code": "SIMULATION_RED"})
+    if not all(payload.policies.values()):
+        raise HTTPException(status_code=400, detail={"code": "POLICY_CHIPS_MISSING"})
+    return Response(status_code=204)

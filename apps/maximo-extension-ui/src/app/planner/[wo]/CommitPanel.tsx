@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useBlueprintApi } from '../../../lib/hooks';
+import { apiFetch } from '../../../lib/api';
 import Button from '../../../components/Button';
 import { toastError } from '../../../lib/toast';
 
@@ -17,14 +18,17 @@ export default function CommitPanel({ wo, simOk }: CommitPanelProps) {
   const diff = data?.diff;
   const audit = data?.audit_metadata as Record<string, unknown> | undefined;
   const [policies, setPolicies] = useState({ safe: false, log: false });
-  const policiesAccepted = Object.values(policies).every(Boolean);
 
   const handleCommit = async () => {
     const input = window.prompt('Type COMMIT to confirm');
     if (input !== 'COMMIT') return;
     try {
-      const res = await fetch(`/api/commit/${wo}`, { method: 'POST' });
-      if ('ok' in res && !res.ok) throw new Error('Failed to commit');
+      const res = await apiFetch(`/commit/${wo}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simOk, policies }),
+      });
+      if (!res.ok) return;
     } catch (err) {
       toastError('Failed to commit');
     }
@@ -67,10 +71,7 @@ export default function CommitPanel({ wo, simOk }: CommitPanelProps) {
           Review log
         </label>
       </div>
-      <Button
-        disabled={!canCommit || !simOk || !policiesAccepted}
-        onClick={handleCommit}
-      >
+      <Button disabled={!canCommit} onClick={handleCommit}>
         Commit
       </Button>
     </section>

@@ -62,6 +62,17 @@ class BlueprintResponse(BaseModel):
     )
 
 
+class CommitRequest(BaseModel):
+    """Request body for the /commit endpoint."""
+
+    sim_ok: bool = Field(..., alias="simOk", description="Simulation run is green")
+    policies: Dict[str, bool] = Field(
+        default_factory=dict, description="Policy chip acknowledgements"
+    )
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
 class ScheduleRequest(BaseModel):
     """Request body for the /schedule endpoint."""
 
