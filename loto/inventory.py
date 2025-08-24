@@ -14,6 +14,7 @@ class StockItem:
 
     item_id: str
     quantity: int
+    reorder_point: int = 0
 
 
 @dataclass
@@ -22,6 +23,7 @@ class Reservation:
 
     item_id: str
     quantity: int
+    critical: bool = False
 
 
 @dataclass
@@ -141,11 +143,16 @@ def check_wo_parts_required(
 
     reservations: Iterable[Reservation] = getattr(work_order, "reservations", [])
     missing: List[Reservation] = []
+    blocked_by_low = False
 
     for res in reservations:
         stock = lookup_stock(res.item_id)
         available = stock.quantity if stock else 0
+        reorder = stock.reorder_point if stock else 0
         if available < res.quantity:
             missing.append(res)
+        elif res.critical and available <= reorder:
+            missing.append(res)
+            blocked_by_low = True
 
-    return InventoryStatus(blocked=bool(missing), missing=missing)
+    return InventoryStatus(blocked=bool(missing) or blocked_by_low, missing=missing)

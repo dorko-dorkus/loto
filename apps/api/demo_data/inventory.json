@@ -1,4 +1,4 @@
 [
-  {"id": "P-100", "available": 5},
-  {"id": "P-200", "available": 1}
+  {"id": "P-100", "available": 5, "reorder_point": 0},
+  {"id": "P-200", "available": 1, "reorder_point": 0}
 ]

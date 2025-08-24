@@ -35,9 +35,9 @@ def test_schedule_inventory_gating(monkeypatch):
     importlib.reload(main)
     client = TestClient(main.app)
     monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
-    original = DemoStoresAdapter._INVENTORY["P-200"]["available"]
+    original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
     try:
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = 0
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
         res = client.post(
             "/schedule",
             json={"workorder": "WO-1"},
@@ -50,16 +50,16 @@ def test_schedule_inventory_gating(monkeypatch):
         assert data["schedule"] == []
         assert data["rulepack_sha256"] == main.RULE_PACK_HASH
     finally:
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
 
 
 def test_schedule_inventory_gating_strict(monkeypatch):
     importlib.reload(main)
     client = TestClient(main.app)
     monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
-    original = DemoStoresAdapter._INVENTORY["P-200"]["available"]
+    original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
     try:
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = 0
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
         res = client.post(
             "/schedule?strict=true",
             json={"workorder": "WO-1"},
@@ -73,4 +73,4 @@ def test_schedule_inventory_gating_strict(monkeypatch):
             {"item_id": "P-200", "quantity": 1}
         ]
     finally:
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original

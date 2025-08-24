@@ -607,11 +607,16 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     """Plan isolations for a work order and return impact metrics."""
 
     stores = DemoStoresAdapter()
+    bom = demo_data.get_bom(payload.workorder_id)
     work_order = WorkOrder(
         id=payload.workorder_id,
         reservations=[
-            Reservation(item_id="P-100", quantity=1),
-            Reservation(item_id="P-200", quantity=1),
+            Reservation(
+                item_id=line["item_id"],
+                quantity=line["quantity"],
+                critical=line.get("critical", False),
+            )
+            for line in bom
         ],
     )
 
@@ -620,7 +625,11 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
             status = stores.inventory_status(item_id)
         except KeyError:
             return None
-        return StockItem(item_id=item_id, quantity=status.get("available", 0))
+        return StockItem(
+            item_id=item_id,
+            quantity=status.get("available", 0),
+            reorder_point=status.get("reorder_point", 0),
+        )
 
     def check_parts(wo: object) -> InventoryStatus:
         assert isinstance(wo, WorkOrder)
@@ -631,12 +640,13 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     for res in work_order.reservations:
         stock = lookup_stock(res.item_id)
         available = stock.quantity if stock else 0
-        if available >= res.quantity:
-            parts_status[res.item_id] = "ok"
-        elif available > 0:
+        reorder = stock.reorder_point if stock else 0
+        if available < res.quantity:
+            parts_status[res.item_id] = "short"
+        elif res.critical and available <= reorder:
             parts_status[res.item_id] = "low"
         else:
-            parts_status[res.item_id] = "short"
+            parts_status[res.item_id] = "ok"
 
     bp = demo_data.get_blueprint(payload.workorder_id)
     if bp is not None:
@@ -768,11 +778,16 @@ def _generate_schedule(
     """
 
     stores = DemoStoresAdapter()
+    bom = demo_data.get_bom(payload.workorder)
     work_order = WorkOrder(
         id=payload.workorder,
         reservations=[
-            Reservation(item_id="P-100", quantity=1),
-            Reservation(item_id="P-200", quantity=1),
+            Reservation(
+                item_id=line["item_id"],
+                quantity=line["quantity"],
+                critical=line.get("critical", False),
+            )
+            for line in bom
         ],
     )
 
@@ -781,7 +796,11 @@ def _generate_schedule(
             status = stores.inventory_status(item_id)
         except KeyError:
             return None
-        return StockItem(item_id=item_id, quantity=status.get("available", 0))
+        return StockItem(
+            item_id=item_id,
+            quantity=status.get("available", 0),
+            reorder_point=status.get("reorder_point", 0),
+        )
 
     inv_status = check_wo_parts_required(work_order, lookup_stock)
 

@@ -5,6 +5,7 @@ export interface WorkOrderSummary {
   owner?: string;
   plannedStart?: string;
   plannedFinish?: string;
+  blocked_by_parts?: boolean;
 }
 
 export interface BlueprintStep {
