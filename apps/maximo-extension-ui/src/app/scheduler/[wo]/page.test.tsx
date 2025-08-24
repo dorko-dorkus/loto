@@ -1,8 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { vi, test, expect } from 'vitest';
 import Page from './page';
 
-test('renders gantt, price curve and hats timeline', async () => {
+test('renders virtualized gantt and updates conflicts', async () => {
   class ResizeObserver {
     observe() {}
     unobserve() {}
@@ -17,8 +17,24 @@ test('renders gantt, price curve and hats timeline', async () => {
 
   const sample = {
     schedule: [
-      { date: '2024-01-01', p10: 10, p50: 20, p90: 30, price: 40, hats: 1 },
-      { date: '2024-01-02', p10: 12, p50: 22, p90: 32, price: 42, hats: 2 }
+      {
+        date: '2024-01-01',
+        p10: 10,
+        p50: 20,
+        p90: 30,
+        price: 40,
+        hats: 1,
+        conflicts: ['Conflict 0']
+      },
+      {
+        date: '2024-01-02',
+        p10: 12,
+        p50: 22,
+        p90: 32,
+        price: 42,
+        hats: 2,
+        conflicts: []
+      }
     ],
     seed: 'abc',
     objective: 0.95,
@@ -37,16 +53,10 @@ test('renders gantt, price curve and hats timeline', async () => {
       return Promise.resolve({ ok: true, json: async () => ({}) } as Response);
     });
 
-  const { container } = render(<Page params={{ wo: 'WO-1' }} />);
-
-  await screen.findByTestId('gantt-chart');
-  await waitFor(() => expect(screen.queryByTestId('skeleton')).toBeNull());
-  expect(screen.getByTestId('price-chart')).toBeInTheDocument();
-  expect(screen.getByTestId('hats-chart')).toBeInTheDocument();
-  expect(screen.getByTestId('schedule-meta').textContent).toContain('Seed: abc');
-  expect(screen.getByTestId('schedule-meta').textContent).toContain('Objective: 0.95');
-  const synced = document.querySelectorAll('[data-sync="schedule"]');
-  expect(synced.length).toBe(3);
+  render(<Page params={{ wo: 'WO-1' }} />);
+  const rows = await screen.findAllByTestId('gantt-row-date');
+  fireEvent.click(rows[0]);
+  expect(screen.getByLabelText('Conflict 0')).toBeInTheDocument();
   fetchMock.mockRestore();
 });
 

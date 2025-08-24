@@ -10,6 +10,8 @@ export interface SchedulePoint {
   p90: number;
   price: number;
   hats: number;
+  /** Optional list of conflict identifiers for the row. */
+  conflicts?: string[];
 }
 
 export interface ScheduleResponse {
