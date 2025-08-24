@@ -4,7 +4,7 @@ This directory contains a minimal [FastAPI](https://fastapi.tiangolo.com/) servi
 
 ## Endpoints
 
-- `GET /healthz` – basic health check.
+- `GET /healthz` – readiness check reporting rate limits, adapter and database status.
 - `GET /version` – return the application version.
 - `POST /blueprint` – placeholder accepting a CSV upload or work order ID.
 - `POST /schedule` – placeholder endpoint for creating schedules.
