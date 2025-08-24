@@ -80,7 +80,13 @@ launch the API with `uvicorn loto.main:app --reload` which will listen on
 Run the API and UI with demo data using Docker. Ensure Docker and Docker Compose are installed and the Docker daemon is running:
 
 ```bash
-docker compose --profile demo up
+make run-demo
+```
+
+This builds the API and UI, waits for the health check to pass, and opens the UI in your browser. To stop the stack:
+
+```bash
+make demo-down
 ```
 
 To start the pilot stack, which includes a Postgres service:
@@ -100,10 +106,10 @@ curl :8000/version
 Open the UI in your browser to view the Portfolio page at
 <http://localhost:3000>.
 
-To run the CLI demo instead:
+To run the CLI demo:
 
 ```bash
-make run-demo
+python -m loto.cli demo
 ```
 
 ## On-Call Support
