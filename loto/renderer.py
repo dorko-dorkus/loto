@@ -272,8 +272,8 @@ class Renderer:
             return {k: v for k, v in items}
 
         payload: Dict[str, Any] = {
-            "plan": plan.dict(exclude_none=True),
-            "simulation": sim_report.dict(exclude_none=True),
+            "plan": plan.model_dump(exclude_none=True),
+            "simulation": sim_report.model_dump(exclude_none=True),
         }
 
         if impact:

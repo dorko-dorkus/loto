@@ -137,7 +137,7 @@ def plan_and_evaluate(
         asset_areas=asset_areas,
     )
 
-    rule_hash = hashlib.sha256(rule_pack.json().encode()).hexdigest()
+    rule_hash = hashlib.sha256(rule_pack.model_dump_json().encode()).hexdigest()
     provenance = Provenance(seed=seed, rule_hash=rule_hash)
 
     return plan, report, impact, provenance
