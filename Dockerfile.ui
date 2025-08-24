@@ -1,15 +1,28 @@
-FROM node:20-alpine
+# syntax=docker/dockerfile:1
 
+# Builder stage
+FROM node:20.10.0-alpine AS builder
 WORKDIR /app
 
-# Install pnpm and workspace dependencies for the UI
-RUN npm install -g pnpm
+RUN npm install -g pnpm@8.15.1
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/maximo-extension-ui/package.json apps/maximo-extension-ui/
 RUN pnpm install --filter maximo-extension-ui... --frozen-lockfile
-
 COPY apps/maximo-extension-ui apps/maximo-extension-ui
+RUN pnpm -F maximo-extension-ui build
+
+# Final stage
+FROM node:20.10.0-alpine
+WORKDIR /app
+
+RUN npm install -g pnpm@8.15.1
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/maximo-extension-ui/package.json apps/maximo-extension-ui/
+RUN pnpm install --filter maximo-extension-ui... --frozen-lockfile --prod
+COPY --from=builder /app/apps/maximo-extension-ui/.next apps/maximo-extension-ui/.next
+COPY --from=builder /app/apps/maximo-extension-ui/public apps/maximo-extension-ui/public
 
 # Create non-root user
 RUN adduser -D appuser && chown -R appuser /app
@@ -17,4 +30,6 @@ USER appuser
 
 EXPOSE 3000
 
-CMD ["pnpm", "-F", "maximo-extension-ui", "dev"]
+HEALTHCHECK CMD wget -qO- http://localhost:3000/ || exit 1
+
+CMD ["pnpm", "-F", "maximo-extension-ui", "start"]
