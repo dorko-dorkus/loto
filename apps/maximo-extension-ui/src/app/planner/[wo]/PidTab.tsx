@@ -63,6 +63,7 @@ export default function PidTab({ wo }: { wo: string }) {
   const [showSimFails, setShowSimFails] = useState(false);
   const [showSourcePath, setShowSourcePath] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     if (!data || !containerRef.current) return;
@@ -78,11 +79,12 @@ export default function PidTab({ wo }: { wo: string }) {
     if (showSourcePath) highlight.push(...sourcePath);
     if (showSimFails) highlight.push(...simFailSelectors);
 
-    applyPidOverlay(svg as unknown as SVGSVGElement, {
+    const w = applyPidOverlay(svg as unknown as SVGSVGElement, {
       highlight,
       badges: data.badges,
       paths: []
     });
+    setWarnings(w);
   }, [data, showSimFails, showSourcePath]);
 
   if (blueprintLoading || isLoading) {
@@ -113,7 +115,7 @@ export default function PidTab({ wo }: { wo: string }) {
         </label>
       </div>
       <div ref={containerRef} className="flex-1">
-        <PidViewer src={src} />
+        <PidViewer src={src} warnings={warnings} />
       </div>
     </div>
   );

@@ -1,19 +1,23 @@
 'use client';
 
+import { useState } from 'react';
 import { useBlueprintApi } from '../../../lib/hooks';
 import Button from '../../../components/Button';
 import { toastError } from '../../../lib/toast';
 
 interface CommitPanelProps {
   wo: string;
+  simOk: boolean;
 }
 
-export default function CommitPanel({ wo }: CommitPanelProps) {
+export default function CommitPanel({ wo, simOk }: CommitPanelProps) {
   const { data } = useBlueprintApi(wo);
   const role = (process.env.NEXT_PUBLIC_ROLE || 'TEST').toUpperCase();
   const canCommit = role !== 'TEST';
   const diff = data?.diff;
   const audit = data?.audit_metadata as Record<string, unknown> | undefined;
+  const [policies, setPolicies] = useState({ safe: false, log: false });
+  const policiesAccepted = Object.values(policies).every(Boolean);
 
   const handleCommit = async () => {
     const input = window.prompt('Type COMMIT to confirm');
@@ -41,7 +45,32 @@ export default function CommitPanel({ wo }: CommitPanelProps) {
           </pre>
         </div>
       )}
-      <Button disabled={!canCommit} onClick={handleCommit}>
+      <div className="mb-4 space-y-2">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={policies.safe}
+            onChange={(e) =>
+              setPolicies((p) => ({ ...p, safe: e.target.checked }))
+            }
+          />
+          Follow safety policy
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={policies.log}
+            onChange={(e) =>
+              setPolicies((p) => ({ ...p, log: e.target.checked }))
+            }
+          />
+          Review log
+        </label>
+      </div>
+      <Button
+        disabled={!canCommit || !simOk || !policiesAccepted}
+        onClick={handleCommit}
+      >
         Commit
       </Button>
     </section>
