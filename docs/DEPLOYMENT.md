@@ -2,6 +2,18 @@
 
 The `prod.env` file contains non-secret configuration. Real credentials such as `MAXIMO_APIKEY` are stored in the team vault.
 
+## Environment variables
+
+Mandatory:
+
+- `MAXIMO_BASE_URL`
+- `MAXIMO_APIKEY`
+- `OIDC_CLIENT_ID`
+- `OIDC_CLIENT_SECRET`
+- `OIDC_ISSUER`
+
+Optional values like `SENTRY_DSN` or `WAPR_*` are documented in `.env.example`.
+
 To populate `prod.env` with secrets:
 
 1. Authenticate to the vault (`op signin` for 1Password or `vault login` for HashiCorp Vault).

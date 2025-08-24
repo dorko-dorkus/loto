@@ -44,7 +44,7 @@ Copy `.env.example` to `.env` and fill in values as needed:
 cp .env.example .env
 ```
 
-Required variables:
+Mandatory variables:
 
 ```dotenv
 MAXIMO_BASE_URL=https://example.com
@@ -52,7 +52,14 @@ MAXIMO_APIKEY=changeme
 MAXIMO_OS_WORKORDER=WORKORDER
 MAXIMO_OS_ASSET=ASSET
 NEXT_PUBLIC_USE_API=false
+OIDC_CLIENT_ID=your-client-id
+OIDC_CLIENT_SECRET=your-client-secret
+OIDC_ISSUER=https://example.com/
 ```
+
+Optional settings such as `SENTRY_DSN`, `WAPR_*`, `COUPA_*`, and
+authentication toggles (`AUTH_REQUIRED`, `JWT_SECRET`, etc.) are documented in
+`.env.example`.
 
 ## Local Development
 
