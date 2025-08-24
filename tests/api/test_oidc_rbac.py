@@ -1,7 +1,9 @@
 import importlib
+
 from fastapi.testclient import TestClient
 
 import apps.api.main as main
+from tests.job_utils import wait_for_job
 
 
 def _override(email: str):
@@ -47,6 +49,8 @@ def test_planner_allowed(monkeypatch):
     res = client.post(
         "/schedule", json={"workorder": "WO-1"}, headers={"Authorization": "Bearer x"}
     )
-    assert res.status_code == 200
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    wait_for_job(client, job)
     res = client.get("/healthz", headers={"Authorization": "Bearer x"})
     assert res.json()["role"] == "planner"

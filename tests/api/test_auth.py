@@ -28,7 +28,7 @@ def test_bearer_token(monkeypatch):
     resp_ok = client.post(
         "/schedule", json=payload, headers={"Authorization": f"Bearer {token}"}
     )
-    assert resp_ok.status_code == 200
+    assert resp_ok.status_code == 202
     resp_fail = client.post("/schedule", json=payload)
     assert resp_fail.status_code == 401
     assert resp_fail.headers["X-Env"] == main.ENV_BADGE
