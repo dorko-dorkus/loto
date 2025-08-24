@@ -3,10 +3,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
+import os
 import sqlite3
+import time
 from pathlib import Path
 
+import structlog
+
 DB_PATH = Path(__file__).resolve().parents[2] / "loto.db"
+
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -37,13 +44,31 @@ def export_records(
     prefix: str = "audit",
     *,
     db_path: Path = DB_PATH,
+    retention_years: int | None = None,
+    max_attempts: int = 3,
 ) -> str:
     """Export audit records to S3 with object lock enabled.
 
-    The uploaded object is retained for seven years to satisfy compliance
-    requirements.
+    Parameters
+    ----------
+    bucket:
+        Destination S3 bucket.
+    prefix:
+        Object key prefix.  Keys are further partitioned by ``YYYY/MM/DD``.
+    db_path:
+        Path to the SQLite database containing ``audit_records``.
+    retention_years:
+        Optional number of years to retain the uploaded object.  Defaults to the
+        ``AUDIT_RETENTION_YEARS`` environment variable or 7 years if unset.
+    max_attempts:
+        Number of S3 upload attempts on 5xx errors.
+
+    The uploaded object is retained for the configured number of years to
+    satisfy compliance requirements.  Records are uploaded as JSON Lines (JSONL)
+    format with one JSON object per line.
     """
     import boto3  # imported lazily to avoid hard dependency during normal use
+    from botocore.exceptions import ClientError
 
     conn = sqlite3.connect(db_path)
     try:
@@ -52,27 +77,53 @@ def export_records(
         ).fetchall()
     finally:
         conn.close()
-    body = json.dumps(
-        [
+
+    body_lines = [
+        json.dumps(
             {
                 "id": r[0],
                 "user": r[1],
                 "action": r[2],
                 "timestamp": r[3],
             }
-            for r in rows
-        ]
-    ).encode("utf-8")
-    s3 = boto3.client("s3")
-    key = f"{prefix}/{datetime.now(tz=timezone.utc).isoformat()}.json"
-    retain_until = datetime.now(tz=timezone.utc) + timedelta(days=365 * 7)
-    s3.put_object(
-        Bucket=bucket,
-        Key=key,
-        Body=body,
-        ObjectLockMode="COMPLIANCE",
-        ObjectLockRetainUntilDate=retain_until,
+        )
+        for r in rows
+    ]
+    body = ("\n".join(body_lines) + "\n").encode("utf-8") if body_lines else b""
+
+    now = datetime.now(tz=timezone.utc)
+    key = f"{prefix}/{now:%Y/%m/%d}/{now.isoformat()}.jsonl"
+
+    retention_years = retention_years or int(os.getenv("AUDIT_RETENTION_YEARS", "7"))
+    retain_until = now + timedelta(days=365 * retention_years)
+
+    logger.info(
+        "uploading_audit_records",
+        bucket=bucket,
+        key=key,
+        count=len(rows),
+        retain_until=retain_until.isoformat(),
     )
+
+    s3 = boto3.client("s3")
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            s3.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=body,
+                ObjectLockMode="COMPLIANCE",
+                ObjectLockRetainUntilDate=retain_until,
+            )
+            break
+        except ClientError as exc:  # pragma: no cover - network errors are rare
+            status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode", 0)
+            if 500 <= status < 600 and attempt < max_attempts:
+                time.sleep(2 ** (attempt - 1))
+                continue
+            raise
     return key
 
 
