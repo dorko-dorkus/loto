@@ -72,3 +72,25 @@ def test_load_registry_invalid_tag_map(tmp_path: Path) -> None:
     with pytest.raises(ValueError) as exc:
         load_registry(registry)
     assert str(tag_map) in str(exc.value)
+
+
+def test_load_registry_reports_warnings(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "doc.svg",
+        "<svg xmlns='http://www.w3.org/2000/svg'><g id='a'/></svg>",
+    )
+    _write(tmp_path, "map.yaml", "T1: '#a'\nT2: '#missing'\n")
+    registry = _write(
+        tmp_path,
+        "registry.yaml",
+        """
+        pids:
+          demo:
+            svg: doc.svg
+            tag_map: map.yaml
+        """.strip(),
+    )
+    loaded = load_registry(registry)
+    warnings = loaded.pids["demo"].warnings
+    assert "missing selector '#missing'" in warnings
