@@ -16,6 +16,27 @@ DB_PATH = Path(__file__).resolve().parents[2] / "loto.db"
 logger = structlog.get_logger(__name__)
 
 
+def _redact(value: str) -> str:
+    """Redact sensitive tokens from ``value``.
+
+    Environment variables such as ``MAXIMO_APIKEY`` may be logged and must be
+    removed prior to export.  Common secrets are replaced with ``[REDACTED]``.
+    """
+
+    patterns = [
+        os.getenv("MAXIMO_APIKEY"),
+        os.getenv("MAXIMO_BASE_URL"),
+        "apikey",
+        "password",
+        "secret",
+    ]
+    redacted = value
+    for p in patterns:
+        if p:
+            redacted = redacted.replace(p, "[REDACTED]")
+    return redacted
+
+
 @dataclass(frozen=True)
 class AuditRecord:
     """Represents a single audit log entry."""
@@ -82,8 +103,8 @@ def export_records(
         json.dumps(
             {
                 "id": r[0],
-                "user": r[1],
-                "action": r[2],
+                "user": _redact(r[1]),
+                "action": _redact(r[2]),
                 "timestamp": r[3],
             }
         )
