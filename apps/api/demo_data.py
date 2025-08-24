@@ -16,7 +16,11 @@ class DemoDataSource:
         self.locations: List[Dict[str, Any]] = self._load_list("locations.json")
         self.inventory: List[Dict[str, Any]] = self._load_list("inventory.json")
         self.blueprints: Dict[str, Dict[str, Any]] = self._load_dict("blueprints.json")
+        self.boms: List[Dict[str, Any]] = self._load_list("bom.json")
         self._work_orders_by_id = {wo["id"]: wo for wo in self.work_orders}
+        self._bom_by_wo: Dict[str, List[Dict[str, Any]]] = {}
+        for line in self.boms:
+            self._bom_by_wo.setdefault(line["workorder"], []).append(line)
         self.asset_ids = {asset["id"] for asset in self.assets}
         self.location_ids = {loc["id"] for loc in self.locations}
 
@@ -40,6 +44,11 @@ class DemoDataSource:
 
     def get_blueprint(self, work_order_id: str) -> Dict[str, Any] | None:
         return self.blueprints.get(work_order_id)
+
+    def get_bom(self, work_order_id: str) -> List[Dict[str, Any]]:
+        """Return bill-of-material lines for ``work_order_id``."""
+
+        return list(self._bom_by_wo.get(work_order_id, []))
 
     def validate(self) -> Dict[str, List[Dict[str, str | None]]]:
         """Check referential integrity of work orders.

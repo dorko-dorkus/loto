@@ -40,8 +40,8 @@ class DemoStoresAdapter(StoresAdapter):
     """Dry-run stores adapter that fabricates pick list identifiers."""
 
     _INVENTORY = {
-        "P-100": {"available": 5},
-        "P-200": {"available": 1},
+        "P-100": {"available": 5, "reorder_point": 0},
+        "P-200": {"available": 1, "reorder_point": 0},
     }
 
     def create_pick_list(self, part_number: str, quantity: int) -> str:

@@ -55,23 +55,23 @@ def test_blueprint_inventory_gating(monkeypatch):
         "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
     )
     client = TestClient(app)
-    original = DemoStoresAdapter._INVENTORY["P-200"]["available"]
+    original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
     try:
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = 0
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
         res = client.post("/blueprint", json={"workorder_id": "WO-1"})
         assert res.status_code == 202
         job = res.json()["job_id"]
         data = wait_for_job(client, job)["result"]
         assert data["blocked_by_parts"] is True
 
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = 1
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 0
         res = client.post("/blueprint", json={"workorder_id": "WO-1"})
         assert res.status_code == 202
         job = res.json()["job_id"]
         data = wait_for_job(client, job)["result"]
         assert data["blocked_by_parts"] is False
     finally:
-        DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
 
 
 def test_ingest_inventory_normalizes_units():

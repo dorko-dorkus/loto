@@ -4,7 +4,8 @@ export async function fetchWorkOrder(id: string): Promise<WorkOrderSummary> {
   return {
     id,
     description: 'Example work order',
-    status: 'WAPPR'
+    status: 'WAPPR',
+    blocked_by_parts: false
   };
 }
 

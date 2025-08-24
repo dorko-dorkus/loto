@@ -1,0 +1,4 @@
+[
+  {"workorder": "WO-1", "item_id": "P-100", "quantity": 1, "critical": false},
+  {"workorder": "WO-1", "item_id": "P-200", "quantity": 1, "critical": true}
+]
