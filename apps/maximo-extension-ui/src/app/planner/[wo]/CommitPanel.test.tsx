@@ -1,7 +1,11 @@
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { test, expect, vi, afterEach } from 'vitest';
+import { test, expect, vi, afterEach, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CommitPanel from './CommitPanel';
+
+beforeEach(() => {
+  vi.stubGlobal('alert', vi.fn());
+});
 
 afterEach(() => {
   cleanup();
@@ -17,7 +21,7 @@ test('renders audit metadata and disables commit in TEST role', async () => {
   const queryClient = new QueryClient();
   render(
     <QueryClientProvider client={queryClient}>
-      <CommitPanel wo="WO-1" />
+      <CommitPanel wo="WO-1" simOk />
     </QueryClientProvider>
   );
   await screen.findByTestId('diff');
@@ -38,11 +42,13 @@ test('requires typing COMMIT to confirm', async () => {
   const queryClient = new QueryClient();
   render(
     <QueryClientProvider client={queryClient}>
-      <CommitPanel wo="WO-1" />
+      <CommitPanel wo="WO-1" simOk />
     </QueryClientProvider>
   );
   await screen.findByTestId('diff');
   const button = screen.getByRole('button', { name: 'Commit' });
+  const checks = screen.getAllByRole('checkbox');
+  checks.forEach((c) => fireEvent.click(c));
   fireEvent.click(button);
   expect(fetchMock).toHaveBeenCalledTimes(1);
   prompt.mockReturnValue('COMMIT');
