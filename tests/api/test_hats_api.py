@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.main import app
@@ -18,8 +19,8 @@ def test_post_kpi_and_idempotent(tmp_path, monkeypatch):
     assert res.status_code == 200
     data = res.json()
     assert data["hat_id"] == "h1"
-    assert data["rank"] == 1
-    assert data["c_r"] == 0.85
+    assert data["rank"] == 84
+    assert data["c_r"] == pytest.approx(0.8375)
     assert data["n_samples"] == 1
 
     # Ledger and snapshot written

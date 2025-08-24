@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Tuple, cast
 
 from fastapi import APIRouter
 
-from loto.roster import storage, update_ranking
+from loto.roster import storage
+from loto.hats import compute_ranking
 
 from .schemas import HatKpiRequest, HatSnapshot
 
@@ -71,7 +72,7 @@ async def list_hats() -> list[HatSnapshot]:
     ledger, stats = _read_ledger()
     if not ledger:
         return []
-    ranking = update_ranking(ledger)
+    ranking = compute_ranking(ledger)
     snapshots: list[HatSnapshot] = []
     for hat_id, info in ranking.items():
         stat = stats.get(hat_id)
@@ -96,7 +97,7 @@ async def get_hat(hat_id: str) -> HatSnapshot:
     ledger, stats = _read_ledger()
     if not ledger:
         return _neutral_snapshot(hat_id)
-    ranking = update_ranking(ledger)
+    ranking = compute_ranking(ledger)
     info = ranking.get(hat_id)
     stat = stats.get(hat_id)
     if not info:
@@ -139,7 +140,7 @@ async def post_hat_kpi(event: HatKpiRequest) -> HatSnapshot:
     storage.write_snapshot(snapshot_path, snapshot)
 
     ledger, stats = _read_ledger()
-    ranking = update_ranking(ledger) if ledger else {}
+    ranking = compute_ranking(ledger) if ledger else {}
     info = ranking.get(event.hat_id)
     stat = stats.get(event.hat_id)
     if not info:
