@@ -82,7 +82,8 @@ export default function PidTab({ wo }: { wo: string }) {
     const w = applyPidOverlay(svg as unknown as SVGSVGElement, {
       highlight,
       badges: data.badges,
-      paths: []
+      paths: [],
+      warnings: data.warnings
     });
     setWarnings(w);
   }, [data, showSimFails, showSourcePath]);
