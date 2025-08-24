@@ -86,6 +86,17 @@ from .audit import add_record
 configure_logging()
 validate_env_vars()
 
+_required_env = [
+    "MAXIMO_BASE_URL",
+    "MAXIMO_APIKEY",
+    "OIDC_CLIENT_ID",
+    "OIDC_CLIENT_SECRET",
+    "OIDC_ISSUER",
+]
+_missing = [k for k in _required_env if not os.getenv(k)]
+if _missing:
+    raise RuntimeError("Missing required environment variables: " + ", ".join(_missing))
+
 ENV = os.getenv("APP_ENV", "").lower()
 if ENV == "live":
     ENV_BADGE = "PROD"
