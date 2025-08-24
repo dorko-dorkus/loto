@@ -8,7 +8,9 @@
     "start": "next start",
     "test": "vitest run",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "lint": "next lint",
+    "format": "prettier --write ."
   },
   "dependencies": {
     "@sentry/nextjs": "^7.120.4",
@@ -48,6 +50,10 @@
     "tailwindcss": "^3.3.3",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.2.2",
-    "vitest": "^0.34.6"
+    "vitest": "^0.34.6",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "prettier": "^3.1.0"
   }
 }

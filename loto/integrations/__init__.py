@@ -22,8 +22,7 @@ from .stores_adapter import DemoStoresAdapter, StoresAdapter
 from .wapr_adapter import DemoWaprAdapter, WaprAdapter
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
-    from ..isolation_planner import IsolationPlan
-    from ..models import SimReport
+    from ..models import IsolationPlan, SimReport
 
 
 class IntegrationAdapter(abc.ABC):

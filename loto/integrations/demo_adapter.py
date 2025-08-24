@@ -14,8 +14,7 @@ from . import IntegrationAdapter
 logger = structlog.get_logger()
 
 if TYPE_CHECKING:  # pragma: no cover - imported for type checking only
-    from ..isolation_planner import IsolationPlan
-    from ..models import SimReport
+    from ..models import IsolationPlan, SimReport
 
 
 DEMO_DIR = Path(__file__).resolve().parents[2] / "demo"

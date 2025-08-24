@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
-import networkx as nx  # type: ignore
+import networkx as nx
 import typer
 import yaml
 from tqdm import tqdm

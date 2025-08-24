@@ -3,12 +3,12 @@ from __future__ import annotations
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, Iterable, List, cast
+from typing import Any, Dict, Iterable, List, cast
 
 import yaml
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from loto.models import IsolationPlan
 from loto.pid import build_overlay
@@ -127,4 +127,4 @@ async def post_overlay(payload: OverlayRequest) -> OverlayResponse:
     finally:
         map_path.unlink(missing_ok=True)
 
-    return OverlayResponse(**data, warnings=warnings)
+    return OverlayResponse(**cast(Dict[str, Any], data), warnings=warnings)

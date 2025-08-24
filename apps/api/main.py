@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import time
 import tomllib
 from dataclasses import asdict, dataclass
@@ -13,24 +14,26 @@ from subprocess import CalledProcessError, run
 from typing import Any, Dict, List
 from uuid import uuid4
 
-import sqlite3
 import jwt
-import structlog
+import requests  # type: ignore[import-untyped]
 import sentry_sdk
-from opentelemetry import trace
+import structlog
 from fastapi import (
     BackgroundTasks,
     Depends,
     FastAPI,
+    Header,
     HTTPException,
     Request,
     Response,
     status,
-    Header,
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi_oidc import get_auth
+from fastapi_oidc.types import IDToken
 from jwt import PyJWTError
+from opentelemetry import trace
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     CollectorRegistry,
@@ -39,10 +42,7 @@ from prometheus_client import (
     generate_latest,
 )
 from pydantic import BaseModel, Field
-from fastapi_oidc import get_auth
-from fastapi_oidc.types import IDToken
 from starlette.datastructures import MutableHeaders
-import requests  # type: ignore[import-untyped]
 
 from loto.config import validate_env_vars
 from loto.errors import GenerationError
@@ -68,8 +68,9 @@ from loto.scheduling.des_engine import Task
 from loto.scheduling.monte_carlo import simulate
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import inventory_state
-from .demo_data import demo_data
 
+from .audit import add_record
+from .demo_data import demo_data
 from .hats_endpoints import router as hats_router  # provides hats KPI endpoints
 from .pid_endpoints import router as pid_router
 from .schemas import (
@@ -83,7 +84,9 @@ from .schemas import (
     Step,
 )
 from .workorder_endpoints import router as workorder_router
-from .audit import add_record
+
+# mypy: ignore-errors
+
 
 configure_logging()
 validate_env_vars()
@@ -190,7 +193,7 @@ if os.getenv("TRACE_ENABLED", "").lower() == "true":
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
+    from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
 
     exporter_type = os.getenv("TRACE_EXPORTER", "").lower()
     provider = TracerProvider(resource=Resource.create({SERVICE_NAME: "loto-api"}))

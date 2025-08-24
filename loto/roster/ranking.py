@@ -87,7 +87,7 @@ def _alpha_from_half_life(half_life: float | None) -> float:
 
     if not half_life or half_life <= 0:
         return _ALPHA
-    return 1.0 - 0.5 ** (1.0 / half_life)
+    return float(1.0 - 0.5 ** (1.0 / half_life))
 
 
 def update_ranking(

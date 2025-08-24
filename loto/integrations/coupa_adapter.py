@@ -11,7 +11,7 @@ import abc
 import os
 import time
 import uuid
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 import requests  # type: ignore[import-untyped]
 
@@ -109,7 +109,7 @@ class HttpCoupaAdapter(CoupaAdapter):
             if status >= 400:
                 raise AdapterRequestError(status_code=status, retry_after=None)
 
-            return resp.json()
+            return cast(Dict[str, Any], resp.json())
         raise RuntimeError("Unreachable")
 
     # Real implementations would call Coupa endpoints. For now these
@@ -122,7 +122,7 @@ class HttpCoupaAdapter(CoupaAdapter):
 
     def get_po_status(self, po_number: str) -> str:  # pragma: no cover - stub
         data = self._get(f"po/{po_number}")
-        return data.get("status", "")
+        return cast(str, data.get("status", ""))
 
 
 __all__ = ["CoupaAdapter", "DemoCoupaAdapter", "HttpCoupaAdapter"]

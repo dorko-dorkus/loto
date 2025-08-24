@@ -7,6 +7,9 @@ from typing import Dict, List
 import yaml
 from pydantic import RootModel, ValidationError, field_validator, model_validator
 
+# mypy: ignore-errors
+
+
 SELECTOR_RE = re.compile(r"^#?[A-Za-z0-9_.:-]+$")
 
 

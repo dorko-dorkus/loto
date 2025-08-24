@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import Reservation, StockItem, check_wo_parts_required
@@ -138,4 +139,4 @@ async def get_portfolio(window: int = 7) -> PortfolioResponse:
         inv_status = check_wo_parts_required(work_order, lookup_stock)
         summaries.append(WorkOrderSummary(**wo, blocked_by_parts=inv_status.blocked))
     kpis = [KpiItem(label="Open", value=len(summaries))]
-    return PortfolioResponse(kpis=kpis, work_orders=summaries)
+    return PortfolioResponse(kpis=kpis, workOrders=summaries)

@@ -30,7 +30,9 @@ def _wrap_duration(duration: Any) -> Any:
     if isinstance(duration, tuple) and len(duration) == 2:
         mean, sigma = duration
 
-        def sampler(rng: random.Random, mean=mean, sigma=sigma) -> float:
+        def sampler(
+            rng: random.Random, mean: float = mean, sigma: float = sigma
+        ) -> float:
             return max(0.0, rng.normalvariate(mean, sigma))
 
         return sampler
