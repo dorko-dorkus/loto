@@ -17,7 +17,16 @@ import sqlite3
 import jwt
 import structlog
 import sentry_sdk
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status, Header
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    HTTPException,
+    Request,
+    Response,
+    status,
+    Header,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from jwt import PyJWTError
@@ -64,6 +73,8 @@ from .pid_endpoints import router as pid_router
 from .schemas import (
     BlueprintRequest,
     BlueprintResponse,
+    JobInfo,
+    JobStatus,
     SchedulePoint,
     ScheduleRequest,
     ScheduleResponse,
@@ -118,6 +129,9 @@ logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
 _APPROVAL_DB = Path(__file__).resolve().parents[2] / "approvals.db"
 
 app = FastAPI(title="loto API")
+
+# In-memory storage for background job statuses
+JOBS: Dict[str, JobStatus] = {}
 
 
 class CORSMiddlewareWithEnv(CORSMiddleware):
@@ -589,8 +603,7 @@ class DemoMaximoAdapter:
         }
 
 
-@app.post("/blueprint", response_model=BlueprintResponse, tags=["LOTO"])
-async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
+def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     """Plan isolations for a work order and return impact metrics."""
 
     stores = DemoStoresAdapter()
@@ -687,6 +700,33 @@ async def post_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     )
 
 
+def _blueprint_worker(job_id: str, payload: BlueprintRequest) -> None:
+    """Background task to compute a blueprint and store the result."""
+
+    job = JOBS[job_id]
+    job.status = "running"
+    try:
+        result = _generate_blueprint(payload)
+    except Exception as exc:
+        job.status = "failed"
+        job.error = str(exc)
+    else:
+        job.result = result.model_dump()
+        job.status = "done"
+
+
+@app.post("/blueprint", response_model=JobInfo, tags=["LOTO"], status_code=202)
+async def post_blueprint(
+    payload: BlueprintRequest, background_tasks: BackgroundTasks
+) -> JobInfo:
+    """Queue blueprint generation in a background task."""
+
+    job_id = str(uuid4())
+    JOBS[job_id] = JobStatus(status="queued")
+    background_tasks.add_task(_blueprint_worker, job_id, payload)
+    return JobInfo(job_id=job_id)
+
+
 def _diff(
     current: Dict[str, Any], proposed: Dict[str, Any]
 ) -> Dict[str, Dict[str, Any]]:
@@ -718,16 +758,13 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
     return ProposeResponse(diff=diff, idempotency_key=str(uuid4()))
 
 
-@app.post("/schedule", response_model=ScheduleResponse, tags=["LOTO"])
-async def post_schedule(
-    payload: ScheduleRequest,
-    strict: bool = False,
-    user: OIDCUser = Depends(require_planner),
+def _generate_schedule(
+    payload: ScheduleRequest, strict: bool, user: OIDCUser
 ) -> ScheduleResponse:
     """Return a synthetic schedule for the given work order.
 
     When ``strict`` is ``True`` and the work order is blocked by missing parts,
-    a ``409 Conflict`` response is returned instead of an empty schedule.
+    a ``409 Conflict`` response is raised instead of an empty schedule.
     """
 
     stores = DemoStoresAdapter()
@@ -758,9 +795,9 @@ async def post_schedule(
             for res in inv_status.missing
         ]
         if strict:
-            return JSONResponse(
+            raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                content={
+                detail={
                     "blocked_by_parts": True,
                     "missing_parts": missing_parts,
                 },
@@ -810,11 +847,61 @@ async def post_schedule(
     )
 
 
-@app.post("/plans", response_model=ScheduleResponse, tags=["LOTO"])
-async def post_plans(payload: ScheduleRequest) -> ScheduleResponse:
+def _schedule_worker(
+    job_id: str, payload: ScheduleRequest, strict: bool, user: OIDCUser
+) -> None:
+    """Background task to compute a schedule."""
+
+    job = JOBS[job_id]
+    job.status = "running"
+    try:
+        result = _generate_schedule(payload, strict, user)
+    except HTTPException as exc:
+        job.status = "failed"
+        if isinstance(exc.detail, dict):
+            job.result = exc.detail
+        else:
+            job.error = str(exc.detail)
+    except Exception as exc:  # pragma: no cover - unexpected errors
+        job.status = "failed"
+        job.error = str(exc)
+    else:
+        job.result = result.model_dump()
+        job.status = "done"
+
+
+@app.post("/schedule", response_model=JobInfo, tags=["LOTO"], status_code=202)
+async def post_schedule(
+    payload: ScheduleRequest,
+    background_tasks: BackgroundTasks,
+    strict: bool = False,
+    user: OIDCUser = Depends(require_planner),
+) -> JobInfo:
+    """Enqueue schedule generation in a background task."""
+
+    job_id = str(uuid4())
+    JOBS[job_id] = JobStatus(status="queued")
+    background_tasks.add_task(_schedule_worker, job_id, payload, strict, user)
+    return JobInfo(job_id=job_id)
+
+
+@app.post("/plans", response_model=JobInfo, tags=["LOTO"], status_code=202)
+async def post_plans(
+    payload: ScheduleRequest, background_tasks: BackgroundTasks
+) -> JobInfo:
     """Temporary alias for :func:`post_schedule` used in tests."""
 
-    return await post_schedule(payload)
+    return await post_schedule(payload, background_tasks)
+
+
+@app.get("/jobs/{job_id}", response_model=JobStatus, tags=["LOTO"])
+async def get_job_status(job_id: str) -> JobStatus:
+    """Return the status and result of a previously submitted job."""
+
+    job = JOBS.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    return job
 
 
 @app.get("/workorders/{workorder_id}/jobpack", tags=["LOTO"])

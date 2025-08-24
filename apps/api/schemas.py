@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Dict, List
+from typing import Any, Dict, List, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -125,6 +125,28 @@ class ScheduleResponse(BaseModel):
             }
         },
     )
+
+
+class JobInfo(BaseModel):
+    """Response returned when a job is enqueued."""
+
+    job_id: str = Field(..., description="Identifier for the submitted job")
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class JobStatus(BaseModel):
+    """Status information for a background job."""
+
+    status: Literal["queued", "running", "done", "failed"] = Field(
+        ..., description="Current state of the job"
+    )
+    result: Dict[str, Any] | None = Field(
+        None, description="Result payload when the job has completed"
+    )
+    error: str | None = Field(None, description="Error message if the job failed")
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class HatKpiRequest(BaseModel):

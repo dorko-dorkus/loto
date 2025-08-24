@@ -1,8 +1,10 @@
 import importlib
+
 from fastapi.testclient import TestClient
 
 import apps.api.main as main
 from loto.integrations.stores_adapter import DemoStoresAdapter
+from tests.job_utils import wait_for_job
 
 
 def _planner():
@@ -17,8 +19,9 @@ def test_schedule_endpoint(monkeypatch):
     monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
     payload = {"workorder": "WO-1"}
     res = client.post("/schedule", json=payload, headers={"Authorization": "Bearer x"})
-    assert res.status_code == 200
-    data = res.json()
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    data = wait_for_job(client, job)["result"]
     assert "schedule" in data
     assert len(data["schedule"]) > 0
     first = data["schedule"][0]
@@ -40,8 +43,9 @@ def test_schedule_inventory_gating(monkeypatch):
             json={"workorder": "WO-1"},
             headers={"Authorization": "Bearer x"},
         )
-        assert res.status_code == 200
-        data = res.json()
+        assert res.status_code == 202
+        job = res.json()["job_id"]
+        data = wait_for_job(client, job)["result"]
         assert data["blocked_by_parts"] is True
         assert data["schedule"] == []
         assert data["rulepack_sha256"] == main.RULE_PACK_HASH
@@ -61,9 +65,12 @@ def test_schedule_inventory_gating_strict(monkeypatch):
             json={"workorder": "WO-1"},
             headers={"Authorization": "Bearer x"},
         )
-        assert res.status_code == 409
-        data = res.json()
-        assert data["blocked_by_parts"] is True
-        assert data["missing_parts"] == [{"item_id": "P-200", "quantity": 1}]
+        assert res.status_code == 202
+        job = res.json()["job_id"]
+        job_data = wait_for_job(client, job)
+        assert job_data["status"] == "failed"
+        assert job_data["result"]["missing_parts"] == [
+            {"item_id": "P-200", "quantity": 1}
+        ]
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["available"] = original

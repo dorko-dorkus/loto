@@ -1,4 +1,5 @@
 import importlib
+
 from fastapi.testclient import TestClient
 
 import apps.api.main as main
@@ -32,18 +33,10 @@ def test_rate_limit(monkeypatch):
             roles=["planner"],
         ),
     )
-    assert (
-        client.post(
-            "/schedule", json=payload, headers={"Authorization": "Bearer x"}
-        ).status_code
-        == 200
-    )
-    assert (
-        client.post(
-            "/schedule", json=payload, headers={"Authorization": "Bearer x"}
-        ).status_code
-        == 200
-    )
+    res = client.post("/schedule", json=payload, headers={"Authorization": "Bearer x"})
+    assert res.status_code == 202
+    res = client.post("/schedule", json=payload, headers={"Authorization": "Bearer x"})
+    assert res.status_code == 202
     res = client.post("/schedule", json=payload, headers={"Authorization": "Bearer x"})
     assert res.status_code == 429
     assert res.headers["X-Env"] == main.ENV_BADGE

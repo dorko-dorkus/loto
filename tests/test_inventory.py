@@ -14,6 +14,7 @@ from loto.inventory import (
     check_wo_parts_required,
     ingest_inventory,
 )
+from tests.job_utils import wait_for_job
 
 
 @dataclass
@@ -58,13 +59,17 @@ def test_blueprint_inventory_gating(monkeypatch):
     try:
         DemoStoresAdapter._INVENTORY["P-200"]["available"] = 0
         res = client.post("/blueprint", json={"workorder_id": "WO-1"})
-        assert res.status_code == 200
-        assert res.json()["blocked_by_parts"] is True
+        assert res.status_code == 202
+        job = res.json()["job_id"]
+        data = wait_for_job(client, job)["result"]
+        assert data["blocked_by_parts"] is True
 
         DemoStoresAdapter._INVENTORY["P-200"]["available"] = 1
         res = client.post("/blueprint", json={"workorder_id": "WO-1"})
-        assert res.status_code == 200
-        assert res.json()["blocked_by_parts"] is False
+        assert res.status_code == 202
+        job = res.json()["job_id"]
+        data = wait_for_job(client, job)["result"]
+        assert data["blocked_by_parts"] is False
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["available"] = original
 
