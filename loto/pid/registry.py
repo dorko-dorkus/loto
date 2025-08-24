@@ -14,7 +14,7 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, Field
 
-from .schema import load_tag_map
+from .validator import validate_svg_map
 
 
 def _get_mtime(path: Path) -> float:
@@ -35,11 +35,16 @@ def _load_registry_cached(path: Path, mtime: float) -> PidRegistry:
         tag_map_path = entry.tag_map
         if not tag_map_path.is_absolute():
             tag_map_path = (base / tag_map_path).resolve()
+        svg_path = entry.svg
+        if not svg_path.is_absolute():
+            svg_path = (base / svg_path).resolve()
         try:
-            load_tag_map(tag_map_path)
+            report = validate_svg_map(svg_path, tag_map_path)
         except ValueError as exc:
             raise ValueError(f"{path}: PID '{pid}': {exc}") from None
         entry.tag_map = tag_map_path
+        entry.svg = svg_path
+        entry.warnings = report.warnings
 
     return registry
 
@@ -51,6 +56,9 @@ class PidEntry(BaseModel):
     tag_map: Path = Field(..., description="Path to YAML map of tags to CSS selectors")
     description: str | None = Field(
         None, description="Optional human readable description"
+    )
+    warnings: list[str] = Field(
+        default_factory=list, description="Validation warnings for this PID"
     )
 
     class Config:
