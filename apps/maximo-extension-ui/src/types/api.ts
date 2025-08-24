@@ -54,3 +54,9 @@ export interface InventoryItem {
   eta?: string;
   status: InventoryStatus;
 }
+
+export interface HatCandidate {
+  hat_id: string;
+  c_r: number;
+  rotation?: number;
+}

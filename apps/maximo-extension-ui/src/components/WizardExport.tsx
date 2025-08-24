@@ -13,8 +13,26 @@ export default function WizardExport({ plan }: WizardExportProps) {
   const [hash, setHash] = useState<string | null>(null);
   const [seed, setSeed] = useState<string | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const useApi = process.env.NEXT_PUBLIC_USE_API === 'true';
 
   async function handleExport(format: 'pdf' | 'json') {
+    if (!useApi) {
+      const blob = new Blob(
+        [JSON.stringify(plan, null, 2)],
+        { type: format === 'pdf' ? 'application/pdf' : 'application/json' }
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plan_mock.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setHash('mock');
+      setSeed('mock');
+      return;
+    }
     try {
       const res = await apiFetch('/blueprint', {
         method: 'POST',

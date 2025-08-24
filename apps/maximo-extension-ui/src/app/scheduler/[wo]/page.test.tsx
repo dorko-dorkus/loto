@@ -11,6 +11,7 @@ test('renders gantt, price curve and hats timeline', async () => {
   // @ts-ignore
   global.ResizeObserver = ResizeObserver;
 
+  vi.stubEnv('NEXT_PUBLIC_USE_API', 'true');
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
   process.env.NEXT_PUBLIC_API_BASE = apiBase;
 
