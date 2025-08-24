@@ -110,7 +110,11 @@ async def post_overlay(payload: OverlayRequest) -> OverlayResponse:
             sim_fail_paths=cast(List[Iterable[str]], payload.sim_fail_paths),
             map_path=map_path,
         )
-        warnings: List[str] = []
+
+        # Start with any warnings generated while building the overlay.  These
+        # typically indicate missing tag mappings.  We then extend this list
+        # with warnings discovered when validating the SVG against the tag map.
+        warnings: List[str] = list(cast(List[str], data.pop("warnings", [])))
         if svg_path_raw:
             svg_path = Path(svg_path_raw)
             if not svg_path.is_absolute():

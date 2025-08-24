@@ -1,0 +1,17 @@
+{
+  "highlight": [
+    "#A100",
+    "#SRC",
+    "#V101",
+    "#V102A",
+    "#V102B"
+  ],
+  "badges": [
+    {"selector": "#A100", "type": "asset"},
+    {"selector": "#SRC", "type": "source"}
+  ],
+  "paths": [
+    {"id": "path0", "selectors": ["#SRC", "#V101", "#A100"]}
+  ],
+  "warnings": []
+}
