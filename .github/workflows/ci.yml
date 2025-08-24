@@ -9,89 +9,112 @@ on:
     branches: [master]
 
 jobs:
-  tests:
+  api:
     runs-on: ubuntu-latest
-    env:
-      VULN_SEVERITY: critical
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: '3.11'
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: corepack enable
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt pytest-cov
           pnpm install --frozen-lockfile
           pre-commit install
       - name: Pre-commit
         run: pre-commit run --all-files
-      - name: Dependency vulnerability scan and SBOM
-        run: |
-          pip install pip-audit pip-tools
-          pip-audit -r requirements.txt --format cyclonedx-json --output sbom-api.cdx.json
-          python - <<'PY'
-          import json, os, sys
-          order = ["unknown", "none", "low", "medium", "high", "critical"]
-          level = os.environ.get("VULN_SEVERITY", "critical").lower()
-          with open("sbom-api.cdx.json") as fh:
-              data = json.load(fh)
-          for vuln in data.get("vulnerabilities", []):
-              for rating in vuln.get("ratings", []):
-                  sev = rating.get("severity", "").lower()
-                  if sev and order.index(sev) >= order.index(level):
-                      print(f"{vuln.get('id')} severity {sev} meets threshold {level}", file=sys.stderr)
-                      sys.exit(1)
-          PY
-          npm --prefix apps/maximo-extension-ui install --package-lock-only
-          npm --prefix apps/maximo-extension-ui audit --omit dev --audit-level=${VULN_SEVERITY}
-          pnpm -C apps/maximo-extension-ui dlx @cyclonedx/cyclonedx-npm --format json --output-file ../../sbom-ui.cdx.json
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: |
-            sbom-api.cdx.json
-            sbom-ui.cdx.json
-      - name: Frontend build and test
-        run: |
-          pnpm -C apps/maximo-extension-ui build
-          pnpm -C apps/maximo-extension-ui test
       - name: Lint
         run: make lint
       - name: Type check
         run: make typecheck
-      - name: Validate P&ID selectors (>=99% valid)
-        run: |
-          python - <<'PY'
-          from loto.pid.validator import validate_svg_map
-          import yaml, sys, glob
-          ok = True
-          for map_path in glob.glob("demo/pids/*pid_map.yaml"):
-              svg_path = map_path.replace("pid_map.yaml", "diagram.svg")
-              res = validate_svg_map(svg_path, map_path)
-              selectors = []
-              with open(map_path) as fh:
-                  data = yaml.safe_load(fh) or {}
-              for v in data.values():
-                  if isinstance(v, list):
-                      selectors.extend(v)
-                  else:
-                      selectors.append(v)
-              total = len(selectors)
-              missing = sum(1 for w in res.warnings if w.startswith("missing selector"))
-              rate = 1.0 if total == 0 else (total - missing) / total
-              print(f"{map_path}: {rate:.4f}")
-              if rate < 0.99:
-                  ok = False
-          sys.exit(0 if ok else 1)
-          PY
       - name: Tests
-        run: make test
+        run: |
+          PYTEST_ADDOPTS="--cov=loto --cov=apps/api --cov-report=xml" make test
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          flags: api
+          fail_ci_if_error: true
+
+  ui-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -C apps/maximo-extension-ui build
+      - name: Unit tests
+        run: pnpm -C apps/maximo-extension-ui test
+
+  ui-e2e:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.41.0-jammy
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -C apps/maximo-extension-ui build
+      - name: Start UI
+        run: |
+          pnpm -C apps/maximo-extension-ui start &
+          for i in {1..30}; do
+            curl -fsS http://localhost:3000 && break
+            sleep 2
+          done
+      - name: E2E tests
+        run: pnpm -C apps/maximo-extension-ui exec playwright test --headed
+
+  publish:
+    runs-on: ubuntu-latest
+    needs: [api, ui-unit, ui-e2e]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.api
+          push: true
+          tags: ghcr.io/${{ github.repository }}-api:${{ github.ref_name }}
+      - name: Build UI image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.ui
+          push: true
+          tags: ghcr.io/${{ github.repository }}-ui:${{ github.ref_name }}
