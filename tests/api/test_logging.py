@@ -4,7 +4,6 @@ import logging
 from fastapi.testclient import TestClient
 
 import apps.api.main as main
-from loto.loggers import JsonFormatter
 from tests.job_utils import wait_for_job
 
 
@@ -24,18 +23,19 @@ def test_structured_logging(caplog, monkeypatch):
     )
     payload = {"workorder": "WO-99"}
     with caplog.at_level(logging.INFO):
+        caplog.handler.setFormatter(logging.getLogger().handlers[0].formatter)
         res = client.post(
             "/schedule", json=payload, headers={"Authorization": "Bearer x"}
         )
     assert res.status_code == 202
     job = res.json()["job_id"]
     wait_for_job(client, job)
-    record = next(
-        (r for r in caplog.records if r.getMessage() == "request complete"),
-        None,
+    lines = caplog.text.splitlines()
+    data = next(
+        json.loads(line)
+        for line in lines
+        if json.loads(line).get("msg") == "request complete"
     )
-    assert record is not None
-    data = json.loads(JsonFormatter().format(record))
     assert data["msg"] == "request complete"
     assert data["level"] == "info"
     assert data["seed"] == 0

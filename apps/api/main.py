@@ -17,6 +17,7 @@ import sqlite3
 import jwt
 import structlog
 import sentry_sdk
+from opentelemetry import trace
 from fastapi import (
     BackgroundTasks,
     Depends,
@@ -145,6 +146,17 @@ app = FastAPI(title="loto API")
 JOBS: Dict[str, JobStatus] = {}
 
 
+@app.middleware("http")
+async def metrics(request: Request, call_next):
+    """Collect basic request metrics."""
+
+    requests_total.inc()
+    response = await call_next(request)
+    if response.status_code == status.HTTP_429_TOO_MANY_REQUESTS:
+        rate_limited_total.inc()
+    return response
+
+
 class CORSMiddlewareWithEnv(CORSMiddleware):
     async def __call__(self, scope, receive, send):
         async def send_wrapper(message):
@@ -173,19 +185,33 @@ app.include_router(hats_router)
 app.include_router(workorder_router)
 
 if os.getenv("TRACE_ENABLED", "").lower() == "true":
-    from opentelemetry import trace
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
 
+    exporter_type = os.getenv("TRACE_EXPORTER", "").lower()
     provider = TracerProvider(resource=Resource.create({SERVICE_NAME: "loto-api"}))
-    if os.getenv("PROFILE", "").lower() == "pilot":
-        provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+    exporter = None
+    if exporter_type == "console":
+        exporter = ConsoleSpanExporter()
+    elif exporter_type == "otlp":
+        try:  # pragma: no cover - optional dependency
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                OTLPSpanExporter,
+            )
+        except ImportError:  # pragma: no cover
+            exporter = None
+        else:
+            exporter = OTLPSpanExporter()
+    if exporter:
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(app)
     RequestsInstrumentor().instrument()
+
+tracer = trace.get_tracer(__name__)
 
 REGISTRY = CollectorRegistry()
 plans_generated_total = Counter(
@@ -199,6 +225,16 @@ errors_total = Counter(
 plan_generation_duration_seconds = Histogram(
     "plan_generation_duration_seconds",
     "Plan generation duration in seconds",
+    registry=REGISTRY,
+)
+
+requests_total = Counter("requests_total", "Total HTTP requests", registry=REGISTRY)
+rate_limited_total = Counter(
+    "rate_limited_total", "Total HTTP 429 responses", registry=REGISTRY
+)
+job_duration_seconds = Histogram(
+    "job_duration_seconds",
+    "Background job duration in seconds",
     registry=REGISTRY,
 )
 
@@ -347,7 +383,7 @@ async def log_context(request: Request, call_next):
     traceparent = request.headers.get("traceparent")
     trace_id = traceparent.split("-")[1] if traceparent else str(uuid4())
     token = request_id_var.set(req_id)
-    structlog.contextvars.bind_contextvars(trace_id=trace_id)
+    structlog.contextvars.bind_contextvars(request_id=req_id, trace_id=trace_id)
     try:
         response = await call_next(request)
         return response
@@ -355,7 +391,9 @@ async def log_context(request: Request, call_next):
         request_id_var.reset(token)
         seed_var.set(None)
         rule_hash_var.set(None)
-        structlog.contextvars.unbind_contextvars("trace_id")
+        structlog.contextvars.unbind_contextvars(
+            "request_id", "trace_id", "seed", "rule_hash"
+        )
 
 
 @app.middleware("http")
@@ -706,6 +744,7 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
             plan_generation_duration_seconds.observe(time.perf_counter() - start)
     seed_var.set(prov.seed)
     rule_hash_var.set(prov.rule_hash)
+    structlog.contextvars.bind_contextvars(seed=prov.seed, rule_hash=prov.rule_hash)
     logging.info("request complete")
 
     steps: List[Step] = [
@@ -726,14 +765,18 @@ def _blueprint_worker(job_id: str, payload: BlueprintRequest) -> None:
 
     job = JOBS[job_id]
     job.status = "running"
+    start = time.perf_counter()
     try:
-        result = _generate_blueprint(payload)
+        with tracer.start_as_current_span("blueprint"):
+            result = _generate_blueprint(payload)
     except Exception as exc:
         job.status = "failed"
         job.error = str(exc)
     else:
         job.result = result.model_dump()
         job.status = "done"
+    finally:
+        job_duration_seconds.observe(time.perf_counter() - start)
 
 
 @app.post("/blueprint", response_model=JobInfo, tags=["LOTO"], status_code=202)
@@ -819,6 +862,7 @@ def _generate_schedule(
     if inv_status.blocked:
         seed_var.set(seed_int)
         rule_hash_var.set(RULE_PACK_HASH)
+        structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
         logging.info("request complete")
         missing_parts = [
             {"item_id": res.item_id, "quantity": res.quantity}
@@ -865,6 +909,7 @@ def _generate_schedule(
 
     seed_var.set(seed_int)
     rule_hash_var.set(RULE_PACK_HASH)
+    structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
     logging.info("request complete")
     return ScheduleResponse(
         schedule=schedule,
@@ -884,8 +929,10 @@ def _schedule_worker(
 
     job = JOBS[job_id]
     job.status = "running"
+    start = time.perf_counter()
     try:
-        result = _generate_schedule(payload, strict, user)
+        with tracer.start_as_current_span("schedule"):
+            result = _generate_schedule(payload, strict, user)
     except HTTPException as exc:
         job.status = "failed"
         if isinstance(exc.detail, dict):
@@ -898,6 +945,8 @@ def _schedule_worker(
     else:
         job.result = result.model_dump()
         job.status = "done"
+    finally:
+        job_duration_seconds.observe(time.perf_counter() - start)
 
 
 @app.post("/schedule", response_model=JobInfo, tags=["LOTO"], status_code=202)
@@ -944,6 +993,7 @@ async def get_jobpack(
     seed_int = 0
     seed_var.set(seed_int)
     rule_hash_var.set(RULE_PACK_HASH)
+    structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
     return build_jobpack(
         workorder_id,
         permit_start=permit_start,

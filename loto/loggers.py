@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 import contextvars
-import json
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Any
+import sys
 
 import sentry_sdk
+import structlog
+from structlog.typing import Processor
+from typing import Any, MutableMapping
 
+# context variables for request scoped metadata
 request_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "request_id", default=""
 )
@@ -20,31 +22,45 @@ rule_hash_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
 )
 
 
-class ContextFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:
-        record.request_id = request_id_var.get()
-        record.seed = seed_var.get()
-        record.rule_hash = rule_hash_var.get()
-        return True
+def _add_context_vars(
+    _: structlog.BoundLogger, __: str, event_dict: MutableMapping[str, Any]
+) -> MutableMapping[str, Any]:
+    """Inject custom context variables into structlog events."""
 
-
-class JsonFormatter(logging.Formatter):
-    def format(self, record: logging.LogRecord) -> str:
-        data: dict[str, Any] = {
-            "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
-            "level": record.levelname.lower(),
-            "msg": record.getMessage(),
-            "request_id": getattr(record, "request_id", None),
-            "seed": getattr(record, "seed", None),
-            "rule_hash": getattr(record, "rule_hash", None),
-        }
-        return json.dumps(data)
+    event_dict.setdefault("request_id", request_id_var.get())
+    event_dict.setdefault("seed", seed_var.get())
+    event_dict.setdefault("rule_hash", rule_hash_var.get())
+    return event_dict
 
 
 def configure_logging() -> None:
-    handler = logging.StreamHandler()
-    handler.setFormatter(JsonFormatter())
-    handler.addFilter(ContextFilter())
+    """Configure structured JSON logging using structlog."""
+
+    timestamper = structlog.processors.TimeStamper(fmt="iso")
+    processors: list[Processor] = [
+        structlog.contextvars.merge_contextvars,
+        _add_context_vars,
+        structlog.processors.add_log_level,
+        timestamper,
+        structlog.processors.EventRenamer("msg"),
+        structlog.processors.JSONRenderer(),
+    ]
+
+    structlog.configure(
+        processors=processors,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        wrapper_class=structlog.stdlib.BoundLogger,
+        cache_logger_on_first_use=True,
+    )
+
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(
+        structlog.stdlib.ProcessorFormatter(
+            processor=structlog.processors.JSONRenderer(),
+            foreign_pre_chain=processors[:-1],
+        )
+    )
+
     root = logging.getLogger()
     root.handlers.clear()
     root.addHandler(handler)
