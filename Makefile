@@ -1,4 +1,4 @@
-.PHONY: fmt lint typecheck test run-demo demo-up check-prereqs seed-demo
+.PHONY: fmt lint typecheck test run-demo demo-up demo-down check-prereqs seed-demo
 
 fmt:
 	black loto apps/api tests
@@ -14,7 +14,7 @@ test:
 	pytest
 
 run-demo:
-	python -m loto.cli demo
+	$(MAKE) demo-up
 
 demo-up:
 	@COMPOSE="docker compose"; \
@@ -26,7 +26,7 @@ demo-up:
 	echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
 	exit 1; \
 	fi; \
-	$$COMPOSE up --build -d; \
+        $$COMPOSE --profile demo up --build -d; \
 	end_time=$$(($(date +%s)+30)); \
 	until curl --silent --fail http://localhost:8000/healthz >/dev/null 2>&1; do \
 	[ $$(date +%s) -ge $$end_time ] && { echo "Health check failed"; exit 1; }; \
@@ -37,7 +37,19 @@ demo-up:
 	elif command -v open >/dev/null 2>&1; then \
 	open http://localhost:3000; \
 	fi; \
-	$$COMPOSE logs -f
+        $$COMPOSE --profile demo logs -f
+
+demo-down:
+        @COMPOSE="docker compose"; \
+        if docker compose version >/dev/null 2>&1; then \
+        COMPOSE="docker compose"; \
+        elif command -v docker-compose >/dev/null 2>&1; then \
+        COMPOSE="docker-compose"; \
+        else \
+        echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
+        exit 1; \
+        fi; \
+        $$COMPOSE --profile demo down -v
 
 check-prereqs:
 	./scripts/check-prereqs.sh
