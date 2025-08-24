@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.0.0",
+    "@tanstack/react-virtual": "^3.0.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "html2canvas": "^1.4.1",
