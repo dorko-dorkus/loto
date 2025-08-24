@@ -10,12 +10,24 @@ def test_rate_limit(monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_INTERVAL", "60")
     importlib.reload(main)
     client = TestClient(main.app)
+
+    assert client.get("/version").status_code == 200
+    assert client.get("/version").status_code == 200
+    res = client.get("/version")
+    assert res.status_code == 429
+    assert res.headers["X-Env"] == main.ENV_BADGE
+    assert "Retry-After" in res.headers
+
+    importlib.reload(main)
+    client = TestClient(main.app)
     payload = {"workorder": "WO-1"}
     assert client.post("/schedule", json=payload).status_code == 200
     assert client.post("/schedule", json=payload).status_code == 200
     res = client.post("/schedule", json=payload)
     assert res.status_code == 429
     assert res.headers["X-Env"] == main.ENV_BADGE
-    monkeypatch.setenv("RATE_LIMIT_CAPACITY", "10")
+    assert "Retry-After" in res.headers
+
+    monkeypatch.setenv("RATE_LIMIT_CAPACITY", "100000")
     monkeypatch.setenv("RATE_LIMIT_INTERVAL", "60")
     importlib.reload(main)

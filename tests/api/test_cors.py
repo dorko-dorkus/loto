@@ -21,6 +21,7 @@ def test_disallowed_origin(monkeypatch):
     )
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+    assert response.headers["X-Env"] == main.ENV_BADGE
 
     monkeypatch.setenv("CORS_ORIGINS", original)
     importlib.reload(main)
