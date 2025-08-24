@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { test, expect, vi, afterEach, beforeEach } from 'vitest';
+import * as toast from '../../../lib/toast';
 import Page from './page';
 
 beforeEach(() => {
@@ -10,6 +11,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   cleanup();
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 test('renders 6 tabs', async () => {
@@ -54,14 +56,29 @@ test('renders material status chips', async () => {
   expect(screen.getByText('Short')).toBeInTheDocument();
 });
 
-test('commit button gated by policies', async () => {
+test('shows banner when policy chips missing on commit', async () => {
   vi.stubEnv('NEXT_PUBLIC_ROLE', 'ADMIN');
+  const fetchMock = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(
+        JSON.stringify({ code: 'POLICY_CHIPS_MISSING' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        }
+      )
+    );
+  vi.stubGlobal('fetch', fetchMock);
+  const toastSpy = vi.spyOn(toast, 'toastError');
+
   render(<Page params={{ wo: 'WO-1' }} />);
   const commitTab = await screen.findByRole('tab', { name: 'Commit' });
   fireEvent.click(commitTab);
+  vi.spyOn(window, 'prompt').mockReturnValue('COMMIT');
   const btn = await screen.findByRole('button', { name: 'Commit' });
-  expect(btn).toBeDisabled();
-  const checks = screen.getAllByRole('checkbox');
-  checks.forEach((c) => fireEvent.click(c));
-  expect(btn).not.toBeDisabled();
+  await act(async () => {
+    fireEvent.click(btn);
+  });
+  expect(toastSpy).toHaveBeenCalledWith('Please accept all policy chips');
 });

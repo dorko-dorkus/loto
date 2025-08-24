@@ -9,6 +9,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: 'Request validation failed',
   IMPORT_ERROR: 'Unable to import requested resource',
   GENERATION_ERROR: 'Failed to generate response',
+  SIMULATION_RED: 'Simulation must be green to commit',
+  POLICY_CHIPS_MISSING: 'Please accept all policy chips',
 };
 
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
