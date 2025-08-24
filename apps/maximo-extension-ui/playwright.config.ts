@@ -5,5 +5,12 @@ export default defineConfig({
   reporter: 'line',
   use: {
     headless: true
+  },
+  webServer: {
+    command: 'pnpm dev',
+    port: 3000,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    env: { NEXT_PUBLIC_FEATURE_FLAGS: 'wizard' }
   }
 });
