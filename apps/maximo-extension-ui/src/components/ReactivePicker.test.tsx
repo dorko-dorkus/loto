@@ -9,6 +9,7 @@ const mockHats = [
 ];
 
 beforeEach(() => {
+  vi.stubEnv('NEXT_PUBLIC_USE_API', 'true');
   vi.spyOn(global, 'fetch').mockResolvedValue({
     ok: true,
     json: async () => mockHats

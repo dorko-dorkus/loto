@@ -3,28 +3,26 @@ import { useQuery } from '@tanstack/react-query';
 import { apiFetch } from '../lib/api';
 import { toastError } from '../lib/toast';
 import Skeleton from './Skeleton';
+import { fetchHats } from '../mocks/hats';
+import type { HatCandidate } from '../types/api';
 
-interface HatCandidate {
-  hat_id: string;
-  c_r: number;
-  rotation?: number;
-}
-
-async function fetchCandidates(): Promise<HatCandidate[]> {
+async function fetchCandidatesApi(): Promise<HatCandidate[]> {
   const res = await apiFetch('/hats');
   if (!res.ok) throw new Error('Failed to fetch hats');
   return (await res.json()) as HatCandidate[];
 }
 
 export default function ReactivePicker({ wo }: { wo: string }) {
+  const useApi = process.env.NEXT_PUBLIC_USE_API === 'true';
   const { data, isLoading } = useQuery({
     queryKey: ['reactive', wo],
     queryFn: async () => {
+      if (!useApi) return fetchHats();
       try {
-        return await fetchCandidates();
+        return await fetchCandidatesApi();
       } catch (err) {
         toastError('Failed to fetch reactive candidates');
-        throw err;
+        return fetchHats();
       }
     }
   });
