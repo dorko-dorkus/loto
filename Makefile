@@ -1,14 +1,14 @@
 .PHONY: fmt lint typecheck test run-demo demo-up check-prereqs seed-demo
 
 fmt:
-	black loto tests
-	isort loto tests
+	black loto apps/api tests
+	isort loto apps/api tests
 
 lint:
-	ruff check loto tests
+	ruff check loto apps/api tests
 
 typecheck:
-	mypy loto
+	mypy loto apps/api
 
 test:
 	pytest

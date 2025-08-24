@@ -15,10 +15,9 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-import networkx as nx  # type: ignore
+import networkx as nx
 
-from .models import IsolationPlan, SimReport, SimResultItem, Stimulus
-from .rule_engine import RulePack
+from .models import IsolationPlan, RulePack, SimReport, SimResultItem, Stimulus
 
 
 class SimEngine:

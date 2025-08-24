@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Set
 
-import networkx as nx  # type: ignore
+import networkx as nx
 
 
 @dataclass

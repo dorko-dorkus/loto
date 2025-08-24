@@ -17,9 +17,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, IO, List, Optional
+from typing import IO, Dict, List, Optional
 
-import networkx as nx  # type: ignore
+import networkx as nx
 import pandas as pd
 
 

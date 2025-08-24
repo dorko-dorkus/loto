@@ -16,10 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple
 
-import networkx as nx  # type: ignore
+import networkx as nx
 
-from .models import IsolationAction, IsolationPlan
-from .rule_engine import RulePack
+from .models import IsolationAction, IsolationPlan, RulePack
 
 
 @dataclass

@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping
+from typing import Any, Dict, Iterable, List, Mapping, cast
 
 
 def _entry_hash(wo_id: str, hat_id: str) -> str:
@@ -82,4 +82,4 @@ def read_snapshot(path: Path) -> Dict[str, Dict[str, Any]]:
     content = path.read_text(encoding="utf-8").strip()
     if not content:
         return {}
-    return json.loads(content)
+    return cast(Dict[str, Dict[str, Any]], json.loads(content))

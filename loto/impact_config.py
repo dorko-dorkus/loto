@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Set
 
-import yaml  # type: ignore
+import yaml
 
 
 @dataclass

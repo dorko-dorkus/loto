@@ -29,8 +29,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from .isolation_planner import IsolationPlan
-from .models import SimReport
+from .models import IsolationPlan, SimReport
 
 try:
     APP_VERSION = pkg_version("loto")
@@ -210,7 +209,7 @@ class Renderer:
             f"ENV: {env_badge} | Version: {version_str}"
         )
 
-        def _footer(canvas, doc):
+        def _footer(canvas: Any, doc: Any) -> None:
             canvas.saveState()
             canvas.setFont("Helvetica", 8)
             canvas.drawString(doc.leftMargin, 15, footer_text)

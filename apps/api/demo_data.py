@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 DATA_DIR = Path(__file__).with_name("demo_data")
 
@@ -27,13 +27,13 @@ class DemoDataSource:
     def _load_list(self, filename: str) -> List[Dict[str, Any]]:
         path = DATA_DIR / filename
         if path.exists():
-            return json.loads(path.read_text())
+            return cast(List[Dict[str, Any]], json.loads(path.read_text()))
         return []
 
     def _load_dict(self, filename: str) -> Dict[str, Dict[str, Any]]:
         path = DATA_DIR / filename
         if path.exists():
-            return json.loads(path.read_text())
+            return cast(Dict[str, Dict[str, Any]], json.loads(path.read_text()))
         return {}
 
     def list_work_orders(self) -> List[Dict[str, Any]]:

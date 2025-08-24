@@ -90,7 +90,7 @@ def ewma(previous: float, observation: float, dt: float, half_life: float) -> fl
         raise ValueError("half_life must be positive")
 
     # Convert the half-life to an exponential smoothing factor.
-    alpha = 1 - 0.5 ** (dt / half_life)
+    alpha: float = 1 - 0.5 ** (dt / half_life)
     return (1 - alpha) * previous + alpha * observation
 
 

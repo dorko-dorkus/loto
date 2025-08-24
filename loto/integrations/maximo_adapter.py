@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import time
-from typing import Any, Dict, List, TypedDict
+from typing import Any, Dict, List, TypedDict, cast
 
 import requests  # type: ignore[import-untyped]
 
@@ -100,16 +100,16 @@ class MaximoAdapter:
             if status >= 400:
                 raise AdapterRequestError(status_code=status, retry_after=None)
 
-            return resp.json()
+            return cast(Dict[str, Any], resp.json())
         raise RuntimeError("Unreachable")
 
     def get_work_order(self, work_order_id: str) -> WorkOrder:
         """Retrieve a single work order by identifier."""
         data = self._get(f"os/{self.os_workorder}/{work_order_id}")
         return {
-            "id": data["id"],
-            "description": data.get("description", ""),
-            "asset_id": data.get("asset_id", ""),
+            "id": cast(str, data["id"]),
+            "description": cast(str, data.get("description", "")),
+            "asset_id": cast(str, data.get("asset_id", "")),
         }
 
     def list_open_work_orders(self, window: int) -> List[WorkOrder]:
