@@ -63,3 +63,11 @@ SENTRY_DSN=https://public@example.ingest.sentry.io/0
 ```
 
 Omit the variable to disable Sentry in a given environment.
+
+## Doclinks configuration
+
+Configure Maximo Doclinks with a document category of `Permit/LOTO`. Ensure the
+category is active for the `WORKORDER` object so attachment dialogs like
+WOTRACK and Quick Reporting offer it as a selectable option. This enables permit
+documents produced by the planner to be stored under the correct category on the
+work order.

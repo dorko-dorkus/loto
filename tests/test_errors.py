@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import Any, Type
 
 import pytest
 
+from loto.constants import DOC_CATEGORY_DIR
 from loto.errors import (
     ConfigError,
     GenerationError,
@@ -19,7 +21,7 @@ from loto.errors import (
 @pytest.mark.parametrize(
     "exc_cls",
     [ConfigError, RulesError, GraphError, PlanError, IntegrationError, RenderError],
-)
+)  # type: ignore[misc]
 def test_error_subclassing(exc_cls: type[LotoError]) -> None:
     err = exc_cls("E001", "something went wrong")
     assert isinstance(err, LotoError)
@@ -37,7 +39,7 @@ def test_error_subclassing(exc_cls: type[LotoError]) -> None:
         (ImportError, "IMPORT_ERROR"),
         (GenerationError, "GENERATION_ERROR"),
     ],
-)
+)  # type: ignore[misc]
 def test_fixed_code_errors(exc_cls: Type[Any], code: str) -> None:
     err = exc_cls("something went wrong")
     assert err.code == code
@@ -54,9 +56,9 @@ def test_loto_error_str_contains_code() -> None:
     assert "oops" in str(err)
 
 
-def test_demo_adapter_used_when_env_missing(monkeypatch, tmp_path) -> None:
-    from pathlib import Path
-
+def test_demo_adapter_used_when_env_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     from loto.integrations import DemoIntegrationAdapter, get_integration_adapter
     from loto.models import IsolationAction, IsolationPlan, SimReport
 
@@ -78,13 +80,13 @@ def test_demo_adapter_used_when_env_missing(monkeypatch, tmp_path) -> None:
 
     plan = IsolationPlan(
         plan_id="P1",
-        actions=[IsolationAction(component_id="C1", method="lock")],
+        actions=[IsolationAction(component_id="C1", method="lock", duration_s=0.0)],
     )
     child_ids = adapter.create_child_work_orders("WO-1", plan)
     assert child_ids and child_ids[0].startswith("WO-1")
 
     sim_report = SimReport(results=[], total_time_s=0.0)
     adapter.attach_artifacts("WO-1", plan, sim_report, {"k": "v"}, b"pdf")
-    doc_dir = Path("out") / "doclinks"
+    doc_dir = Path("out") / "doclinks" / DOC_CATEGORY_DIR
     assert (doc_dir / "WO-1.json").exists()
     assert (doc_dir / "WO-1.pdf").exists()

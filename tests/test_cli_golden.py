@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from loto.constants import DOC_CATEGORY_DIR
+
 
 def test_demo_command_creates_doclinks(tmp_path: Path) -> None:
     env = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1])}
@@ -17,7 +19,7 @@ def test_demo_command_creates_doclinks(tmp_path: Path) -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    doclinks_dir = tmp_path / "out" / "doclinks"
+    doclinks_dir = tmp_path / "out" / "doclinks" / DOC_CATEGORY_DIR
     assert doclinks_dir.is_dir()
     pdfs = list(doclinks_dir.glob("*.pdf"))
     jsons = list(doclinks_dir.glob("*.json"))
