@@ -3,6 +3,8 @@ uvicorn
 python-multipart
 structlog
 alembic
+sqlalchemy
+psycopg[binary]
 pyjwt
 prometheus_client
 opentelemetry-sdk
