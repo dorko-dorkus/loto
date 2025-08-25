@@ -5,6 +5,7 @@ export interface WorkOrderSummary {
   owner?: string;
   plannedStart?: string;
   plannedFinish?: string;
+  maximoWo: string;
   permitId?: string;
   permitVerified?: boolean;
   permitRequired?: boolean;

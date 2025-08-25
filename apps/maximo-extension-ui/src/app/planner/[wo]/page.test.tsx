@@ -23,6 +23,7 @@ test('renders 6 tabs', async () => {
 test('renders permit controls', async () => {
   render(<Page params={{ wo: 'WO-1' }} />);
   await screen.findByText('Permit Controls');
+  expect(screen.getByLabelText('WO Number (Maximo)')).toHaveDisplayValue('MX-1');
   expect(screen.getByDisplayValue('PRM-MOCK')).toBeInTheDocument();
   const checkbox = screen.getByLabelText('Permit Verified') as HTMLInputElement;
   expect(checkbox.disabled).toBe(true);

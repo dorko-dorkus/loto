@@ -90,6 +90,10 @@ def validate_status_change(
         return
 
     if from_status == "SCHED" and to_status == "INPRG":
+        if not workorder.get("maximo_wo"):
+            raise StatusValidationError(
+                "WO Number (Maximo) is required before work can start."
+            )
         values = {
             "permit_id": workorder.get("permit_id"),
             "permit_verified": int(bool(workorder.get("permit_verified"))),

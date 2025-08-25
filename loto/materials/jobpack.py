@@ -57,6 +57,7 @@ def build_jobpack(
     items = _default_items()
     payload = {
         "workorder": workorder_id,
+        "maximo_wo": workorder_id,
         "permit_start": permit_start.isoformat(),
         "pick_by": pick_by.isoformat(),
         "items": items,
