@@ -26,6 +26,24 @@ class WorkOrderSummary(BaseModel):
     )
     assetnum: str | None = Field(None, description="Associated asset identifier")
     location: str | None = Field(None, description="Associated location identifier")
+    permit_id: str | None = Field(
+        None,
+        alias="permitId",
+        description="Permit identifier",
+        max_length=40,
+    )
+    permit_verified: bool | None = Field(
+        False, alias="permitVerified", description="Permit has been verified"
+    )
+    permit_required: bool = Field(
+        True, alias="permitRequired", description="Permit is required"
+    )
+    isolation_ref: str | None = Field(
+        None,
+        alias="isolationRef",
+        description="Reference to isolation procedure",
+        max_length=80,
+    )
     blocked_by_parts: bool = Field(
         False, description="True if scheduling is blocked due to parts"
     )

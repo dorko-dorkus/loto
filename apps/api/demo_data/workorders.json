@@ -7,7 +7,11 @@
     "plannedStart": "2024-05-01",
     "plannedFinish": "2024-05-03",
     "assetnum": "A-1",
-    "location": "L-1"
+    "location": "L-1",
+    "permitId": "PRM-1",
+    "permitVerified": false,
+    "permitRequired": true,
+    "isolationRef": "ISO-1"
   },
   {
     "id": "WO-2",
@@ -17,7 +21,11 @@
     "plannedStart": "2024-05-10",
     "plannedFinish": "2024-05-12",
     "assetnum": "A-2",
-    "location": "L-2"
+    "location": "L-2",
+    "permitId": "PRM-2",
+    "permitVerified": true,
+    "permitRequired": true,
+    "isolationRef": "ISO-2"
   },
   {
     "id": "WO-3",
@@ -27,6 +35,10 @@
     "plannedStart": "2024-04-20",
     "plannedFinish": "2024-04-21",
     "assetnum": "A-1",
-    "location": "L-1"
+    "location": "L-1",
+    "permitId": "PRM-3",
+    "permitVerified": false,
+    "permitRequired": true,
+    "isolationRef": "ISO-3"
   }
 ]
