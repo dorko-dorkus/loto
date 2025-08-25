@@ -28,6 +28,11 @@ class WorkOrderSummary(BaseModel):
     )
     assetnum: str | None = Field(None, description="Associated asset identifier")
     location: str | None = Field(None, description="Associated location identifier")
+    maximo_wo: str | None = Field(
+        None,
+        alias="maximoWo",
+        description="WO Number (Maximo)",
+    )
     permit_id: str | None = Field(
         None,
         alias="permitId",
@@ -170,6 +175,7 @@ async def update_workorder_status(
         "permit_verified": data.get("permitVerified"),
         "attachments": data.get("attachments", []),
         "checklist": data.get("checklist", {}),
+        "maximo_wo": data.get("maximoWo"),
     }
     try:
         validate_status_change(

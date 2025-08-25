@@ -30,6 +30,12 @@ def test_child_task_validation() -> None:
         validate_status_change(child, "SCHED", "INPRG")
 
 
+def test_requires_maximo_wo_number() -> None:
+    wo = {"permit_id": "PRM-X", "permit_verified": True, "maximo_wo": None}
+    with pytest.raises(StatusValidationError):
+        validate_status_change(wo, "SCHED", "INPRG")
+
+
 def test_closeout_requires_permit_document() -> None:
     payload = {"status": "COMP", "currentStatus": "INPRG"}
     resp = client.post("/workorders/WO-4/status", json=payload)

@@ -18,19 +18,22 @@ export async function fetchPortfolio(): Promise<PortfolioData> {
         id: 'WO-1',
         description: 'Pump replacement',
         status: 'Active',
-        owner: 'Jane'
+        owner: 'Jane',
+        maximoWo: 'MX-1'
       },
       {
         id: 'WO-2',
         description: 'Motor upgrade',
         status: 'Draft',
-        owner: 'John'
+        owner: 'John',
+        maximoWo: 'MX-2'
       },
       {
         id: 'WO-3',
         description: 'Energy audit',
         status: 'Completed',
-        owner: 'Ben'
+        owner: 'Ben',
+        maximoWo: 'MX-3'
       }
     ]
   };

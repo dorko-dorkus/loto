@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from apps.api.main import RULE_PACK_HASH, RULE_PACK_ID, RULE_PACK_VERSION, app
 
 
-def test_jobpack_endpoint():
+def test_jobpack_endpoint() -> None:
     client = TestClient(app)
     wo_id = "123"
     res = client.get(f"/workorders/{wo_id}/jobpack")
@@ -35,6 +35,7 @@ def test_jobpack_endpoint():
         json.dumps(json_content, sort_keys=True).encode()
     ).hexdigest()
     assert json_info["filename"].startswith(json_hash)
+    assert json_content["maximo_wo"] == wo_id
     assert json_content["rulepack_sha256"] == RULE_PACK_HASH
     assert json_content["rulepack_id"] == RULE_PACK_ID
     assert json_content["rulepack_version"] == RULE_PACK_VERSION
