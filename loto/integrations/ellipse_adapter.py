@@ -38,8 +38,16 @@ class DemoEllipseAdapter(EllipseAdapter):
         "WO-2": {"id": "WO-2", "description": "Demo WO", "asset_id": "ASSET-2"},
     }
     _PERMITS: Dict[str, Dict[str, Any]] = {
-        "WO-1": {"applied_isolations": ["ISO-1", "ISO-2"]},
-        "WO-2": {"applied_isolations": ["ISO-3"]},
+        "WO-1": {
+            "id": "PRM-1",
+            "status": "Active",
+            "applied_isolations": ["ISO-1", "ISO-2"],
+        },
+        "WO-2": {
+            "id": "PRM-2",
+            "status": "Authorised",
+            "applied_isolations": ["ISO-3"],
+        },
     }
 
     def fetch_work_order(self, work_order_id: str) -> Dict[str, Any]:
@@ -51,7 +59,10 @@ class DemoEllipseAdapter(EllipseAdapter):
 
     def fetch_permit(self, work_order_id: str) -> Dict[str, Any]:
         """Return fixture permit data for the work order."""
-        return self._PERMITS.get(work_order_id, {"applied_isolations": []})
+        return self._PERMITS.get(
+            work_order_id,
+            {"id": None, "status": "Unknown", "applied_isolations": []},
+        )
 
 
 class HttpEllipseAdapter(EllipseAdapter):
