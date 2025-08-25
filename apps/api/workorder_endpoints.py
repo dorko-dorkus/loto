@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import Reservation, StockItem, check_wo_parts_required
+from loto.permits import StatusValidationError, validate_status_change
 
 from .demo_data import demo_data
 
@@ -46,6 +47,17 @@ class WorkOrderSummary(BaseModel):
     )
     blocked_by_parts: bool = Field(
         False, description="True if scheduling is blocked due to parts"
+    )
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+class StatusChangeRequest(BaseModel):
+    """Payload for updating a work order's status."""
+
+    new_status: str = Field(..., alias="status", description="New status value")
+    current_status: str = Field(
+        ..., alias="currentStatus", description="Current status value"
     )
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -121,6 +133,34 @@ async def get_workorder(workorder_id: str) -> WorkOrderSummary:
     inv_status = check_wo_parts_required(work_order, lookup_stock)
 
     return WorkOrderSummary(**data, blocked_by_parts=inv_status.blocked)
+
+
+@router.post(
+    "/workorders/{workorder_id}/status",
+    response_model=WorkOrderSummary,
+)
+async def update_workorder_status(
+    workorder_id: str, payload: StatusChangeRequest
+) -> WorkOrderSummary:
+    """Update the status of a work order after validation."""
+
+    try:
+        data = demo_data.get_work_order(workorder_id)
+    except KeyError as exc:  # pragma: no cover - simple error path
+        raise HTTPException(status_code=404, detail="work order not found") from exc
+
+    wo = {
+        "permit_id": data.get("permitId"),
+        "permit_verified": data.get("permitVerified"),
+    }
+    try:
+        validate_status_change(wo, payload.current_status, payload.new_status)
+    except StatusValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    data = dict(data)
+    data["status"] = payload.new_status
+    return WorkOrderSummary(**data)
 
 
 @router.get("/portfolio", response_model=PortfolioResponse)
