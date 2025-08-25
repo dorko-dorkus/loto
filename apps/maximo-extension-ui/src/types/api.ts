@@ -5,6 +5,10 @@ export interface WorkOrderSummary {
   owner?: string;
   plannedStart?: string;
   plannedFinish?: string;
+  permitId?: string;
+  permitVerified?: boolean;
+  permitRequired?: boolean;
+  isolationRef?: string;
   blocked_by_parts?: boolean;
 }
 

@@ -64,6 +64,47 @@ function PlannerContent({ wo }: { wo: string }) {
         WO Planner: {workOrder.id}
       </h1>
       <Exports wo={workOrder.id} />
+      <section className="mb-4 border p-4">
+        <h2 className="mb-2 font-semibold">Permit Controls</h2>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <label className="flex flex-col">
+            <span className="text-sm font-medium">Permit ID</span>
+            <input
+              type="text"
+              value={workOrder.permitId ?? ''}
+              readOnly
+              className="border px-2 py-1"
+            />
+          </label>
+          <label className="flex flex-col">
+            <span className="text-sm font-medium">Permit Required</span>
+            <input
+              type="text"
+              value={workOrder.permitRequired ? 'Y' : 'N'}
+              readOnly
+              className="border px-2 py-1"
+            />
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={workOrder.permitVerified ?? false}
+              disabled
+              className="h-4 w-4"
+            />
+            <span className="text-sm font-medium">Permit Verified</span>
+          </label>
+          <label className="flex flex-col sm:col-span-2">
+            <span className="text-sm font-medium">Isolation Reference</span>
+            <input
+              type="text"
+              value={workOrder.isolationRef ?? ''}
+              readOnly
+              className="border px-2 py-1"
+            />
+          </label>
+        </div>
+      </section>
       <div className="flex h-full">
         <div className="flex-1 pr-4">
           <div role="tablist" className="mb-4 border-b">
