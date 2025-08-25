@@ -20,6 +20,7 @@ import typer
 import yaml
 from tqdm import tqdm
 
+from .constants import DOC_CATEGORY_DIR
 from .graph_builder import GraphBuilder
 from .isolation_planner import IsolationPlanner
 from .models import SimReport, Stimulus
@@ -200,7 +201,7 @@ def demo(out: Path = Path("./out"), open_pdf: bool = False) -> None:
             main(["--demo", "--output", str(out)])
             progress.update(1)
 
-        doclinks_dir = out / "doclinks"
+        doclinks_dir = out / "doclinks" / DOC_CATEGORY_DIR
         doclinks_dir.mkdir(parents=True, exist_ok=True)
         doc_id = uuid4().hex
         shutil.copy(out / "LOTO_A.pdf", doclinks_dir / f"{doc_id}.pdf")

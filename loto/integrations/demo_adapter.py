@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, TypedDict, cast
 import structlog
 import yaml
 
+from ..constants import DOC_CATEGORY_DIR
 from . import IntegrationAdapter
 
 logger = structlog.get_logger()
@@ -102,8 +103,8 @@ class DemoIntegrationAdapter(IntegrationAdapter):
         as_json: Dict[str, Any],
         pdf_bytes: bytes,
     ) -> None:
-        """Write artifacts to ``out/doclinks`` relative to the CWD."""
-        output_dir = Path("out") / "doclinks"
+        """Write artifacts to ``out/doclinks/<category>`` relative to the CWD."""
+        output_dir = Path("out") / "doclinks" / DOC_CATEGORY_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
         json_path = output_dir / f"{parent_object_id}.json"
         pdf_path = output_dir / f"{parent_object_id}.pdf"
