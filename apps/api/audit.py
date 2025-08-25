@@ -2,15 +2,16 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import structlog
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
 
-DB_PATH = Path("/tmp/loto.db")
+DB_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/loto.db")
 
 
 logger = structlog.get_logger(__name__)
@@ -47,24 +48,29 @@ class AuditRecord:
     timestamp: str
 
 
-def add_record(*, user: str, action: str, db_path: Path = DB_PATH) -> None:
+def _engine(db_path: Path | str | None = None) -> Engine:
+    url = (
+        DB_URL
+        if db_path is None
+        else (f"sqlite:///{db_path}" if isinstance(db_path, Path) else str(db_path))
+    )
+    return create_engine(url)
+
+
+def add_record(*, user: str, action: str, db_path: Path | str | None = None) -> None:
     """Insert an audit record into the database."""
-    conn = sqlite3.connect(db_path)
-    try:
+    with _engine(db_path).begin() as conn:
         conn.execute(
-            "INSERT INTO audit_records (user, action) VALUES (?, ?)",
-            (user, action),
+            text("INSERT INTO audit_records (user, action) VALUES (:user, :action)"),
+            {"user": user, "action": action},
         )
-        conn.commit()
-    finally:
-        conn.close()
 
 
 def export_records(
     bucket: str,
     prefix: str = "audit",
     *,
-    db_path: Path = DB_PATH,
+    db_path: Path | str | None = None,
     retention_years: int | None = None,
     max_attempts: int = 3,
 ) -> str:
@@ -77,7 +83,8 @@ def export_records(
     prefix:
         Object key prefix.  Keys are further partitioned by ``YYYY/MM/DD``.
     db_path:
-        Path to the SQLite database containing ``audit_records``.
+        Path or URL to the database containing ``audit_records``.  Falls back to
+        the ``DATABASE_URL`` environment variable when omitted.
     retention_years:
         Optional number of years to retain the uploaded object.  Defaults to the
         ``AUDIT_RETENTION_YEARS`` environment variable or 7 years if unset.
@@ -91,13 +98,10 @@ def export_records(
     import boto3  # imported lazily to avoid hard dependency during normal use
     from botocore.exceptions import ClientError
 
-    conn = sqlite3.connect(db_path)
-    try:
+    with _engine(db_path).connect() as conn:
         rows = conn.execute(
-            "SELECT id, user, action, timestamp FROM audit_records ORDER BY id"
+            text("SELECT id, user, action, timestamp FROM audit_records ORDER BY id")
         ).fetchall()
-    finally:
-        conn.close()
 
     body_lines = [
         json.dumps(

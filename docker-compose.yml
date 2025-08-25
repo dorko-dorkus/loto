@@ -8,10 +8,14 @@ services:
     ports:
       - "8000:8000"
     env_file: .env.example
+    environment:
+      DATABASE_URL: postgresql+psycopg://loto:loto@postgres:5432/loto
     read_only: true
     tmpfs:
       - /tmp
-    profiles: ["demo"]
+    depends_on:
+      - postgres
+    profiles: ["demo", "pilot"]
   ui:
     build:
       context: .

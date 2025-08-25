@@ -42,6 +42,7 @@ from prometheus_client import (
     generate_latest,
 )
 from pydantic import BaseModel, Field
+from sqlalchemy import create_engine, text
 from starlette.datastructures import MutableHeaders
 
 from loto.config import validate_env_vars
@@ -574,17 +575,16 @@ async def healthz(request: Request) -> dict[str, Any]:
         head = None
         for path in sorted(versions_dir.glob("*.py")):
             head = path.stem.split("_")[0]
-        db_path = Path("/tmp/loto.db")
+        db_url = os.getenv("DATABASE_URL", "sqlite:////tmp/loto.db")
         revision = None
-        if db_path.exists():
-            conn = sqlite3.connect(db_path)
-            try:
-                row = conn.execute("SELECT version_num FROM alembic_version").fetchone()
+        try:
+            with create_engine(db_url).connect() as conn:
+                row = conn.execute(
+                    text("SELECT version_num FROM alembic_version")
+                ).fetchone()
                 revision = row[0] if row else None
-            except sqlite3.Error:
-                revision = None
-            finally:
-                conn.close()
+        except Exception:
+            revision = None
         return {"revision": revision, "head": head}
 
     report = demo_data.validate()
