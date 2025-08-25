@@ -13,7 +13,8 @@
     "permitRequired": true,
     "isolationRef": "ISO-1",
     "attachments": [],
-    "checklist": {}
+    "checklist": {},
+    "holdReason": null
   },
   {
     "id": "WO-2",
@@ -33,7 +34,8 @@
     ],
     "checklist": {
       "Permit Closed & Hand-back uploaded": true
-    }
+    },
+    "holdReason": null
   },
   {
     "id": "WO-3",
@@ -49,7 +51,8 @@
     "permitRequired": true,
     "isolationRef": "ISO-3",
     "attachments": [],
-    "checklist": {}
+    "checklist": {},
+    "holdReason": null
   },
   {
     "id": "WO-4",
@@ -67,6 +70,7 @@
     "attachments": [],
     "checklist": {
       "Permit Closed & Hand-back uploaded": true
-    }
+    },
+    "holdReason": null
   }
 ]

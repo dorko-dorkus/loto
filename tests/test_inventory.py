@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib
 from dataclasses import dataclass
 
+import pytest
 from fastapi.testclient import TestClient
 
-from apps.api.main import app
+import apps.api.main as main
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
     InventoryRecord,
@@ -22,7 +24,7 @@ class WorkOrder:
     reservations: list[Reservation]
 
 
-def test_missing_or_low_stock_blocks_work_order():
+def test_missing_or_low_stock_blocks_work_order() -> None:
     work_order = WorkOrder(
         reservations=[
             Reservation(item_id="valve", quantity=2),
@@ -39,7 +41,7 @@ def test_missing_or_low_stock_blocks_work_order():
     assert {r.item_id for r in status.missing} == {"valve", "gasket"}
 
 
-def test_adequate_stock_marks_work_order_ready():
+def test_adequate_stock_marks_work_order_ready() -> None:
     work_order = WorkOrder(reservations=[Reservation(item_id="bolt", quantity=4)])
 
     stock = {"bolt": StockItem(item_id="bolt", quantity=10)}
@@ -50,11 +52,12 @@ def test_adequate_stock_marks_work_order_ready():
     assert not status.missing
 
 
-def test_blueprint_inventory_gating(monkeypatch):
+def test_blueprint_inventory_gating(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
     )
-    client = TestClient(app)
+    importlib.reload(main)
+    client = TestClient(main.app)
     original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
     try:
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
@@ -74,7 +77,7 @@ def test_blueprint_inventory_gating(monkeypatch):
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
 
 
-def test_ingest_inventory_normalizes_units():
+def test_ingest_inventory_normalizes_units() -> None:
     records = [
         InventoryRecord(description="Bolt", unit="Each", qty_onhand=1, reorder_point=0),
         InventoryRecord(

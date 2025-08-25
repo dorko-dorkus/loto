@@ -56,3 +56,30 @@ def test_closeout_allows_when_requirements_met() -> None:
     resp = client.post("/workorders/WO-2/status", json=payload)
     assert resp.status_code == 200
     assert resp.json()["status"] == "COMP"
+
+
+def test_hold_requires_reason() -> None:
+    payload = {"status": "HOLD", "currentStatus": "INPRG"}
+    resp = client.post("/workorders/WO-2/status", json=payload)
+    assert resp.status_code == 400
+    assert "Hold reason is required" in resp.text
+
+
+def test_hold_and_resume() -> None:
+    payload = {
+        "status": "HOLD",
+        "currentStatus": "INPRG",
+        "reason": "Awaiting parts",
+    }
+    resp = client.post("/workorders/WO-2/status", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "HOLD"
+    assert body["holdReason"] == "Awaiting parts"
+
+    payload = {"status": "INPRG", "currentStatus": "HOLD"}
+    resp = client.post("/workorders/WO-2/status", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "INPRG"
+    assert body.get("holdReason") is None

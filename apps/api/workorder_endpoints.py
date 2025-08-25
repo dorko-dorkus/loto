@@ -49,6 +49,11 @@ class WorkOrderSummary(BaseModel):
     blocked_by_parts: bool = Field(
         False, description="True if scheduling is blocked due to parts"
     )
+    hold_reason: str | None = Field(
+        None,
+        alias="holdReason",
+        description="Reason work order was placed on hold",
+    )
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
@@ -66,6 +71,9 @@ class StatusChangeRequest(BaseModel):
     new_status: str = Field(..., alias="status", description="New status value")
     current_status: str = Field(
         ..., alias="currentStatus", description="Current status value"
+    )
+    reason: str | None = Field(
+        None, description="Reason for status change when applicable"
     )
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -164,12 +172,18 @@ async def update_workorder_status(
         "checklist": data.get("checklist", {}),
     }
     try:
-        validate_status_change(wo, payload.current_status, payload.new_status)
+        validate_status_change(
+            wo, payload.current_status, payload.new_status, payload.reason
+        )
     except StatusValidationError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     data = dict(data)
     data["status"] = payload.new_status
+    if payload.new_status == "HOLD":
+        data["holdReason"] = payload.reason
+    elif payload.new_status == "INPRG":
+        data.pop("holdReason", None)
     return _summary_from_data(data)
 
 
