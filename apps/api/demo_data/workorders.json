@@ -11,7 +11,9 @@
     "permitId": "PRM-1",
     "permitVerified": false,
     "permitRequired": true,
-    "isolationRef": "ISO-1"
+    "isolationRef": "ISO-1",
+    "attachments": [],
+    "checklist": {}
   },
   {
     "id": "WO-2",
@@ -25,7 +27,13 @@
     "permitId": "PRM-2",
     "permitVerified": true,
     "permitRequired": true,
-    "isolationRef": "ISO-2"
+    "isolationRef": "ISO-2",
+    "attachments": [
+      {"category": "Permit/LOTO"}
+    ],
+    "checklist": {
+      "Permit Closed & Hand-back uploaded": true
+    }
   },
   {
     "id": "WO-3",
@@ -39,6 +47,26 @@
     "permitId": "PRM-3",
     "permitVerified": false,
     "permitRequired": true,
-    "isolationRef": "ISO-3"
+    "isolationRef": "ISO-3",
+    "attachments": [],
+    "checklist": {}
+  },
+  {
+    "id": "WO-4",
+    "description": "Valve inspection",
+    "status": "Active",
+    "owner": "Alice",
+    "plannedStart": "2024-05-15",
+    "plannedFinish": "2024-05-16",
+    "assetnum": "A-1",
+    "location": "L-1",
+    "permitId": "PRM-4",
+    "permitVerified": true,
+    "permitRequired": true,
+    "isolationRef": "ISO-4",
+    "attachments": [],
+    "checklist": {
+      "Permit Closed & Hand-back uploaded": true
+    }
   }
 ]

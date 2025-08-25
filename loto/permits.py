@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping
 
+from loto.constants import CHECKLIST_HAND_BACK, DOC_CATEGORY
+
 
 class ConditionalExpressionManager:
     """Simple manager for named conditional expressions.
@@ -82,4 +84,14 @@ def validate_status_change(
         if not permit_ready(values):
             raise StatusValidationError(
                 "Permit must be recorded and verified before work can start."
+            )
+
+    if from_status == "INPRG" and to_status == "COMP":
+        attachments = workorder.get("attachments", [])
+        checklist = workorder.get("checklist", {})
+        has_doc = any(doc.get("category") == DOC_CATEGORY for doc in attachments)
+        closed = bool(checklist.get(CHECKLIST_HAND_BACK))
+        if not has_doc or not closed:
+            raise StatusValidationError(
+                "Permit closeout requires permit document upload and checklist confirmation."
             )

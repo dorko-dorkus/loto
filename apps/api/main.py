@@ -465,6 +465,10 @@ _route_rate_limits = {
 async def rate_limit(request: Request, call_next):
     now = time.monotonic()
 
+    path = request.url.path
+    if path.startswith("/jobs"):
+        return await call_next(request)
+
     bucket = _global_rate_limit
     elapsed = now - bucket["ts"]
     if elapsed > RATE_LIMIT_INTERVAL:
@@ -478,7 +482,6 @@ async def rate_limit(request: Request, call_next):
         return response
     bucket["tokens"] -= 1
 
-    path = request.url.path
     if path in _route_rate_limits:
         bucket = _route_rate_limits[path]
         elapsed = now - bucket["ts"]
