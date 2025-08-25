@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -23,3 +24,6 @@ def test_demo_command_creates_doclinks(tmp_path: Path) -> None:
     assert len(pdfs) == 1
     assert len(jsons) == 1
     assert pdfs[0].stem == jsons[0].stem
+    with jsons[0].open() as f:
+        data = json.load(f)
+    assert data.get("category") == "Permit/LOTO"

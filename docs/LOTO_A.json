@@ -1,5 +1,6 @@
 {
   "document": "LOTO_A",
+  "category": "Permit/LOTO",
   "annotations": [
     {"step": 1, "note": "Tagged disconnects"},
     {"step": 2, "note": "Confirm zero energy state"}
