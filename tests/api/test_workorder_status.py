@@ -89,3 +89,26 @@ def test_hold_and_resume() -> None:
     body = resp.json()
     assert body["status"] == "INPRG"
     assert body.get("holdReason") is None
+
+
+def test_external_permit_verification(monkeypatch: pytest.MonkeyPatch) -> None:
+    wo = {
+        "id": "WO-1",
+        "maximo_wo": "MX-1",
+        "permit_id": "PRM-1",
+        "permit_verified": True,
+    }
+    monkeypatch.setenv("REQUIRE_EXTERNAL_PERMIT", "1")
+    validate_status_change(wo, "SCHED", "INPRG")
+
+
+def test_external_permit_verification_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    wo = {
+        "id": "WO-999",
+        "maximo_wo": "MX-999",
+        "permit_id": "PRM-999",
+        "permit_verified": True,
+    }
+    monkeypatch.setenv("REQUIRE_EXTERNAL_PERMIT", "1")
+    with pytest.raises(StatusValidationError):
+        validate_status_change(wo, "SCHED", "INPRG")

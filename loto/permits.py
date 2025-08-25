@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, Mapping
 
 from loto.constants import CHECKLIST_HAND_BACK, DOC_CATEGORY
+from loto.integrations import get_permit_adapter
 
 
 class ConditionalExpressionManager:
@@ -102,6 +104,18 @@ def validate_status_change(
             raise StatusValidationError(
                 "Permit must be recorded and verified before work can start."
             )
+        if os.getenv("REQUIRE_EXTERNAL_PERMIT", "0").lower() in {"1", "true"}:
+            adapter = get_permit_adapter()
+            permit_id = values.get("permit_id")
+            fetched: Dict[str, Any] = {}
+            if hasattr(adapter, "fetch_permit"):
+                search_any = workorder.get("id") or permit_id
+                search_id = str(search_any) if search_any is not None else ""
+                if search_id:
+                    fetched = adapter.fetch_permit(search_id)
+            status = str(fetched.get("status", "")).lower()
+            if status not in {"active", "authorised", "authorized", "issued"}:
+                raise StatusValidationError("External permit is not active/authorised.")
 
     if from_status == "INPRG" and to_status == "COMP":
         attachments = workorder.get("attachments", [])
