@@ -621,6 +621,7 @@ async def healthz(request: Request) -> dict[str, Any]:
         "adapters": {
             "maximo": _ping_service("MAXIMO_BASE_URL", "MAXIMO_MODE"),
             "coupa": _ping_service("COUPA_BASE_URL", "COUPA_MODE"),
+            "permit": _ping_service("ELLIPSE_BASE_URL", "ELLIPSE_MODE"),
         },
         "db": _db_status(),
         "integrity": {
