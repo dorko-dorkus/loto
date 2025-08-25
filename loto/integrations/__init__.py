@@ -79,10 +79,38 @@ def get_integration_adapter() -> IntegrationAdapter | MaximoAdapter:
     return DemoIntegrationAdapter()
 
 
+def get_permit_adapter() -> EllipseAdapter | WaprAdapter:
+    """Select a permit adapter based on environment configuration.
+
+    ``PERMIT_PROVIDER`` controls which system to target and may be set to
+    ``ELLIPSE``, ``WAPR`` or ``DEMO`` (the default). For the Ellipse provider,
+    ``ELLIPSE_MODE`` determines whether the demo or HTTP adapter is used. When
+    ``ELLIPSE_MODE=HTTP``, the variables ``ELLIPSE_BASE_URL``,
+    ``ELLIPSE_USERNAME`` and ``ELLIPSE_PASSWORD`` must also be provided.
+
+    The WAPR provider currently only supports ``WAPR_MODE=DEMO``; selecting
+    ``HTTP`` will raise :class:`NotImplementedError`.
+    """
+
+    provider = os.getenv("PERMIT_PROVIDER", "DEMO").upper()
+    if provider == "ELLIPSE":
+        mode = os.getenv("ELLIPSE_MODE", "DEMO").upper()
+        if mode == "HTTP":
+            return HttpEllipseAdapter()
+        return DemoEllipseAdapter()
+    if provider == "WAPR":
+        mode = os.getenv("WAPR_MODE", "DEMO").upper()
+        if mode == "HTTP":
+            raise NotImplementedError("HTTP WAPR adapter not implemented")
+        return DemoWaprAdapter()
+    return DemoEllipseAdapter()
+
+
 __all__ = [
     "IntegrationAdapter",
     "DemoIntegrationAdapter",
     "get_integration_adapter",
+    "get_permit_adapter",
     "CoupaAdapter",
     "DemoCoupaAdapter",
     "HttpCoupaAdapter",
