@@ -22,5 +22,6 @@ playwright-report/
 **/.next/
 apps/maximo-extension-ui/test-results/
 
-# Production environment configuration
+# Environment configuration
+.env
 prod.env
