@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -50,6 +51,13 @@ class WorkOrderSummary(BaseModel):
     )
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+
+def _summary_from_data(data: dict[str, Any], **extra: Any) -> WorkOrderSummary:
+    """Create ``WorkOrderSummary`` from raw work order data."""
+
+    clean = {k: v for k, v in data.items() if k not in {"attachments", "checklist"}}
+    return WorkOrderSummary(**clean, **extra)
 
 
 class StatusChangeRequest(BaseModel):
@@ -132,7 +140,7 @@ async def get_workorder(workorder_id: str) -> WorkOrderSummary:
 
     inv_status = check_wo_parts_required(work_order, lookup_stock)
 
-    return WorkOrderSummary(**data, blocked_by_parts=inv_status.blocked)
+    return _summary_from_data(data, blocked_by_parts=inv_status.blocked)
 
 
 @router.post(
@@ -152,6 +160,8 @@ async def update_workorder_status(
     wo = {
         "permit_id": data.get("permitId"),
         "permit_verified": data.get("permitVerified"),
+        "attachments": data.get("attachments", []),
+        "checklist": data.get("checklist", {}),
     }
     try:
         validate_status_change(wo, payload.current_status, payload.new_status)
@@ -160,7 +170,7 @@ async def update_workorder_status(
 
     data = dict(data)
     data["status"] = payload.new_status
-    return WorkOrderSummary(**data)
+    return _summary_from_data(data)
 
 
 @router.get("/portfolio", response_model=PortfolioResponse)
@@ -195,6 +205,6 @@ async def get_portfolio(window: int = 7) -> PortfolioResponse:
             )
 
         inv_status = check_wo_parts_required(work_order, lookup_stock)
-        summaries.append(WorkOrderSummary(**wo, blocked_by_parts=inv_status.blocked))
+        summaries.append(_summary_from_data(wo, blocked_by_parts=inv_status.blocked))
     kpis = [KpiItem(label="Open", value=len(summaries))]
     return PortfolioResponse(kpis=kpis, workOrders=summaries)

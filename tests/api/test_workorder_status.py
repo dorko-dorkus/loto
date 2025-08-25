@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from apps.api.main import app
+from loto.constants import CHECKLIST_HAND_BACK, DOC_CATEGORY
 from loto.permits import StatusValidationError, validate_status_change
 
 client = TestClient(app)
@@ -27,3 +28,31 @@ def test_child_task_validation() -> None:
     child = {"permit_id": None, "permit_verified": False}
     with pytest.raises(StatusValidationError):
         validate_status_change(child, "SCHED", "INPRG")
+
+
+def test_closeout_requires_permit_document() -> None:
+    payload = {"status": "COMP", "currentStatus": "INPRG"}
+    resp = client.post("/workorders/WO-4/status", json=payload)
+    assert resp.status_code == 400
+    assert (
+        "Permit closeout requires permit document upload and checklist confirmation"
+        in resp.text
+    )
+
+
+def test_closeout_requires_checklist_confirmation() -> None:
+    wo = {
+        "permit_id": "PRM-X",
+        "permit_verified": True,
+        "attachments": [{"category": DOC_CATEGORY}],
+        "checklist": {CHECKLIST_HAND_BACK: False},
+    }
+    with pytest.raises(StatusValidationError):
+        validate_status_change(wo, "INPRG", "COMP")
+
+
+def test_closeout_allows_when_requirements_met() -> None:
+    payload = {"status": "COMP", "currentStatus": "INPRG"}
+    resp = client.post("/workorders/WO-2/status", json=payload)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "COMP"
