@@ -176,6 +176,7 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     # Render outputs
     json_output = renderer.to_json(plan, sim_report)
+    json_output["category"] = "Permit/LOTO"
     rule_hash = rule_engine.hash(rule_pack)
     pdf_bytes = renderer.pdf(plan, sim_report, rule_hash, seed=None, timezone="UTC")
 
