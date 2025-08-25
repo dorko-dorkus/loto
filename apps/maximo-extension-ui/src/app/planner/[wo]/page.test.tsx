@@ -20,6 +20,14 @@ test('renders 6 tabs', async () => {
   expect(tabs).toHaveLength(6);
 });
 
+test('renders permit controls', async () => {
+  render(<Page params={{ wo: 'WO-1' }} />);
+  await screen.findByText('Permit Controls');
+  expect(screen.getByDisplayValue('PRM-MOCK')).toBeInTheDocument();
+  const checkbox = screen.getByLabelText('Permit Verified') as HTMLInputElement;
+  expect(checkbox.disabled).toBe(true);
+});
+
 test('renders export buttons', () => {
   render(<Page params={{ wo: 'WO-1' }} />);
   expect(screen.getAllByText('Export PDF').length).toBeGreaterThan(0);
