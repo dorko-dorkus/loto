@@ -12,8 +12,7 @@ test('renders virtualized gantt and updates conflicts', async () => {
   global.ResizeObserver = ResizeObserver;
 
   vi.stubEnv('NEXT_PUBLIC_USE_API', 'true');
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
-  process.env.NEXT_PUBLIC_API_BASE = apiBase;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? '';
 
   const sample = {
     schedule: [
