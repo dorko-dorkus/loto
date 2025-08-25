@@ -67,14 +67,27 @@ class StatusValidationError(RuntimeError):
 
 
 def validate_status_change(
-    workorder: Mapping[str, Any], from_status: str, to_status: str
+    workorder: Mapping[str, Any],
+    from_status: str,
+    to_status: str,
+    reason: str | None = None,
 ) -> None:
     """Validate a work order status change.
 
     The transition from ``SCHED`` to ``INPRG`` requires the ``PERMIT_READY``
-    condition to be satisfied.  When the condition is not met a
-    ``StatusValidationError`` is raised.
+    condition to be satisfied. When moving from ``INPRG`` to ``HOLD`` a
+    reason must be supplied.
     """
+
+    if from_status == "INPRG" and to_status == "HOLD":
+        if not reason:
+            raise StatusValidationError(
+                "Hold reason is required when placing work order on hold."
+            )
+        return
+
+    if from_status == "HOLD" and to_status == "INPRG":
+        return
 
     if from_status == "SCHED" and to_status == "INPRG":
         values = {
