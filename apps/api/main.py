@@ -574,7 +574,7 @@ async def healthz(request: Request) -> dict[str, Any]:
         head = None
         for path in sorted(versions_dir.glob("*.py")):
             head = path.stem.split("_")[0]
-        db_path = Path(__file__).resolve().parents[2] / "loto.db"
+        db_path = Path("/tmp/loto.db")
         revision = None
         if db_path.exists():
             conn = sqlite3.connect(db_path)

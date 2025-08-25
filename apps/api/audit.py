@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
 import json
 import os
 import sqlite3
 import time
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import structlog
 
-DB_PATH = Path(__file__).resolve().parents[2] / "loto.db"
+DB_PATH = Path("/tmp/loto.db")
 
 
 logger = structlog.get_logger(__name__)
