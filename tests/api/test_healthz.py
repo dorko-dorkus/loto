@@ -1,9 +1,11 @@
 import importlib
+from typing import Any, cast
 
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 
 
-def test_healthz_reports_components(monkeypatch):
+def test_healthz_reports_components(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setenv("RATE_LIMIT_CAPACITY", "5")
     monkeypatch.setenv("RATE_LIMIT_INTERVAL", "30")
     import apps.api.main as main
@@ -18,6 +20,7 @@ def test_healthz_reports_components(monkeypatch):
     assert data["rate_limit"]["interval"] == 30.0
     assert data["adapters"]["maximo"]["status"] == "mock"
     assert data["adapters"]["coupa"]["status"] == "mock"
+    assert data["adapters"]["permit"]["status"] == "mock"
     assert data["db"]["head"] == "0002"
     assert data["integrity"]["missing_assets"] == 0
     assert data["integrity"]["missing_locations"] == 0
@@ -27,12 +30,12 @@ def test_healthz_reports_components(monkeypatch):
     importlib.reload(main)
 
 
-def test_healthz_fails_on_missing_demo_data(monkeypatch):
+def test_healthz_fails_on_missing_demo_data(monkeypatch: MonkeyPatch) -> None:
     import apps.api.main as main
 
     importlib.reload(main)
     monkeypatch.setattr(
-        main.demo_data,
+        cast(Any, main).demo_data,
         "validate",
         lambda: {
             "missing_assets": [{"workorder": "1", "assetnum": None}],
