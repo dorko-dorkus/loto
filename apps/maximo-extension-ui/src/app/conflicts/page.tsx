@@ -86,7 +86,6 @@ export default function ConflictsPage() {
             const ids: number[] = await res.json();
             setSelected(new Set(ids));
             setToast(`Recommended: ${ids.join(', ')}`);
-            console.log('Recommend', ids);
           } catch (err) {
             toastError('Failed to recommend bundles');
           }
