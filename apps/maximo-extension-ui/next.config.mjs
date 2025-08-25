@@ -4,12 +4,12 @@ import { withSentryConfig } from '@sentry/nextjs';
 const nextConfig = {
   productionBrowserSourceMaps: true,
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    if (!apiUrl) return [];
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE;
+    if (!apiBase) return [];
     return [
       {
         source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
+        destination: `${apiBase}/api/:path*`,
       },
     ];
   },
