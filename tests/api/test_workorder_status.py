@@ -92,23 +92,32 @@ def test_hold_and_resume() -> None:
 
 
 def test_external_permit_verification(monkeypatch: pytest.MonkeyPatch) -> None:
-    wo = {
-        "id": "WO-1",
-        "maximo_wo": "MX-1",
-        "permit_id": "PRM-1",
-        "permit_verified": True,
-    }
     monkeypatch.setenv("REQUIRE_EXTERNAL_PERMIT", "1")
-    validate_status_change(wo, "SCHED", "INPRG")
+    monkeypatch.setenv("RATE_LIMIT_CAPACITY", "100000")
+    import importlib
+
+    import apps.api.main as main
+
+    importlib.reload(main)
+    local_client = TestClient(main.app)
+    payload = {"status": "INPRG", "currentStatus": "SCHED"}
+    resp = local_client.post("/workorders/WO-2/status", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "INPRG"
+    assert body["permitVerified"] is True
 
 
 def test_external_permit_verification_fails(monkeypatch: pytest.MonkeyPatch) -> None:
-    wo = {
-        "id": "WO-999",
-        "maximo_wo": "MX-999",
-        "permit_id": "PRM-999",
-        "permit_verified": True,
-    }
     monkeypatch.setenv("REQUIRE_EXTERNAL_PERMIT", "1")
-    with pytest.raises(StatusValidationError):
-        validate_status_change(wo, "SCHED", "INPRG")
+    monkeypatch.setenv("RATE_LIMIT_CAPACITY", "100000")
+    import importlib
+
+    import apps.api.main as main
+
+    importlib.reload(main)
+    local_client = TestClient(main.app)
+    payload = {"status": "INPRG", "currentStatus": "SCHED"}
+    resp = local_client.post("/workorders/WO-4/status", json=payload)
+    assert resp.status_code == 400
+    assert "External permit not active/authorised." in resp.text
