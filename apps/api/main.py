@@ -606,7 +606,7 @@ async def healthz(request: Request) -> dict[str, Any]:
             user = current_user_from_header(auth_header)
             role = user.roles[0] if user.roles else role
         except HTTPException:
-            pass
+            logging.debug("failed to resolve current user from header", exc_info=True)
     return {
         "status": "ok",
         "role": role,

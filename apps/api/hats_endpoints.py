@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime
 from pathlib import Path
@@ -7,8 +8,8 @@ from typing import Any, Dict, List, Tuple, cast
 
 from fastapi import APIRouter
 
-from loto.roster import storage
 from loto.hats import compute_ranking
+from loto.roster import storage
 
 from .schemas import HatKpiRequest, HatSnapshot
 
@@ -133,7 +134,7 @@ async def post_hat_kpi(event: HatKpiRequest) -> HatSnapshot:
     try:
         storage.append_ledger(ledger_path, entry)
     except ValueError:
-        pass
+        logging.debug("failed to append ledger entry", exc_info=True)
 
     entries = storage.read_ledger(ledger_path)
     snapshot = storage.compute_snapshot(entries)
