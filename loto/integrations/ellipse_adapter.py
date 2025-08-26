@@ -42,11 +42,13 @@ class DemoEllipseAdapter(EllipseAdapter):
             "id": "PRM-1",
             "status": "Active",
             "applied_isolations": ["ISO-1", "ISO-2"],
+            "callback_time_min": 0,
         },
         "WO-2": {
             "id": "PRM-2",
             "status": "Authorised",
             "applied_isolations": ["ISO-3"],
+            "callback_time_min": 0,
         },
     }
 
@@ -61,7 +63,12 @@ class DemoEllipseAdapter(EllipseAdapter):
         """Return fixture permit data for the work order."""
         return self._PERMITS.get(
             work_order_id,
-            {"id": None, "status": "Unknown", "applied_isolations": []},
+            {
+                "id": None,
+                "status": "Unknown",
+                "applied_isolations": [],
+                "callback_time_min": 0,
+            },
         )
 
 
@@ -136,7 +143,9 @@ class HttpEllipseAdapter(EllipseAdapter):
 
     def fetch_permit(self, work_order_id: str) -> Dict[str, Any]:
         """Fetch permit data for ``work_order_id`` via the Ellipse API."""
-        return self._get(f"permits/{work_order_id}")
+        data = self._get(f"permits/{work_order_id}")
+        data["callback_time_min"] = data.pop("callbackTimeMin", 0)
+        return data
 
 
 __all__ = ["EllipseAdapter", "DemoEllipseAdapter", "HttpEllipseAdapter"]

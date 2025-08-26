@@ -10,8 +10,8 @@ def test_weighted_cut_prefers_cheapest() -> None:
     g.add_node("N")
     g.add_node("T", tag="asset")
 
-    g.add_edge("S", "N", is_isolation_point=True, isolation_cost=5.0)
-    g.add_edge("N", "T", is_isolation_point=True, isolation_cost=1.0)
+    g.add_edge("S", "N", is_isolation_point=True, op_cost_min=5.0)
+    g.add_edge("N", "T", is_isolation_point=True, op_cost_min=1.0)
 
     planner = IsolationPlanner()
     pack = RulePack(risk_policies=None)

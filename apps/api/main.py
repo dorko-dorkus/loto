@@ -50,6 +50,7 @@ from loto.errors import GenerationError
 from loto.errors import ImportError as LotoImportError
 from loto.errors import LotoError, ValidationError
 from loto.impact_config import load_impact_config
+from loto.integrations import get_permit_adapter
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
     CANONICAL_UNITS,
@@ -767,6 +768,8 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     adapter = DemoMaximoAdapter()
     ctx = adapter.load_context(payload.workorder_id)
     impact_cfg = ctx["impact_cfg"]
+    permit = get_permit_adapter().fetch_permit(payload.workorder_id)
+    cfg: Dict[str, Any] = {"callback_time_min": permit.get("callback_time_min", 0)}
 
     global STATE
     STATE = dict(inventory_state(work_order, check_parts, STATE))
@@ -792,6 +795,7 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
                 unit_areas=impact_cfg.unit_areas,
                 penalties=impact_cfg.penalties,
                 asset_areas=impact_cfg.asset_areas,
+                config=cfg,
             )
             plans_generated_total.inc()
         except Exception:
