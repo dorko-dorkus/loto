@@ -1,0 +1,7 @@
+ConfinedSpace:
+  - CS-ENTRY
+  - GAS-TEST
+Electrical:
+  - ELEC
+HighVoltage:
+  - HV

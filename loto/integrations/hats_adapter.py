@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
 
 import requests
+import yaml
 
 DATA_PATH = (
     Path(__file__).resolve().parents[2]
@@ -16,6 +17,10 @@ DATA_PATH = (
     / "api"
     / "demo_data"
     / "hats_profiles.json"
+)
+
+PERMIT_MAP_PATH = (
+    Path(__file__).resolve().parents[2] / "config" / "hats_permit_map.yaml"
 )
 
 
@@ -52,14 +57,37 @@ class DemoHatsAdapter(HatsAdapter):
             )
         else:  # pragma: no cover - fixture missing
             self._profiles = {}
+        if PERMIT_MAP_PATH.exists():
+            self._permit_map: Dict[str, List[str]] = cast(
+                Dict[str, List[str]], yaml.safe_load(PERMIT_MAP_PATH.read_text())
+            )
+        else:  # pragma: no cover - fixture missing
+            self._permit_map = {}
 
     def get_profile(self, hats_id: str) -> Dict[str, Any]:
         return self._profiles[hats_id]
 
+    @property
+    def permit_map(self) -> Dict[str, List[str]]:
+        return self._permit_map
+
     def has_required(
         self, hats_ids: List[str], permit_types: List[str]
     ) -> Tuple[bool, List[str]]:
-        missing = [hid for hid in hats_ids if hid not in self._profiles]
+        required_codes: List[str] = []
+        for permit in permit_types:
+            required_codes.extend(self._permit_map.get(permit, []))
+        missing: List[str] = []
+        for hid in hats_ids:
+            profile = self._profiles.get(hid)
+            if not profile:
+                missing.append(hid)
+                continue
+            codes = set(profile.get("competencies", [])) | set(
+                profile.get("inductions", [])
+            )
+            if not set(required_codes) <= codes:
+                missing.append(hid)
         return not missing, missing
 
     def cbt_minutes(self, craft: str, site: str, when: datetime) -> int:
