@@ -1,9 +1,12 @@
+from pathlib import Path
+
+import networkx as nx
 import pandas as pd
 
 from loto.graph_builder import GraphBuilder
 
 
-def test_build_graphs_from_demo_csvs(tmp_path):
+def test_build_graphs_from_demo_csvs(tmp_path: Path) -> None:
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S1", "to_tag": "V1"},
@@ -60,7 +63,7 @@ def test_build_graphs_from_demo_csvs(tmp_path):
     assert steam.nodes["V1"]["kind"] == "MV"
 
 
-def test_validate_happy_path(tmp_path):
+def test_validate_happy_path(tmp_path: Path) -> None:
     line_df = pd.DataFrame(
         [{"domain": "steam", "from_tag": "S1", "to_tag": "V1", "line_tag": "L1"}]
     )
@@ -83,7 +86,7 @@ def test_validate_happy_path(tmp_path):
     assert issues == []
 
 
-def test_validate_detects_dangling_node(tmp_path):
+def test_validate_detects_dangling_node(tmp_path: Path) -> None:
     line_df = pd.DataFrame(
         [{"domain": "steam", "from_tag": "S1", "to_tag": "D1", "line_tag": "L1"}]
     )
@@ -106,7 +109,7 @@ def test_validate_detects_dangling_node(tmp_path):
     assert any("Dangling node" in issue.message for issue in issues)
 
 
-def test_validate_detects_missing_line_tag(tmp_path):
+def test_validate_detects_missing_line_tag(tmp_path: Path) -> None:
     line_df = pd.DataFrame(
         [{"domain": "steam", "from_tag": "S1", "to_tag": "V1"}]
     )  # missing line_tag
@@ -129,7 +132,7 @@ def test_validate_detects_missing_line_tag(tmp_path):
     assert any("missing line tag" in issue.message for issue in issues)
 
 
-def test_validate_detects_missing_domain(tmp_path):
+def test_validate_detects_missing_domain(tmp_path: Path) -> None:
     line_df = pd.DataFrame(
         [{"domain": None, "from_tag": "S1", "to_tag": "V1", "line_tag": "L1"}]
     )
@@ -150,3 +153,29 @@ def test_validate_detects_missing_domain(tmp_path):
     issues = builder.validate(graphs)
 
     assert any("missing domain" in issue.message for issue in issues)
+
+
+def test_validate_reports_cycles_with_severity() -> None:
+    g = nx.MultiDiGraph()
+
+    g.add_node("A", tag="A", kind="check valve")
+    g.add_node("B", tag="B", kind="check valve")
+    g.add_edge("A", "B", line_tag="L1", kind="check valve")
+    g.add_edge("B", "A", line_tag="L2", kind="check valve")
+
+    g.add_node("C", tag="C", kind="check valve")
+    g.add_node("D", tag="D", kind="GV")
+    g.add_edge("C", "D", line_tag="L3")
+    g.add_edge("D", "C", line_tag="L4")
+
+    builder = GraphBuilder()
+    issues = builder.validate({"steam": g})
+
+    cycle_issues = [i for i in issues if "Cycle detected" in i.message]
+    severities = {i.severity for i in cycle_issues}
+    messages = [i.message for i in cycle_issues]
+
+    assert "warning" in severities
+    assert "info" in severities
+    assert any("A" in m and "B" in m for m in messages)
+    assert any("C" in m and "D" in m for m in messages)
