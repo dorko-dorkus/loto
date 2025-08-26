@@ -196,9 +196,38 @@ async def update_workorder_status(
             if (critical and HATS_FAILCLOSE_CRITICAL) or (
                 not critical and not HATS_WARN_ONLY_MECH
             ):
+                messages: list[str] = []
+                for item in missing:
+                    if isinstance(item, dict):
+                        receiver_id = (
+                            item.get("receiverId")
+                            or item.get("id")
+                            or item.get("receiver")
+                        )
+                        name = item.get("name") or item.get("receiverName")
+                        requirement = (
+                            item.get("requirement")
+                            or item.get("missing")
+                            or item.get("permit")
+                        )
+                        expiry = item.get("expiry") or item.get("expires")
+                        prefix = "Receiver"
+                        if receiver_id:
+                            prefix += f" {receiver_id}"
+                        if name:
+                            prefix += f" ({name})"
+                        if requirement:
+                            msg = f"{prefix}: {requirement}"
+                        else:
+                            msg = prefix
+                        if expiry:
+                            msg += f" expired {expiry}"
+                        messages.append(msg)
+                    else:
+                        messages.append(str(item))
                 raise HTTPException(
                     status_code=400,
-                    detail={"reason": "HATS_CHECK_FAILED", "missing": missing},
+                    detail={"reason": "HATS_CHECK_FAILED", "missing": messages},
                 )
             logger.warning("HATS_CHECK_FAILED", missing=missing)
         if os.getenv("REQUIRE_EXTERNAL_PERMIT", "0") in (
