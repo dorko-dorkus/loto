@@ -13,7 +13,7 @@ import time
 import uuid
 from typing import Any, Dict, cast
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 from ._errors import AdapterRequestError
 

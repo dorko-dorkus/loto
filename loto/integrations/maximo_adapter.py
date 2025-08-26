@@ -6,7 +6,7 @@ import os
 import time
 from typing import Any, Dict, List, TypedDict, cast
 
-import requests  # type: ignore[import-untyped]
+import requests
 
 from ._errors import AdapterRequestError
 

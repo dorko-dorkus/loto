@@ -11,7 +11,7 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [types-PyYAML, pydantic, fastapi, pydantic-settings, typer]
+        additional_dependencies: [types-PyYAML, pydantic, fastapi, pydantic-settings, typer, types-requests]
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v9.33.0
     hooks:

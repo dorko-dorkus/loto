@@ -42,6 +42,10 @@ def choose_hats_for_reactive(
             not considered.
         ``crew_size`` (int):
             Number of hats to select.  Defaults to ``1``.
+        ``round_robin`` (mapping, optional):
+            State for deterministic selection when all scores are equal.  The
+            mapping should contain a ``next`` key indicating the index of the
+            hat to use next.  Updated in place after each call.
 
     Returns
     -------
@@ -55,6 +59,7 @@ def choose_hats_for_reactive(
     utilization = policy.get("utilization", {})
     util_cap = policy.get("utilization_cap", 1.0)
     crew_size = int(policy.get("crew_size", 1))
+    round_robin = policy.get("round_robin")
 
     eligible: list[str] = []
     weights: list[float] = []
@@ -77,8 +82,14 @@ def choose_hats_for_reactive(
         return []
 
     weight_seq: Sequence[float] | None = weights
-    if all(w == 0 for w in weights):
+    if all(w == weights[0] for w in weights):
         weight_seq = None
+        if round_robin is not None:
+            start = int(round_robin.get("next", 0)) % len(eligible)
+            k = min(crew_size, len(eligible))
+            chosen = [eligible[(start + i) % len(eligible)] for i in range(k)]
+            round_robin["next"] = (start + k) % len(eligible)
+            return chosen
 
     k = min(crew_size, len(eligible))
     return random.choices(eligible, weights=weight_seq, k=k)
