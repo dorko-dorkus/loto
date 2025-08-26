@@ -13,6 +13,7 @@ these signatures as a starting point for a full implementation.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Set, Tuple
 
@@ -29,6 +30,45 @@ ZETA = 0.5
 CB_SCALE = 30.0
 CB_MAX = 120.0
 RST_SCALE = 30.0
+
+
+def _split_nodes(graph: nx.MultiDiGraph) -> nx.MultiDiGraph:
+    """Split isolatable nodes into ``node_in``/``node_out`` pairs.
+
+    Edges incident to device nodes are rerouted through the new pair with a
+    single capacity edge between them representing the device.
+    """
+
+    split = nx.MultiDiGraph()
+
+    for node, attrs in graph.nodes(data=True):
+        if attrs.get("is_isolation_point"):
+            attrs_copy = dict(attrs)
+            split.add_node(f"{node}_in", **attrs_copy)
+            split.add_node(f"{node}_out", **attrs_copy)
+            cap_attrs: Dict[str, Any] = {}
+            for _, _, data in graph.in_edges(node, data=True):
+                if data.get("is_isolation_point"):
+                    cap_attrs = dict(data)
+                    break
+            if not cap_attrs:
+                for _, _, data in graph.out_edges(node, data=True):
+                    if data.get("is_isolation_point"):
+                        cap_attrs = dict(data)
+                        break
+            cap_attrs["is_isolation_point"] = True
+            split.add_edge(f"{node}_in", f"{node}_out", **cap_attrs)
+        else:
+            split.add_node(node, **attrs)
+
+    for u, v, data in graph.edges(data=True):
+        new_u = f"{u}_out" if graph.nodes[u].get("is_isolation_point") else u
+        new_v = f"{v}_in" if graph.nodes[v].get("is_isolation_point") else v
+        data_copy = dict(data)
+        data_copy["is_isolation_point"] = False
+        split.add_edge(new_u, new_v, **data_copy)
+
+    return split
 
 
 @dataclass
@@ -94,7 +134,12 @@ class IsolationPlanner:
 
         cbt = float((config or {}).get("callback_time_min", 0))
 
-        for domain, graph in graphs.items():
+        node_split = os.getenv("PLANNER_NODE_SPLIT") not in ("0", "", None)
+        work_graphs: Dict[str, nx.MultiDiGraph] = {}
+
+        for domain, base_graph in graphs.items():
+            graph = _split_nodes(base_graph) if node_split else base_graph
+            work_graphs[domain] = graph
             sources = [n for n, data in graph.nodes(data=True) if data.get("is_source")]
             targets = [
                 n for n, data in graph.nodes(data=True) if data.get("tag") == asset_tag
@@ -212,11 +257,11 @@ class IsolationPlanner:
             branch_graph = nx.Graph()
             branch_graph.add_edges_from(edges)
             sources = [
-                n for n, d in graphs[domain].nodes(data=True) if d.get("is_source")
+                n for n, d in work_graphs[domain].nodes(data=True) if d.get("is_source")
             ]
             targets = [
                 n
-                for n, d in graphs[domain].nodes(data=True)
+                for n, d in work_graphs[domain].nodes(data=True)
                 if d.get("tag") == asset_tag
             ]
             for component in nx.connected_components(branch_graph):
@@ -228,32 +273,36 @@ class IsolationPlanner:
                 for node in component:
                     bleed_present = any(
                         data.get("is_bleed")
-                        for _, _, data in graphs[domain].out_edges(node, data=True)
+                        for _, _, data in work_graphs[domain].out_edges(node, data=True)
                     )
                     if not bleed_present:
                         continue
 
-                    if not any(nx.has_path(graphs[domain], s, node) for s in sources):
+                    if not any(
+                        nx.has_path(work_graphs[domain], s, node) for s in sources
+                    ):
                         continue
-                    if not any(nx.has_path(graphs[domain], node, t) for t in targets):
+                    if not any(
+                        nx.has_path(work_graphs[domain], node, t) for t in targets
+                    ):
                         continue
 
                     upstream_iso = [
                         (pred, node)
-                        for pred in graphs[domain].predecessors(node)
+                        for pred in work_graphs[domain].predecessors(node)
                         if any(
                             data.get("is_isolation_point")
-                            for data in graphs[domain]
+                            for data in work_graphs[domain]
                             .get_edge_data(pred, node)
                             .values()
                         )
                     ]
                     downstream_iso = [
                         (node, succ)
-                        for succ in graphs[domain].successors(node)
+                        for succ in work_graphs[domain].successors(node)
                         if any(
                             data.get("is_isolation_point")
-                            for data in graphs[domain]
+                            for data in work_graphs[domain]
                             .get_edge_data(node, succ)
                             .values()
                         )
@@ -264,7 +313,7 @@ class IsolationPlanner:
 
                     for ui in upstream_iso:
                         for di in downstream_iso:
-                            g = graphs[domain].copy()
+                            g = work_graphs[domain].copy()
                             if g.has_edge(*ui):
                                 g.remove_edges_from(
                                     [(ui[0], ui[1], k) for k in list(g[ui[0]][ui[1]])]
