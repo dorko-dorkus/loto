@@ -101,27 +101,29 @@ class IsolationPlanner:
                     weighted.add_edge(u, v, capacity=cap)
 
             super_source = "__super_source__"
+            super_sink = "__super_sink__"
             weighted.add_node(super_source)
+            weighted.add_node(super_sink)
             for s in sources:
                 weighted.add_edge(super_source, s, capacity=float("inf"))
+            for t in targets:
+                weighted.add_edge(t, super_sink, capacity=float("inf"))
+
+            _, (reachable, non_reachable) = nx.minimum_cut(
+                weighted, super_source, super_sink, capacity="capacity"
+            )
 
             cut_edges: Set[Tuple[str, str]] = set()
-
-            for target in targets:
-                _, (reachable, non_reachable) = nx.minimum_cut(
-                    weighted, super_source, target, capacity="capacity"
-                )
-
-                for u in reachable:
-                    if u == super_source:
-                        continue
-                    for v in graph.successors(u):
-                        if v in non_reachable:
-                            edge_data = graph.get_edge_data(u, v)
-                            for attrs in edge_data.values():
-                                if attrs.get("is_isolation_point"):
-                                    cut_edges.add((u, v))
-                                    break
+            for u in reachable:
+                if u == super_source:
+                    continue
+                for v in graph.successors(u):
+                    if v in non_reachable:
+                        edge_data = graph.get_edge_data(u, v)
+                        for attrs in edge_data.values():
+                            if attrs.get("is_isolation_point"):
+                                cut_edges.add((u, v))
+                                break
 
             plan[domain] = list(cut_edges)
 
