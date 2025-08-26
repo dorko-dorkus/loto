@@ -4,26 +4,32 @@ from loto.models import IsolationAction, IsolationPlan, Stimulus
 from loto.sim_engine import SimEngine
 
 
-def build_graph():
+def build_graph() -> nx.MultiDiGraph:
     g = nx.MultiDiGraph()
     g.add_node("source", is_source=True)
     g.add_node("valve1")
     g.add_node("asset", tag="asset")
     g.add_edge("source", "valve1", is_isolation_point=True)
     g.add_edge("valve1", "asset")
+    g.add_node("bleed", safe_sink=True)
+    g.add_edge("asset", "bleed", is_bleed=True)
     return g
 
 
-def make_stimuli():
+def make_stimuli() -> list[Stimulus]:
     names = ["REMOTE_OPEN", "LOCAL_OPEN", "AIR_RETURN", "ESD_RESET", "PUMP_START"]
     return [Stimulus(name=n, magnitude=1.0, duration_s=1.0) for n in names]
 
 
-def test_valid_plan_pass():
+def test_valid_plan_pass() -> None:
     g = build_graph()
     plan = IsolationPlan(
         plan_id="p1",
-        actions=[IsolationAction(component_id="steam:source->valve1", method="lock")],
+        actions=[
+            IsolationAction(
+                component_id="steam:source->valve1", method="lock", duration_s=1.0
+            )
+        ],
     )
     engine = SimEngine()
     applied = engine.apply(plan, {"steam": g})
@@ -35,7 +41,7 @@ def test_valid_plan_pass():
     assert report.total_time_s == sum(s.duration_s for s in stims)
 
 
-def test_tampered_plan_fail():
+def test_tampered_plan_fail() -> None:
     g = build_graph()
     plan = IsolationPlan(plan_id="p1", actions=[])
     engine = SimEngine()
