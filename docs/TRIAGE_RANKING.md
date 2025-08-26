@@ -1,6 +1,6 @@
-# HATS Ranking
+# Triage Ranking
 
-This document describes how the Historical Asset Triage Score (HATS) ranking is defined and used.
+This document describes how the triage ranking is defined and used.
 
 Reviewed by Ops and Safety on 2024-05-27.
 
@@ -24,11 +24,11 @@ Weights `w_r`, `w_t`, and `w_q` must sum to 1. The final rank is `round(100 * sc
 - Manual overrides require sign-off from Ops and Safety.
 
 ## Tuning
-Weights are configured in `config/hats.json`. To adjust:
+Weights are configured in `config/triage.json`. To adjust:
 1. Propose new weights and rationale.
 2. Obtain approval from Ops and Safety.
 3. Update the configuration and restart the scheduler.
 
 ## Use in Scheduling
-Scheduler jobs are sorted by descending HATS rank. Higher-ranked jobs receive earlier execution slots, while ties are broken by submit time.
+Scheduler jobs are sorted by descending triage rank. Higher-ranked jobs receive earlier execution slots, while ties are broken by submit time.
 

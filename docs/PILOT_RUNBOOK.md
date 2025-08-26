@@ -77,4 +77,4 @@ Refer to [On-Call Guide](on_call.md) for contact rotations, escalation paths, an
 
 ## References
 
-- [HATS Ranking](HATS_RANKING.md) – KPI calculations and scheduling integration.
+- [Triage Ranking](TRIAGE_RANKING.md) – KPI calculations and scheduling integration.

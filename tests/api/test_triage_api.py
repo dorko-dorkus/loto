@@ -12,8 +12,8 @@ def test_post_kpi_and_idempotent(
 ) -> None:
     ledger = tmp_path / "ledger.jsonl"
     snapshot = tmp_path / "snapshot.json"
-    monkeypatch.setenv("HATS_LEDGER_PATH", str(ledger))
-    monkeypatch.setenv("HATS_SNAPSHOT_PATH", str(snapshot))
+    monkeypatch.setenv("TRIAGE_LEDGER_PATH", str(ledger))
+    monkeypatch.setenv("TRIAGE_SNAPSHOT_PATH", str(snapshot))
 
     client = TestClient(app)
     payload = {"wo_id": "1", "hat_id": "h1", "SA": 0.8, "SP": 0.9}
@@ -42,8 +42,8 @@ def test_post_kpi_and_idempotent(
 def test_post_kpi_bad_payload(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     ledger = tmp_path / "ledger.jsonl"
     snapshot = tmp_path / "snapshot.json"
-    monkeypatch.setenv("HATS_LEDGER_PATH", str(ledger))
-    monkeypatch.setenv("HATS_SNAPSHOT_PATH", str(snapshot))
+    monkeypatch.setenv("TRIAGE_LEDGER_PATH", str(ledger))
+    monkeypatch.setenv("TRIAGE_SNAPSHOT_PATH", str(snapshot))
 
     client = TestClient(app)
     res = client.post("/triage/kpi", json={"wo_id": "1"})
