@@ -1,10 +1,12 @@
 import networkx as nx
+import pytest
 
 from loto.isolation_planner import IsolationPlanner
 from loto.rule_engine import RulePack  # type: ignore[attr-defined]
 
 
-def test_weighted_cut_prefers_cheapest() -> None:
+def test_weighted_cut_prefers_cheapest(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
     g = nx.MultiDiGraph()
     g.add_node("S", is_source=True)
     g.add_node("N")

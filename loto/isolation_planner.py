@@ -21,15 +21,23 @@ import networkx as nx
 
 from .models import IsolationAction, IsolationPlan, RulePack
 
-ALPHA = 1.0
-BETA = 5.0
-GAMMA = 0.5
-DELTA = 1.0
-EPSILON = 2.0
-ZETA = 0.5
-CB_SCALE = 30.0
-CB_MAX = 120.0
-RST_SCALE = 30.0
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+ALPHA = _env_float("W_ALPHA", 1.0)
+BETA = _env_float("W_BETA", 5.0)
+GAMMA = _env_float("W_GAMMA", 0.5)
+DELTA = _env_float("W_DELTA", 1.0)
+EPSILON = _env_float("W_EPSILON", 2.0)
+ZETA = _env_float("W_ZETA", 0.5)
+CB_SCALE = _env_float("CB_SCALE", 30.0)
+CB_MAX = _env_float("CB_MAX", 120.0)
+RST_SCALE = _env_float("RST_SCALE", 30.0)
 
 
 def _split_nodes(graph: nx.MultiDiGraph) -> nx.MultiDiGraph:
@@ -134,7 +142,7 @@ class IsolationPlanner:
 
         cbt = float((config or {}).get("callback_time_min", 0))
 
-        node_split = os.getenv("PLANNER_NODE_SPLIT") not in ("0", "", None)
+        node_split = os.getenv("PLANNER_NODE_SPLIT", "1") not in ("0", "")
         work_graphs: Dict[str, nx.MultiDiGraph] = {}
 
         for domain, base_graph in graphs.items():
