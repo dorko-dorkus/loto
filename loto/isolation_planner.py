@@ -90,19 +90,33 @@ class IsolationPlanner:
                 plan[domain] = []
                 continue
 
-            # Build weighted graph for min-cut computations
+            # Build weighted graph for min-cut computations. Track mapping
+            # from weighted edges back to the original orientation so that cut
+            # edges can be resolved in the returned plan.
             weighted = nx.DiGraph()
+            edge_map: Dict[Tuple[str, str], List[Tuple[str, str]]] = {}
             for u, v, data in graph.edges(data=True):
-                cap = (
-                    data.get("isolation_cost", 1.0)
-                    if data.get("is_isolation_point")
-                    else float("inf")
-                )
-                if weighted.has_edge(u, v):
-                    # Keep the lowest capacity if multiple edges exist
-                    weighted[u][v]["capacity"] = min(weighted[u][v]["capacity"], cap)
-                else:
-                    weighted.add_edge(u, v, capacity=cap)
+                direction = data.get("direction", "bidirectional")
+                can_isolate = data.get("can_isolate", True)
+                is_candidate = data.get("is_isolation_point") and can_isolate
+                cap = data.get("isolation_cost", 1.0) if is_candidate else float("inf")
+
+                def _add(src: str, dst: str) -> None:
+                    if weighted.has_edge(src, dst):
+                        weighted[src][dst]["capacity"] = min(
+                            weighted[src][dst]["capacity"], cap
+                        )
+                    else:
+                        weighted.add_edge(src, dst, capacity=cap)
+                    edge_map.setdefault((src, dst), []).append((u, v))
+
+                if direction == "forward":
+                    _add(u, v)
+                elif direction == "reverse":
+                    _add(v, u)
+                else:  # bidirectional
+                    _add(u, v)
+                    _add(v, u)
 
             super_source = "__super_source__"
             super_sink = "__super_sink__"
@@ -118,15 +132,21 @@ class IsolationPlanner:
             )
 
             cut_edges: Set[Tuple[str, str]] = set()
-            for u in reachable:
-                if u == super_source:
+            for src in reachable:
+                if src == super_source:
                     continue
-                for v in graph.successors(u):
-                    if v in non_reachable:
-                        edge_data = graph.get_edge_data(u, v)
+                for dst in weighted.successors(src):
+                    if dst not in non_reachable:
+                        continue
+                    if weighted[src][dst]["capacity"] == float("inf"):
+                        continue
+                    for orig_u, orig_v in edge_map.get((src, dst), []):
+                        edge_data = graph.get_edge_data(orig_u, orig_v)
                         for attrs in edge_data.values():
-                            if attrs.get("is_isolation_point"):
-                                cut_edges.add((u, v))
+                            if attrs.get("is_isolation_point") and attrs.get(
+                                "can_isolate", True
+                            ):
+                                cut_edges.add((orig_u, orig_v))
                                 break
 
             plan[domain] = list(cut_edges)
