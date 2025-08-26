@@ -271,11 +271,17 @@ class IsolationPlanner:
 
                 ddbb_found = False
                 for node in component:
-                    bleed_present = any(
-                        data.get("is_bleed")
-                        for _, _, data in work_graphs[domain].out_edges(node, data=True)
-                    )
-                    if not bleed_present:
+                    bleed_edges = [
+                        (node, succ)
+                        for succ in work_graphs[domain].successors(node)
+                        if any(
+                            data.get("is_bleed")
+                            for data in work_graphs[domain]
+                            .get_edge_data(node, succ)
+                            .values()
+                        )
+                    ]
+                    if not bleed_edges:
                         continue
 
                     if not any(
@@ -311,27 +317,66 @@ class IsolationPlanner:
                     if not upstream_iso or not downstream_iso:
                         continue
 
+                    def set_state(
+                        g: nx.MultiDiGraph,
+                        edge: Tuple[str, str],
+                        state: str,
+                        *,
+                        bleed_only: bool = False,
+                    ) -> None:
+                        u, v = edge
+                        if not g.has_edge(u, v):
+                            return
+                        for k, data in g[u][v].items():
+                            if bleed_only and not data.get("is_bleed"):
+                                continue
+                            data["state"] = state
+
+                    def can_reach_safe_sink(g: nx.MultiDiGraph, start: str) -> bool:
+                        open_graph = nx.DiGraph()
+                        open_graph.add_nodes_from(g.nodes(data=True))
+                        for u, v, d in g.edges(data=True):
+                            if d.get("state") != "closed":
+                                open_graph.add_edge(u, v)
+                        sinks = [n for n, d in g.nodes(data=True) if d.get("safe_sink")]
+                        return any(nx.has_path(open_graph, start, s) for s in sinks)
+
                     for ui in upstream_iso:
                         for di in downstream_iso:
-                            g = work_graphs[domain].copy()
-                            if g.has_edge(*ui):
-                                g.remove_edges_from(
-                                    [(ui[0], ui[1], k) for k in list(g[ui[0]][ui[1]])]
-                                )
-                            if g.has_edge(*di):
-                                g.remove_edges_from(
-                                    [(di[0], di[1], k) for k in list(g[di[0]][di[1]])]
-                                )
-                            if shortest_open_path(g) is None:
-                                verifications.append(f"{branch_label} DDBB")
+                            for bleed in bleed_edges:
+                                g = work_graphs[domain].copy()
+                                set_state(g, ui, "closed")
+                                set_state(g, di, "closed")
+                                set_state(g, bleed, "open", bleed_only=True)
+                                if shortest_open_path(g) is not None:
+                                    continue
+                                if not can_reach_safe_sink(g, bleed[0]):
+                                    continue
+                                redundant = False
+                                g_up = g.copy()
+                                set_state(g_up, ui, "open")
+                                if shortest_open_path(g_up) is None:
+                                    redundant = True
+                                g_dn = g.copy()
+                                set_state(g_dn, di, "open")
+                                if shortest_open_path(g_dn) is None:
+                                    redundant = True
+                                cert = f"{ui[0]}->{ui[1]},{bleed[0]}->{bleed[1]},{di[0]}->{di[1]}"
+                                verifications.append(f"{branch_label} DDBB {cert}")
+                                if redundant:
+                                    verifications.append(
+                                        f"{branch_label} redundant DDBB path"
+                                    )
                                 ddbb_found = True
+                                break
+                            if ddbb_found:
                                 break
                         if ddbb_found:
                             break
                     if ddbb_found:
                         break
-                if ddbb_found:
-                    continue
+            if ddbb_found:
+                continue
 
         return IsolationPlan(
             plan_id=asset_tag,

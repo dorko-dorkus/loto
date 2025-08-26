@@ -18,7 +18,7 @@ def ddbb_graph() -> nx.MultiDiGraph:
     g.add_node("v1")
     g.add_node("v2")
     g.add_node("t", tag="asset")
-    g.add_node("b")
+    g.add_node("b", safe_sink=True)
     g.add_edge("s", "v1", is_isolation_point=True)
     g.add_edge("v1", "v2", is_isolation_point=True)
     g.add_edge("v2", "t")
