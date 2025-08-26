@@ -128,15 +128,51 @@ class SimEngine:
         should add reachability checks and, optionally, simple cause &
         effect evaluation.
         """
-        supported = {
-            "REMOTE_OPEN",
-            "LOCAL_OPEN",
-            "AIR_RETURN",
-            "ESD_RESET",
-            "PUMP_START",
-        }
-
         results: List[SimResultItem] = []
+
+        def _open_by_control(control: str) -> None:
+            for graph in applied_graphs.values():
+                for _, _, data in graph.edges(data=True):
+                    if data.get("control") == control:
+                        data["state"] = "open"
+                for _, data in graph.nodes(data=True):
+                    if data.get("control") == control:
+                        data["state"] = "open"
+
+        def _open_by_kind(kind: str, state: str = "open") -> None:
+            for graph in applied_graphs.values():
+                for _, _, data in graph.edges(data=True):
+                    if data.get("kind") == kind:
+                        data["state"] = state
+                for _, data in graph.nodes(data=True):
+                    if data.get("kind") == kind:
+                        data["state"] = state
+
+        def _handle_remote_open() -> None:
+            _open_by_control("remote")
+
+        def _handle_local_open() -> None:
+            _open_by_control("local")
+
+        def _handle_air_return() -> None:
+            _open_by_kind("air_return")
+
+        def _handle_esd_reset() -> None:
+            _open_by_kind("esd")
+
+        def _handle_pump_start() -> None:
+            for graph in applied_graphs.values():
+                for _, data in graph.nodes(data=True):
+                    if data.get("kind") == "pump":
+                        data["state"] = "on"
+
+        dispatch = {
+            "REMOTE_OPEN": _handle_remote_open,
+            "LOCAL_OPEN": _handle_local_open,
+            "AIR_RETURN": _handle_air_return,
+            "ESD_RESET": _handle_esd_reset,
+            "PUMP_START": _handle_pump_start,
+        }
 
         def shortest_path(g: nx.MultiDiGraph) -> List[str] | None:
             """Return shortest open path from any source to an asset."""
@@ -166,8 +202,11 @@ class SimEngine:
 
         total_time = 0.0
         for stim in stimuli:
-            if stim.name not in supported:
+            handler = dispatch.get(stim.name)
+            if handler is None:
                 continue
+
+            handler()
 
             offending_domain: str | None = None
             offending_path: List[str] | None = None
