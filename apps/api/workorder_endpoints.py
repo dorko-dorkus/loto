@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
-from loto.integrations import get_permit_adapter
+from loto.integrations import get_hats_adapter, get_permit_adapter
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import Reservation, StockItem, check_wo_parts_required
 from loto.permits import StatusValidationError, validate_status_change
@@ -180,22 +180,33 @@ async def update_workorder_status(
         "checklist": data.get("checklist", {}),
         "maximo_wo": data.get("maximoWo"),
     }
-    # If configured, hard-check Ellipse before validation (gives better 4xx)
-    if (
-        os.getenv("REQUIRE_EXTERNAL_PERMIT", "0") in ("1", "true", "TRUE")
-        and payload.new_status == "INPRG"
-    ):
-        adapter = get_permit_adapter()
-        fetched = adapter.fetch_permit(workorder_id)
-        if str(fetched.get("status", "")).lower() not in {
-            "active",
-            "authorised",
-            "authorized",
-            "issued",
-        }:
+    permit: dict[str, Any] | None = None
+    if payload.new_status == "INPRG":
+        permit_adapter = get_permit_adapter()
+        permit = permit_adapter.fetch_permit(workorder_id)
+        permit_types = permit.get("permitTypes", [])
+        receivers = data.get("permitReceiversHats", [])
+        ok, missing = get_hats_adapter().has_required(receivers, permit_types)
+        if not ok:
             raise HTTPException(
-                status_code=400, detail="External permit not active/authorised."
+                status_code=400,
+                detail={"reason": "HATS_CHECK_FAILED", "missing": missing},
             )
+        if os.getenv("REQUIRE_EXTERNAL_PERMIT", "0") in (
+            "1",
+            "true",
+            "TRUE",
+        ):
+            if str(permit.get("status", "")).lower() not in {
+                "active",
+                "authorised",
+                "authorized",
+                "issued",
+            }:
+                raise HTTPException(
+                    status_code=400,
+                    detail="External permit not active/authorised.",
+                )
     try:
         validate_status_change(
             wo, payload.current_status, payload.new_status, payload.reason
