@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from pathlib import Path
 from typing import Any, Dict, Set
 
 import yaml
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -22,7 +25,8 @@ class ImpactConfig:
     penalties:
         Mapping of asset identifier to MW penalty applied when unavailable.
     asset_areas:
-        Mapping of penalty asset to area.
+        Mapping of penalty asset to area.  Only required for penalty
+        assets that are not part of a unit.
     asset_mw:
         Mapping of asset identifier to its MW capacity.
     asset_groups:
@@ -48,7 +52,10 @@ class ImpactConfig:
 
 
 def load_impact_config(
-    unit_map: str | Path, redundancy_map: str | Path
+    unit_map: str | Path,
+    redundancy_map: str | Path,
+    *,
+    include_unit_penalties: bool = False,
 ) -> ImpactConfig:
     """Load impact configuration from YAML files.
 
@@ -80,6 +87,10 @@ def load_impact_config(
         unit.  The value for each unit can either be a simple string such
         as ``"SPOF"`` or a mapping with ``scheme`` and ``nplus`` keys for
         ``N+1`` configurations.
+    include_unit_penalties:
+        If ``True``, penalty entries for assets that belong to a unit are
+        retained and will be applied as unit derates.  When ``False``, such
+        penalty entries are ignored and a warning is logged if present.
 
     Returns
     -------
@@ -127,12 +138,25 @@ def load_impact_config(
             asset_units[str(asset)] = unit
 
     # ------------------------------------------------------------------
-    # Penalty assets not tied to units
+    # Penalty assets
     # ------------------------------------------------------------------
     for asset, info in penalties_info.items():
         mw = info.get("mw")
         area = info.get("area")
-        if mw is None or area is None:
+        if mw is None:
+            unknown_penalties.add(asset)
+            continue
+        if asset in asset_units:
+            if include_unit_penalties:
+                penalties[asset] = float(mw)
+            else:
+                logger.warning(
+                    "Penalty asset %s belongs to unit %s and will be ignored",
+                    asset,
+                    asset_units[asset],
+                )
+            continue
+        if area is None:
             unknown_penalties.add(asset)
             continue
         penalties[asset] = float(mw)

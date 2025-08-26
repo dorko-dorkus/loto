@@ -8,6 +8,12 @@ identify which asset nodes have become unavailable and to translate
 those outages into megawatt (MW) derates for the affected units and
 areas.
 
+Penalties may be associated with individual assets to reflect
+additional derates beyond simple unavailability.  By default these
+penalties only apply to standalone assets that do not belong to a
+generating unit.  Set ``include_unit_penalties=True`` when evaluating to
+also apply penalties to assets within units.
+
 The implementation intentionally focuses on a minimal, pure-python
 approach suitable for unit testing.  Real deployments may wish to
 extend the data structures or integrate with external asset
@@ -57,6 +63,7 @@ class ImpactEngine:
         asset_groups: Dict[str, str] | None = None,
         group_caps: Dict[str, float] | None = None,
         penalties: Dict[str, float] | None = None,
+        include_unit_penalties: bool = False,
         asset_areas: Dict[str, str] | None = None,
     ) -> ImpactResult:
         """Evaluate the impact of isolation on units and areas.
@@ -88,6 +95,11 @@ class ImpactEngine:
         penalties:
             Optional mapping of asset identifier to additional MW derates
             that apply when the asset is unavailable.
+        include_unit_penalties:
+            If ``True``, penalties for assets that belong to units are added
+            to the unit's derate.  When ``False`` (default), such penalties
+            are ignored and only penalties for assets outside of units
+            contribute via :paramref:`asset_areas`.
         asset_areas:
             Mapping from asset identifier to area for assets that do not
             belong to a unit.  This is typically used for local penalty
@@ -166,9 +178,10 @@ class ImpactEngine:
 
                 delta = min(rated, loss)
 
-            # Apply asset-specific penalties for this unit
-            for asset in unit_unavail.get(unit, set()):
-                delta += penalties.get(asset, 0.0)
+            # Apply asset-specific penalties for this unit when requested
+            if include_unit_penalties:
+                for asset in unit_unavail.get(unit, set()):
+                    delta += penalties.get(asset, 0.0)
 
             if delta > 0:
                 unit_delta[unit] = delta
