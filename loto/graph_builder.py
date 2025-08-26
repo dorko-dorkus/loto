@@ -121,6 +121,8 @@ class GraphBuilder:
                 row["to_tag"],
                 line_tag=row.get("line_tag"),
                 isolation_cost=float(cost),
+                direction="bidirectional",
+                can_isolate=True,
             )
 
         for _, row in valve_df.iterrows():
@@ -131,6 +133,17 @@ class GraphBuilder:
             cost = row.get("isolation_cost", 1.0)
             if pd.isna(cost):
                 cost = 1.0
+            direction = row.get("direction") or "bidirectional"
+            kind = str(row.get("kind", "")).lower()
+            can_isolate = row.get("can_isolate")
+            if pd.isna(can_isolate):
+                can_isolate = kind not in {
+                    "nrv",
+                    "check valve",
+                    "bypass",
+                    "bypass valve",
+                }
+            can_isolate = bool(can_isolate)
             g.nodes[tag].update(
                 {
                     "is_isolation_point": True,
@@ -139,11 +152,23 @@ class GraphBuilder:
                 }
             )
             for u, v, data in list(g.in_edges(tag, data=True)):
-                data["is_isolation_point"] = True
-                data["isolation_cost"] = float(cost)
+                data.update(
+                    {
+                        "is_isolation_point": True,
+                        "isolation_cost": float(cost),
+                        "direction": direction,
+                        "can_isolate": can_isolate,
+                    }
+                )
             for u, v, data in list(g.out_edges(tag, data=True)):
-                data["is_isolation_point"] = True
-                data["isolation_cost"] = float(cost)
+                data.update(
+                    {
+                        "is_isolation_point": True,
+                        "isolation_cost": float(cost),
+                        "direction": direction,
+                        "can_isolate": can_isolate,
+                    }
+                )
 
         for _, row in drain_df.iterrows():
             domain = row["domain"]
