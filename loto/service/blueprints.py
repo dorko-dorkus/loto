@@ -124,7 +124,7 @@ def plan_and_evaluate(
     duration = time.perf_counter() - start
     logger.info("plan_generated", duration=duration)
 
-    sim = SimEngine()
+    sim = SimEngine(seed=seed)
     applied = sim.apply(plan, graphs)
     report = sim.run_stimuli(applied, list(stimuli), rule_pack)
 

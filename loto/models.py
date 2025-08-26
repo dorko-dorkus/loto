@@ -168,6 +168,10 @@ class SimReport(BaseModel):
     )
     total_time_s: float = Field(..., description="Total simulation time in seconds")
 
+    seed: int | None = Field(
+        None, description="Random seed used for deterministic simulation"
+    )
+
     class Config:
         extra = "forbid"
 
