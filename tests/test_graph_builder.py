@@ -184,6 +184,66 @@ def test_tags_normalised(tmp_path: Path) -> None:
     assert "D_1" in g.nodes
 
 
+def test_weight_columns_mapped_from_csv(tmp_path: Path) -> None:
+    line_df = pd.DataFrame(
+        [
+            {
+                "domain": "steam",
+                "from_tag": "S1",
+                "to_tag": "V1",
+                "line_tag": "L1",
+            },
+            {
+                "domain": "steam",
+                "from_tag": "V1",
+                "to_tag": "T1",
+                "line_tag": "L2",
+                "risk_weight": 5.0,
+                "travel_time_min": 1.5,
+            },
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [
+            {
+                "domain": "steam",
+                "tag": "V1",
+                "op_cost_min": 1.0,
+                "reset_time_min": 0.5,
+                "elevation_penalty": 2.0,
+                "outage_penalty": 3.0,
+            }
+        ]
+    )
+    drain_df = pd.DataFrame(columns=["domain", "tag", "kind"])
+
+    line_path = tmp_path / "lines.csv"
+    valve_path = tmp_path / "valves.csv"
+    drain_path = tmp_path / "drains.csv"
+    line_df.to_csv(line_path, index=False)
+    valve_df.to_csv(valve_path, index=False)
+    drain_df.to_csv(drain_path, index=False)
+
+    builder = GraphBuilder()
+    graphs = builder.from_csvs(line_path, valve_path, drain_path)
+    g = graphs["steam"]
+
+    node_attrs = g.nodes["V1"]
+    assert node_attrs["op_cost_min"] == 1.0
+    assert node_attrs["reset_time_min"] == 0.5
+    assert node_attrs["elevation_penalty"] == 2.0
+    assert node_attrs["outage_penalty"] == 3.0
+
+    in_edge = g.get_edge_data("S1", "V1")[0]
+    out_edge = g.get_edge_data("V1", "T1")[0]
+
+    assert in_edge["is_isolation_point"] is True
+    assert in_edge["op_cost_min"] == 1.0
+    assert out_edge["risk_weight"] == 5.0
+    assert out_edge["travel_time_min"] == 1.5
+    assert out_edge["op_cost_min"] == 1.0
+
+
 def test_validate_reports_cycles_with_severity() -> None:
     g = nx.MultiDiGraph()
 

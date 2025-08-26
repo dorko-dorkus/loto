@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Dict, List, Optional
+from typing import IO, Any, Dict, List, Optional, cast
 
 import networkx as nx
 import pandas as pd
@@ -142,12 +142,24 @@ class GraphBuilder:
             cost = (
                 line_row.isolation_cost if line_row.isolation_cost is not None else 1.0
             )
-            g.add_edge(
-                line_row.from_tag,
-                line_row.to_tag,
-                line_tag=line_row.line_tag,
-                isolation_cost=float(cost),
-            )
+            edge_attrs = {
+                "line_tag": line_row.line_tag,
+                "isolation_cost": float(cost),
+            }
+            optional_attrs = {
+                k: v
+                for k, v in {
+                    "op_cost_min": line_row.op_cost_min,
+                    "reset_time_min": line_row.reset_time_min,
+                    "risk_weight": line_row.risk_weight,
+                    "travel_time_min": line_row.travel_time_min,
+                    "elevation_penalty": line_row.elevation_penalty,
+                    "outage_penalty": line_row.outage_penalty,
+                }.items()
+                if v is not None
+            }
+            edge_attrs.update(optional_attrs)
+            g.add_edge(line_row.from_tag, line_row.to_tag, **edge_attrs)
 
         for idx, row in valve_df.iterrows():
             try:
@@ -164,19 +176,38 @@ class GraphBuilder:
                 if valve_row.isolation_cost is not None
                 else 1.0
             )
-            g.nodes[tag].update(
-                {
-                    "is_isolation_point": True,
-                    "fail_state": valve_row.fail_state,
-                    "kind": valve_row.kind,
-                }
-            )
+            node_attrs: Dict[str, Any] = {
+                "is_isolation_point": True,
+                "fail_state": valve_row.fail_state,
+                "kind": valve_row.kind,
+            }
+            optional_attrs = {
+                k: v
+                for k, v in {
+                    "op_cost_min": valve_row.op_cost_min,
+                    "reset_time_min": valve_row.reset_time_min,
+                    "risk_weight": valve_row.risk_weight,
+                    "travel_time_min": valve_row.travel_time_min,
+                    "elevation_penalty": valve_row.elevation_penalty,
+                    "outage_penalty": valve_row.outage_penalty,
+                }.items()
+                if v is not None
+            }
+            node_attrs.update(optional_attrs)
+            node_data = cast(Dict[str, Any], g.nodes[tag])
+            node_data.update(node_attrs)
             for u, v, data in list(g.in_edges(tag, data=True)):
-                data["is_isolation_point"] = True
-                data["isolation_cost"] = float(cost)
+                edge_data = cast(Dict[str, Any], data)
+                edge_data["is_isolation_point"] = True
+                edge_data["isolation_cost"] = float(cost)
+                for k, v2 in optional_attrs.items():
+                    edge_data[k] = float(v2)
             for u, v, data in list(g.out_edges(tag, data=True)):
-                data["is_isolation_point"] = True
-                data["isolation_cost"] = float(cost)
+                edge_data = cast(Dict[str, Any], data)
+                edge_data["is_isolation_point"] = True
+                edge_data["isolation_cost"] = float(cost)
+                for k, v2 in optional_attrs.items():
+                    edge_data[k] = float(v2)
 
         for idx, row in drain_df.iterrows():
             try:
