@@ -144,11 +144,43 @@ class IsolationPlanner:
         verifications: List[str] = []
         hazards: List[str] = []
         controls: List[str] = []
+
+        def shortest_open_path(g: nx.MultiDiGraph) -> List[str] | None:
+            """Return shortest path from any source to the target using open edges."""
+
+            open_graph = nx.DiGraph()
+            open_graph.add_nodes_from(g.nodes())
+            for u, v, data in g.edges(data=True):
+                if data.get("state") != "closed":
+                    open_graph.add_edge(u, v)
+
+            sources = [n for n, d in g.nodes(data=True) if d.get("is_source")]
+            targets = [n for n, d in g.nodes(data=True) if d.get("tag") == asset_tag]
+
+            best: List[str] | None = None
+            for s in sources:
+                for t in targets:
+                    try:
+                        path = nx.shortest_path(open_graph, s, t)
+                    except nx.NetworkXNoPath:
+                        continue
+                    if best is None or len(path) < len(best):
+                        best = path
+            return best
+
         for domain, edges in plan.items():
             if not edges:
                 continue
             branch_graph = nx.Graph()
             branch_graph.add_edges_from(edges)
+            sources = [
+                n for n, d in graphs[domain].nodes(data=True) if d.get("is_source")
+            ]
+            targets = [
+                n
+                for n, d in graphs[domain].nodes(data=True)
+                if d.get("tag") == asset_tag
+            ]
             for component in nx.connected_components(branch_graph):
                 branch_label = f"{domain}:{'-'.join(sorted(component))}"
                 verifications.append(f"{branch_label} PT=0")
@@ -156,31 +188,60 @@ class IsolationPlanner:
 
                 ddbb_found = False
                 for node in component:
-                    has_upstream_iso = any(
-                        any(
+                    bleed_present = any(
+                        data.get("is_bleed")
+                        for _, _, data in graphs[domain].out_edges(node, data=True)
+                    )
+                    if not bleed_present:
+                        continue
+
+                    if not any(nx.has_path(graphs[domain], s, node) for s in sources):
+                        continue
+                    if not any(nx.has_path(graphs[domain], node, t) for t in targets):
+                        continue
+
+                    upstream_iso = [
+                        (pred, node)
+                        for pred in graphs[domain].predecessors(node)
+                        if any(
                             data.get("is_isolation_point")
                             for data in graphs[domain]
                             .get_edge_data(pred, node)
                             .values()
                         )
-                        for pred in graphs[domain].predecessors(node)
-                    )
-                    has_downstream_iso = any(
-                        any(
+                    ]
+                    downstream_iso = [
+                        (node, succ)
+                        for succ in graphs[domain].successors(node)
+                        if any(
                             data.get("is_isolation_point")
                             for data in graphs[domain]
                             .get_edge_data(node, succ)
                             .values()
                         )
-                        for succ in graphs[domain].successors(node)
-                    )
-                    has_bleed = any(
-                        data.get("is_bleed")
-                        for _, _, data in graphs[domain].out_edges(node, data=True)
-                    )
-                    if has_upstream_iso and has_downstream_iso and has_bleed:
-                        verifications.append(f"{branch_label} DDBB")
-                        ddbb_found = True
+                    ]
+
+                    if not upstream_iso or not downstream_iso:
+                        continue
+
+                    for ui in upstream_iso:
+                        for di in downstream_iso:
+                            g = graphs[domain].copy()
+                            if g.has_edge(*ui):
+                                g.remove_edges_from(
+                                    [(ui[0], ui[1], k) for k in list(g[ui[0]][ui[1]])]
+                                )
+                            if g.has_edge(*di):
+                                g.remove_edges_from(
+                                    [(di[0], di[1], k) for k in list(g[di[0]][di[1]])]
+                                )
+                            if shortest_open_path(g) is None:
+                                verifications.append(f"{branch_label} DDBB")
+                                ddbb_found = True
+                                break
+                        if ddbb_found:
+                            break
+                    if ddbb_found:
                         break
                 if ddbb_found:
                     continue

@@ -1,10 +1,10 @@
 import networkx as nx
 
 from loto.isolation_planner import IsolationPlanner, VerificationGate
-from loto.rule_engine import RulePack
+from loto.models import RulePack
 
 
-def simple_graph():
+def simple_graph() -> nx.MultiDiGraph:
     g = nx.MultiDiGraph()
     g.add_node("s", is_source=True)
     g.add_node("t", tag="asset")
@@ -12,7 +12,7 @@ def simple_graph():
     return g
 
 
-def ddbb_graph():
+def ddbb_graph() -> nx.MultiDiGraph:
     g = nx.MultiDiGraph()
     g.add_node("s", is_source=True)
     g.add_node("v1")
@@ -26,32 +26,53 @@ def ddbb_graph():
     return g
 
 
-def test_basic_verifications():
+def ddbb_with_bypass_graph() -> nx.MultiDiGraph:
+    g = ddbb_graph()
+    g.add_node("x")
+    g.add_edge("s", "x")
+    g.add_edge("x", "t", is_isolation_point=True)
+    return g
+
+
+def test_basic_verifications() -> None:
     planner = IsolationPlanner()
     plan = planner.compute(
-        {"p": simple_graph()}, asset_tag="asset", rule_pack=RulePack()
+        {"p": simple_graph()}, asset_tag="asset", rule_pack=RulePack(risk_policies=None)
     )
     assert len(plan.verifications) == 2
     assert any("PT=0" in v for v in plan.verifications)
     assert any("no-movement" in v for v in plan.verifications)
 
 
-def test_ddbb_hint():
+def test_ddbb_valid() -> None:
     planner = IsolationPlanner()
-    plan = planner.compute({"p": ddbb_graph()}, asset_tag="asset", rule_pack=RulePack())
-    assert len(plan.verifications) == 3
+    plan = planner.compute(
+        {"p": ddbb_graph()}, asset_tag="asset", rule_pack=RulePack(risk_policies=None)
+    )
     assert any("PT=0" in v for v in plan.verifications)
     assert any("no-movement" in v for v in plan.verifications)
     assert any("DDBB" in v for v in plan.verifications)
 
 
-def test_gate_single_user_insufficient():
+def test_ddbb_bypass_not_flagged() -> None:
+    planner = IsolationPlanner()
+    plan = planner.compute(
+        {"p": ddbb_with_bypass_graph()},
+        asset_tag="asset",
+        rule_pack=RulePack(risk_policies=None),
+    )
+    assert any("PT=0" in v for v in plan.verifications)
+    assert any("no-movement" in v for v in plan.verifications)
+    assert not any("DDBB" in v for v in plan.verifications)
+
+
+def test_gate_single_user_insufficient() -> None:
     gate = VerificationGate()
     gate.approve("user1")
     assert not gate.is_ready
 
 
-def test_gate_two_distinct_users_required():
+def test_gate_two_distinct_users_required() -> None:
     gate = VerificationGate()
     gate.approve("user1")
     gate.approve("user1")
