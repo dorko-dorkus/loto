@@ -9,10 +9,10 @@ class _Bias:
         return duration_s + rank
 
 
-def test_prefers_higher_rank():
+def test_prefers_higher_rank() -> None:
     hats = [
-        Hat(id="h1", skills={"w"}, calendar={0}, rank=2),
-        Hat(id="h2", skills={"w"}, calendar={0}, rank=1),
+        Hat(id="h1", skills={"w"}, calendar=[(0, 0)], rank=2),
+        Hat(id="h2", skills={"w"}, calendar=[(0, 0)], rank=1),
     ]
     task = Task(skill="w", start=0, duration_s=1)
     chosen = simulate(task, hats, _Bias())
@@ -20,10 +20,10 @@ def test_prefers_higher_rank():
     assert chosen.id == "h2"
 
 
-def test_respects_calendar():
+def test_respects_calendar() -> None:
     hats = [
         Hat(id="h1", skills={"w"}, calendar={1}, rank=1),
-        Hat(id="h2", skills={"w"}, calendar={0}, rank=2),
+        Hat(id="h2", skills={"w"}, calendar=[0], rank=2),
     ]
     task = Task(skill="w", start=0, duration_s=1)
     chosen = simulate(task, hats, _Bias())
