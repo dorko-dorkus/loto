@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from .coupa_adapter import CoupaAdapter, DemoCoupaAdapter, HttpCoupaAdapter
 from .ellipse_adapter import DemoEllipseAdapter, EllipseAdapter, HttpEllipseAdapter
+from .hats_adapter import DemoHatsAdapter, HatsAdapter, HttpHatsAdapter
 from .maximo_adapter import MaximoAdapter
 from .stores_adapter import DemoStoresAdapter, StoresAdapter
 from .wapr_adapter import DemoWaprAdapter, WaprAdapter
@@ -106,11 +107,21 @@ def get_permit_adapter() -> EllipseAdapter | WaprAdapter:
     return DemoEllipseAdapter()
 
 
+def get_hats_adapter() -> HatsAdapter:
+    """Return a HATS adapter based on environment configuration."""
+
+    base_url = os.getenv("HATS_BASE_URL")
+    if base_url:
+        return HttpHatsAdapter(base_url, os.getenv("HATS_API_KEY"))
+    return DemoHatsAdapter()
+
+
 __all__ = [
     "IntegrationAdapter",
     "DemoIntegrationAdapter",
     "get_integration_adapter",
     "get_permit_adapter",
+    "get_hats_adapter",
     "CoupaAdapter",
     "DemoCoupaAdapter",
     "HttpCoupaAdapter",
@@ -121,5 +132,8 @@ __all__ = [
     "EllipseAdapter",
     "DemoEllipseAdapter",
     "HttpEllipseAdapter",
+    "HatsAdapter",
+    "DemoHatsAdapter",
+    "HttpHatsAdapter",
     "MaximoAdapter",
 ]
