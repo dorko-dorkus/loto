@@ -149,8 +149,8 @@ class SimResultItem(BaseModel):
     domain: Optional[str] = Field(
         None, description="Domain containing any invariant violation"
     )
-    path: Optional[List[str]] = Field(
-        None, description="Shortest offending path if a violation occurred"
+    paths: Optional[List[List[str]]] = Field(
+        None, description="Offending paths if a violation occurred"
     )
     hint: Optional[str] = Field(
         None, description="Suggested remediation for the violation"
