@@ -10,4 +10,5 @@ def test_demo_adapter_returns_work_order_and_permit() -> None:
         "id": "PRM-1",
         "status": "Active",
         "applied_isolations": ["ISO-1", "ISO-2"],
+        "callback_time_min": 0,
     }

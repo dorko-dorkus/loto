@@ -89,6 +89,7 @@ def plan_and_evaluate(
     penalties: Dict[str, float] | None = None,
     asset_areas: Dict[str, str] | None = None,
     seed: int | None = None,
+    config: Mapping[str, object] | None = None,
 ) -> Tuple[IsolationPlan, SimReport, ImpactResult, Provenance]:
     """Run builder → planner → simulator → impact evaluation pipeline.
 
@@ -120,7 +121,9 @@ def plan_and_evaluate(
 
     planner = IsolationPlanner()
     start = time.perf_counter()
-    plan = planner.compute(graphs, asset_tag=asset_tag, rule_pack=rule_pack)
+    plan = planner.compute(
+        graphs, asset_tag=asset_tag, rule_pack=rule_pack, config=config
+    )
     duration = time.perf_counter() - start
     logger.info("plan_generated", duration=duration)
 

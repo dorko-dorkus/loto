@@ -14,11 +14,21 @@ these signatures as a starting point for a full implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Mapping, Set, Tuple
 
 import networkx as nx
 
 from .models import IsolationAction, IsolationPlan, RulePack
+
+ALPHA = 1.0
+BETA = 5.0
+GAMMA = 0.5
+DELTA = 1.0
+EPSILON = 2.0
+ZETA = 0.5
+CB_SCALE = 30.0
+CB_MAX = 120.0
+RST_SCALE = 30.0
 
 
 @dataclass
@@ -48,6 +58,8 @@ class IsolationPlanner:
         graphs: Dict[str, nx.MultiDiGraph],
         asset_tag: str,
         rule_pack: RulePack,
+        *,
+        config: Mapping[str, Any] | None = None,
     ) -> IsolationPlan:
         """Compute a minimal cut-set isolation plan for the given asset.
 
@@ -80,6 +92,8 @@ class IsolationPlanner:
 
         plan: Dict[str, List[Tuple[str, str]]] = {}
 
+        cbt = float((config or {}).get("callback_time_min", 0))
+
         for domain, graph in graphs.items():
             sources = [n for n, data in graph.nodes(data=True) if data.get("is_source")]
             targets = [
@@ -93,13 +107,37 @@ class IsolationPlanner:
             # Build weighted graph for min-cut computations
             weighted = nx.DiGraph()
             for u, v, data in graph.edges(data=True):
-                cap = (
-                    data.get("isolation_cost", 1.0)
-                    if data.get("is_isolation_point")
-                    else float("inf")
-                )
+                if data.get("is_isolation_point"):
+                    op_cost = (
+                        data.get("op_cost_min")
+                        or graph.nodes[u].get("op_cost_min")
+                        or graph.nodes[v].get("op_cost_min")
+                        or 0.0
+                    )
+                    reset_time = (
+                        data.get("reset_time_min")
+                        or graph.nodes[u].get("reset_time_min")
+                        or graph.nodes[v].get("reset_time_min")
+                        or 0.0
+                    )
+                    risk_weight = data.get("risk_weight", 0.0)
+                    travel_time = data.get("travel_time_min", 0.0)
+                    elevation_penalty = data.get("elevation_penalty", 0.0)
+                    outage_penalty = data.get("outage_penalty", 0.0)
+                    base = (
+                        ALPHA * op_cost
+                        + BETA * risk_weight
+                        + GAMMA * travel_time
+                        + DELTA * elevation_penalty
+                        + EPSILON * outage_penalty
+                    )
+                    if base == 0:
+                        base = 1.0
+                    mult = 1 + min(cbt, CB_MAX) / CB_SCALE
+                    cap = base * mult + ZETA * reset_time * (1 + cbt / RST_SCALE)
+                else:
+                    cap = float("inf")
                 if weighted.has_edge(u, v):
-                    # Keep the lowest capacity if multiple edges exist
                     weighted[u][v]["capacity"] = min(weighted[u][v]["capacity"], cap)
                 else:
                     weighted.add_edge(u, v, capacity=cap)
