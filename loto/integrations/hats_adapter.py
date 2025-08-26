@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import abc
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, cast
@@ -98,11 +99,18 @@ class HttpHatsAdapter(HatsAdapter):
     """HTTP implementation of the HATS adapter."""
 
     def __init__(
-        self, base_url: str, api_key: str | None = None, timeout: int = 30
+        self,
+        base_url: str,
+        api_key: str | None = None,
+        timeout: int = 30,
+        profile_cache_ttl: int = 600,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
+        self.profile_cache_ttl = profile_cache_ttl
+        self._profile_cache: Dict[str, Tuple[float, Dict[str, Any]]] = {}
+        self.cache_hits = 0
 
     def _headers(self) -> Dict[str, str]:
         headers = {"Accept": "application/json"}
@@ -111,13 +119,20 @@ class HttpHatsAdapter(HatsAdapter):
         return headers
 
     def get_profile(self, hats_id: str) -> Dict[str, Any]:
+        now = time.time()
+        cached = self._profile_cache.get(hats_id)
+        if cached and now - cached[0] < self.profile_cache_ttl:
+            self.cache_hits += 1
+            return cached[1]
         resp = requests.get(
             f"{self.base_url}/profiles/{hats_id}",
             headers=self._headers(),
             timeout=self.timeout,
         )
         resp.raise_for_status()
-        return cast(Dict[str, Any], resp.json())
+        data = cast(Dict[str, Any], resp.json())
+        self._profile_cache[hats_id] = (now, data)
+        return data
 
     def has_required(
         self, hats_ids: List[str], permit_types: List[str]
