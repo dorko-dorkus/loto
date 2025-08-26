@@ -53,6 +53,9 @@ class ImpactEngine:
         asset_units: Dict[str, str],
         unit_data: Dict[str, Dict[str, Any]],
         unit_areas: Dict[str, str],
+        asset_mw: Dict[str, float] | None = None,
+        asset_groups: Dict[str, str] | None = None,
+        group_caps: Dict[str, float] | None = None,
         penalties: Dict[str, float] | None = None,
         asset_areas: Dict[str, str] | None = None,
     ) -> ImpactResult:
@@ -76,6 +79,12 @@ class ImpactEngine:
 
         unit_areas:
             Mapping from unit name to area name.
+        asset_mw:
+            Optional mapping from asset identifier to its capacity in MW.
+        asset_groups:
+            Optional mapping from asset identifier to its bus or feeder name.
+        group_caps:
+            Optional mapping of maximum deliverable MW per bus or feeder.
         penalties:
             Optional mapping of asset identifier to additional MW derates
             that apply when the asset is unavailable.
@@ -93,6 +102,9 @@ class ImpactEngine:
 
         penalties = penalties or {}
         asset_areas = asset_areas or {}
+        asset_mw = asset_mw or {}
+        asset_groups = asset_groups or {}
+        group_caps = group_caps or {}
 
         # ------------------------------------------------------------------
         # Determine which asset nodes are no longer reachable from any
@@ -133,15 +145,26 @@ class ImpactEngine:
         for unit, info in unit_data.items():
             rated = float(info.get("rated", 0.0))
             scheme = str(info.get("scheme", "SPOF")).upper()
-            nplus = int(info.get("nplus", 1))
-            offline_assets = len(unit_unavail.get(unit, set()))
+            offline_assets = unit_unavail.get(unit, set())
             delta = 0.0
 
             if scheme == "SPOF":
-                if offline_assets > 0:
+                if offline_assets:
                     delta = rated
             elif scheme == "N+1":
-                delta = min(rated, offline_assets * rated / max(nplus, 1))
+                group_totals: Dict[str, float] = {}
+                for asset in offline_assets:
+                    group = asset_groups.get(asset, asset)
+                    group_totals[group] = group_totals.get(group, 0.0) + asset_mw.get(
+                        asset, 0.0
+                    )
+
+                loss = 0.0
+                for group, total in group_totals.items():
+                    cap = group_caps.get(group, float("inf"))
+                    loss += min(total, cap)
+
+                delta = min(rated, loss)
 
             # Apply asset-specific penalties for this unit
             for asset in unit_unavail.get(unit, set()):

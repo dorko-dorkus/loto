@@ -23,6 +23,12 @@ class ImpactConfig:
         Mapping of asset identifier to MW penalty applied when unavailable.
     asset_areas:
         Mapping of penalty asset to area.
+    asset_mw:
+        Mapping of asset identifier to its MW capacity.
+    asset_groups:
+        Mapping of asset identifier to its bus/feeder group.
+    group_caps:
+        Maximum deliverable MW for each bus/feeder group.
     unknown_units:
         Set of unit names with missing or inconsistent data.
     unknown_penalties:
@@ -34,6 +40,9 @@ class ImpactConfig:
     unit_areas: Dict[str, str]
     penalties: Dict[str, float]
     asset_areas: Dict[str, str]
+    asset_mw: Dict[str, float]
+    asset_groups: Dict[str, str]
+    group_caps: Dict[str, float]
     unknown_units: Set[str]
     unknown_penalties: Set[str]
 
@@ -55,6 +64,12 @@ def load_impact_config(
                 rated: <MW>
                 area: <area_name>
                 assets: [<asset_id>, ...]
+            asset_mw:
+              <asset_id>: <MW>
+            asset_groups:
+              <asset_id>: <group_name>
+            group_caps:
+              <group_name>: <MW>
             penalties:
               <asset_id>:
                 mw: <MW>
@@ -81,12 +96,18 @@ def load_impact_config(
 
     units_info = um_data.get("units", {})
     penalties_info = um_data.get("penalties", {})
+    asset_mw_info = um_data.get("asset_mw", {})
+    asset_groups_info = um_data.get("asset_groups", {})
+    group_caps_info = um_data.get("group_caps", {})
 
     asset_units: Dict[str, str] = {}
     unit_data: Dict[str, Dict[str, Any]] = {}
     unit_areas: Dict[str, str] = {}
     penalties: Dict[str, float] = {}
     asset_areas: Dict[str, str] = {}
+    asset_mw: Dict[str, float] = {}
+    asset_groups: Dict[str, str] = {}
+    group_caps: Dict[str, float] = {}
     unknown_units: Set[str] = set()
     unknown_penalties: Set[str] = set()
 
@@ -116,6 +137,16 @@ def load_impact_config(
             continue
         penalties[asset] = float(mw)
         asset_areas[asset] = str(area)
+
+    # Asset MW and grouping information
+    for asset, mw in asset_mw_info.items():
+        asset_mw[str(asset)] = float(mw)
+
+    for asset, grp in asset_groups_info.items():
+        asset_groups[str(asset)] = str(grp)
+
+    for grp, cap in group_caps_info.items():
+        group_caps[str(grp)] = float(cap)
 
     # ------------------------------------------------------------------
     # Redundancy / derate scheme
@@ -151,6 +182,9 @@ def load_impact_config(
         unit_areas=unit_areas,
         penalties=penalties,
         asset_areas=asset_areas,
+        asset_mw=asset_mw,
+        asset_groups=asset_groups,
+        group_caps=group_caps,
         unknown_units=unknown_units,
         unknown_penalties=unknown_penalties,
     )
