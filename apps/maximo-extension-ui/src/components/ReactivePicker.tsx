@@ -7,7 +7,7 @@ import { fetchHats } from '../mocks/hats';
 import type { HatCandidate } from '../types/api';
 
 async function fetchCandidatesApi(): Promise<HatCandidate[]> {
-  const res = await apiFetch('/triage');
+  const res = await apiFetch('/triage/snapshot');
   if (!res.ok) throw new Error('Failed to fetch triage scores');
   return (await res.json()) as HatCandidate[];
 }

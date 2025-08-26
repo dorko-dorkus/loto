@@ -10,7 +10,7 @@ export interface TriageLane {
 }
 
 /**
- * Render a simple timeline for hats with rank badges and accessible tooltips.
+ * Render a simple triage timeline with rank badges and accessible tooltips.
  */
 export default function TriageTimeline({ lanes }: { lanes: TriageLane[] }) {
   return (
