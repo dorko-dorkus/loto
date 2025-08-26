@@ -19,6 +19,7 @@ from typing import Dict, List
 
 import networkx as nx
 
+from .graph_builder import NON_RETURN_DEVICE_KINDS
 from .models import IsolationPlan, RulePack, SimReport, SimResultItem, Stimulus
 
 logger = logging.getLogger(__name__)
@@ -200,20 +201,33 @@ class SimEngine:
             "PUMP_START": _handle_pump_start,
         }
 
-        def k_shortest_paths(g: nx.MultiDiGraph, k: int) -> List[List[str]]:
-            """Return up to ``k`` open paths from any source to an asset.
+        def build_traversable(g: nx.MultiDiGraph, *, leak: bool) -> nx.DiGraph:
+            """Return graph of edges that can be traversed.
 
-            A path is considered "open" if all of its edges are not in the
-            ``closed`` state. Paths are returned in order of increasing length.
+            Parameters
+            ----------
+            g:
+                Original graph with ``state`` and ``kind`` annotations.
+            leak:
+                When ``True``, add a tiny reverse edge for non-return devices to
+                model leakage that allows bleeds to depressurise. Leak edges are
+                not added when searching for source→target paths.
             """
 
-            # Build graph of traversable edges (state != 'closed')
             open_graph = nx.DiGraph()
             open_graph.add_nodes_from(g.nodes())
             for u, v, data in g.edges(data=True):
-                if data.get("state") != "closed":
-                    open_graph.add_edge(u, v)
+                if data.get("state") == "closed":
+                    continue
+                open_graph.add_edge(u, v)
+                if leak and data.get("kind") in NON_RETURN_DEVICE_KINDS:
+                    open_graph.add_edge(v, u)
+            return open_graph
 
+        def k_shortest_paths(g: nx.MultiDiGraph, k: int) -> List[List[str]]:
+            """Return up to ``k`` open paths from any source to an asset."""
+
+            open_graph = build_traversable(g, leak=False)
             sources = [n for n, d in g.nodes(data=True) if d.get("is_source")]
             targets = [n for n, d in g.nodes(data=True) if d.get("tag") == "asset"]
 
@@ -236,6 +250,34 @@ class SimEngine:
             paths.sort(key=lambda p: (len(p), rng.random()))
             return paths[:k]
 
+        def trapped_without_sink(g: nx.MultiDiGraph) -> List[str]:
+            """Return nodes that cannot bleed to a safe sink.
+
+            Nodes reachable from any source are ignored. For the remaining
+            components, a path to a ``safe_sink`` must exist without crossing a
+            closed device. Non-return devices permit a tiny reverse leakage to
+            model gradual depressurisation.
+            """
+
+            forward = build_traversable(g, leak=False)
+            leak_graph = build_traversable(g, leak=True)
+            sources = [n for n, d in g.nodes(data=True) if d.get("is_source")]
+            sinks = [n for n, d in g.nodes(data=True) if d.get("safe_sink")]
+
+            reachable: set[str] = set()
+            for s in sources:
+                reachable.update(nx.descendants(forward, s) | {s})
+
+            trapped: List[str] = []
+            for n, data in g.nodes(data=True):
+                if data.get("is_source") or data.get("safe_sink"):
+                    continue
+                if n in reachable:
+                    continue
+                if not any(nx.has_path(leak_graph, n, sink) for sink in sinks):
+                    trapped.append(n)
+            return trapped
+
         total_time = 0.0
         for stim in stimuli:
             handler = dispatch.get(stim.name)
@@ -246,16 +288,23 @@ class SimEngine:
 
             offending_domain: str | None = None
             offending_paths: List[List[str]] = []
+            hint: str | None = None
             for domain, graph in applied_graphs.items():
                 paths = k_shortest_paths(graph, k=5)
                 if paths:
                     offending_domain = domain
                     offending_paths = paths
+                    hint = "extra isolation required"
+                    break
+                trapped = trapped_without_sink(graph)
+                if trapped:
+                    offending_domain = domain
+                    offending_paths = [[n] for n in trapped[:5]]
+                    hint = "add bleed to trapped section"
                     break
 
             success = not offending_paths
             impact = 0.0 if success else 1.0
-            hint = None if success else "extra isolation required"
             results.append(
                 SimResultItem(
                     stimulus=stim,
@@ -263,7 +312,7 @@ class SimEngine:
                     impact=impact,
                     domain=offending_domain,
                     paths=offending_paths,
-                    hint=hint,
+                    hint=None if success else hint,
                 )
             )
             total_time += getattr(stim, "duration_s", 0.0)
