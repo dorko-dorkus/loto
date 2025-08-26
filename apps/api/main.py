@@ -6,7 +6,7 @@ import sqlite3
 import time
 import tomllib
 from dataclasses import asdict, dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -50,7 +50,7 @@ from loto.errors import GenerationError
 from loto.errors import ImportError as LotoImportError
 from loto.errors import LotoError, ValidationError
 from loto.impact_config import load_impact_config
-from loto.integrations import get_permit_adapter
+from loto.integrations import get_hats_adapter, get_permit_adapter
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
     CANONICAL_UNITS,
@@ -590,6 +590,27 @@ async def healthz(request: Request) -> dict[str, Any]:
             revision = None
         return {"revision": revision, "head": head}
 
+    def _hats_status() -> dict[str, Any]:
+        base_url = os.getenv("HATS_BASE_URL")
+        mode = "HTTP" if base_url else "DEMO"
+        ok = True
+        if base_url:
+            try:
+                requests.head(base_url, timeout=5)
+            except requests.RequestException:
+                ok = False
+        adapter = get_hats_adapter()
+        last_cache_refresh = None
+        cache = getattr(adapter, "_profile_cache", {})
+        if cache:
+            last_ts = max(ts for ts, _ in cache.values())
+            last_cache_refresh = datetime.fromtimestamp(last_ts).isoformat()
+        return {
+            "mode": mode,
+            "last_cache_refresh": last_cache_refresh,
+            "ok": ok,
+        }
+
     report = demo_data.validate()
     missing_assets = len(report["missing_assets"])
     missing_locations = len(report["missing_locations"])
@@ -626,6 +647,7 @@ async def healthz(request: Request) -> dict[str, Any]:
             "coupa": _ping_service("COUPA_BASE_URL", "COUPA_MODE"),
             "permit": _ping_service("ELLIPSE_BASE_URL", "ELLIPSE_MODE"),
         },
+        "hats": _hats_status(),
         "db": _db_status(),
         "integrity": {
             "missing_assets": missing_assets,

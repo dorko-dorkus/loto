@@ -21,6 +21,8 @@ def test_healthz_reports_components(monkeypatch: MonkeyPatch) -> None:
     assert data["adapters"]["maximo"]["status"] == "mock"
     assert data["adapters"]["coupa"]["status"] == "mock"
     assert data["adapters"]["permit"]["status"] == "mock"
+    assert data["hats"]["mode"] == "DEMO"
+    assert data["hats"]["ok"]
     assert data["db"]["head"] == "0002"
     assert data["integrity"]["missing_assets"] == 0
     assert data["integrity"]["missing_locations"] == 0
