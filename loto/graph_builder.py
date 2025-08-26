@@ -10,11 +10,17 @@ Each graph is a directed multigraph where nodes represent equipment
 tags, ports, actuators, and other components, and edges represent
 connections (pipes, tubes, lines). Graph validation logic ensures
 consistency of the input data (e.g., no dangling references or
-impossible mediums). Only method signatures are provided.
+impossible mediums).
+
+Set the environment variable ``LOTO_STRICT_VALIDATION`` to any truthy
+value to enable strict validation. When enabled,
+``GraphBuilder.validate`` raises ``ValueError`` for edges referencing
+unknown nodes instead of returning an :class:`Issue`.
 """
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Dict, List, Optional
@@ -24,6 +30,8 @@ import pandas as pd
 from pydantic import ValidationError
 
 from .graph_models import DrainRow, LineRow, SourceRow, ValveRow
+
+STRICT_VALIDATION = bool(os.getenv("LOTO_STRICT_VALIDATION"))
 
 NON_RETURN_DEVICE_KINDS: set[str] = {
     "check valve",
@@ -242,9 +250,10 @@ class GraphBuilder:
                         Issue(f"Edge {u}->{v} in domain {domain} missing line tag")
                     )
                 if _is_missing(u) or _is_missing(v):
-                    issues.append(
-                        Issue(f"Edge with unknown node in domain {domain}: {u}->{v}")
-                    )
+                    msg = f"Edge with unknown node in domain {domain}: {u}->{v}"
+                    if STRICT_VALIDATION:
+                        raise ValueError(msg)
+                    issues.append(Issue(msg))
             for node in graph.nodes():
                 if graph.degree(node) == 0:
                     issues.append(Issue(f"Dangling node {node} in domain {domain}"))
