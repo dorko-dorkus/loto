@@ -174,8 +174,12 @@ class SimEngine:
             "PUMP_START": _handle_pump_start,
         }
 
-        def shortest_path(g: nx.MultiDiGraph) -> List[str] | None:
-            """Return shortest open path from any source to an asset."""
+        def k_shortest_paths(g: nx.MultiDiGraph, k: int) -> List[List[str]]:
+            """Return up to ``k`` open paths from any source to an asset.
+
+            A path is considered "open" if all of its edges are not in the
+            ``closed`` state. Paths are returned in order of increasing length.
+            """
 
             # Build graph of traversable edges (state != 'closed')
             open_graph = nx.DiGraph()
@@ -187,18 +191,24 @@ class SimEngine:
             sources = [n for n, d in g.nodes(data=True) if d.get("is_source")]
             targets = [n for n, d in g.nodes(data=True) if d.get("tag") == "asset"]
 
-            best: List[str] | None = None
+            paths: List[List[str]] = []
             for s in sources:
                 for t in targets:
                     try:
-                        path = nx.shortest_path(open_graph, s, t)
+                        gen = nx.shortest_simple_paths(open_graph, s, t)
+                        for path in gen:
+                            paths.append(list(path))
+                            if len(paths) >= k:
+                                break
                     except nx.NetworkXNoPath:
                         continue
+                    if len(paths) >= k:
+                        break
+                if len(paths) >= k:
+                    break
 
-                    if best is None or len(path) < len(best):
-                        best = path
-
-            return best
+            paths.sort(key=len)
+            return paths[:k]
 
         total_time = 0.0
         for stim in stimuli:
@@ -209,15 +219,15 @@ class SimEngine:
             handler()
 
             offending_domain: str | None = None
-            offending_path: List[str] | None = None
+            offending_paths: List[List[str]] = []
             for domain, graph in applied_graphs.items():
-                path = shortest_path(graph)
-                if path is not None:
+                paths = k_shortest_paths(graph, k=5)
+                if paths:
                     offending_domain = domain
-                    offending_path = path
+                    offending_paths = paths
                     break
 
-            success = offending_path is None
+            success = not offending_paths
             impact = 0.0 if success else 1.0
             hint = None if success else "extra isolation required"
             results.append(
@@ -226,7 +236,7 @@ class SimEngine:
                     success=success,
                     impact=impact,
                     domain=offending_domain,
-                    path=offending_path,
+                    paths=offending_paths,
                     hint=hint,
                 )
             )
