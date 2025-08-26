@@ -75,6 +75,7 @@ from .audit import add_record
 from .demo_data import demo_data
 from .hats_endpoints import router as hats_router  # provides hats KPI endpoints
 from .pid_endpoints import router as pid_router
+from .policy_endpoints import router as policy_router
 from .schemas import (
     BlueprintRequest,
     BlueprintResponse,
@@ -190,6 +191,7 @@ app.add_middleware(
 app.include_router(pid_router)
 app.include_router(hats_router)
 app.include_router(workorder_router)
+app.include_router(policy_router)
 
 if os.getenv("TRACE_ENABLED", "").lower() == "true":
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
