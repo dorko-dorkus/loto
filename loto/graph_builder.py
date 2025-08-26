@@ -21,6 +21,9 @@ from typing import IO, Dict, List, Optional
 
 import networkx as nx
 import pandas as pd
+from pydantic import ValidationError
+
+from .graph_models import DrainRow, LineRow, SourceRow, ValveRow
 
 NON_RETURN_DEVICE_KINDS: set[str] = {
     "check valve",
@@ -116,34 +119,48 @@ class GraphBuilder:
             pd.read_csv(sources_path) if sources_path is not None else pd.DataFrame()
         )
 
-        for _, row in line_df.iterrows():
-            domain = row["domain"]
+        errors: List[str] = []
+
+        for idx, row in line_df.iterrows():
+            try:
+                line_row = LineRow.parse_obj(row.to_dict())
+            except ValidationError as e:
+                errors.append(f"line_list row {idx}: {e}")
+                continue
+            domain = line_row.domain.value
             g = graphs.setdefault(domain, nx.MultiDiGraph())
-            _ensure_node(g, row["from_tag"])
-            _ensure_node(g, row["to_tag"])
-            cost = row.get("isolation_cost", 1.0)
-            if pd.isna(cost):
-                cost = 1.0
+            _ensure_node(g, line_row.from_tag)
+            _ensure_node(g, line_row.to_tag)
+            cost = (
+                line_row.isolation_cost if line_row.isolation_cost is not None else 1.0
+            )
             g.add_edge(
-                row["from_tag"],
-                row["to_tag"],
-                line_tag=row.get("line_tag"),
+                line_row.from_tag,
+                line_row.to_tag,
+                line_tag=line_row.line_tag,
                 isolation_cost=float(cost),
             )
 
-        for _, row in valve_df.iterrows():
-            domain = row["domain"]
+        for idx, row in valve_df.iterrows():
+            try:
+                valve_row = ValveRow.parse_obj(row.to_dict())
+            except ValidationError as e:
+                errors.append(f"valves row {idx}: {e}")
+                continue
+            domain = valve_row.domain.value
             g = graphs.setdefault(domain, nx.MultiDiGraph())
-            tag = row["tag"]
+            tag = valve_row.tag
             _ensure_node(g, tag)
-            cost = row.get("isolation_cost", 1.0)
-            if pd.isna(cost):
-                cost = 1.0
+            cost = (
+                valve_row.isolation_cost
+                if valve_row.isolation_cost is not None
+                else 1.0
+            )
             g.nodes[tag].update(
                 {
                     "is_isolation_point": True,
-                    "fail_state": row.get("fail_state"),
-                    "kind": row.get("kind"),
+                    "fail_state": valve_row.fail_state,
+                    "kind": valve_row.kind,
                 }
             )
             for u, v, data in list(g.in_edges(tag, data=True)):
@@ -153,21 +170,34 @@ class GraphBuilder:
                 data["is_isolation_point"] = True
                 data["isolation_cost"] = float(cost)
 
-        for _, row in drain_df.iterrows():
-            domain = row["domain"]
+        for idx, row in drain_df.iterrows():
+            try:
+                drain_row = DrainRow.parse_obj(row.to_dict())
+            except ValidationError as e:
+                errors.append(f"drains row {idx}: {e}")
+                continue
+            domain = drain_row.domain.value
             g = graphs.setdefault(domain, nx.MultiDiGraph())
-            tag = row["tag"]
+            tag = drain_row.tag
             _ensure_node(g, tag)
-            if "kind" in row:
-                g.nodes[tag]["kind"] = row["kind"]
+            if drain_row.kind is not None:
+                g.nodes[tag]["kind"] = drain_row.kind
 
         if not source_df.empty:
-            for _, row in source_df.iterrows():
-                domain = row["domain"]
+            for idx, row in source_df.iterrows():
+                try:
+                    source_row = SourceRow.parse_obj(row.to_dict())
+                except ValidationError as e:
+                    errors.append(f"sources row {idx}: {e}")
+                    continue
+                domain = source_row.domain.value
                 g = graphs.setdefault(domain, nx.MultiDiGraph())
-                tag = row["tag"]
+                tag = source_row.tag
                 _ensure_node(g, tag)
-                g.nodes[tag].update({"is_source": True, "kind": row.get("kind")})
+                g.nodes[tag].update({"is_source": True, "kind": source_row.kind})
+
+        if errors:
+            raise ValueError("\n".join(errors))
 
         return graphs
 

@@ -1,12 +1,15 @@
 import io
 
 import pandas as pd
+import pytest
 
 from loto.models import RulePack
 from loto.service.blueprints import plan_and_evaluate
 
 
-def test_plan_and_evaluate_deterministic(monkeypatch):
+def test_plan_and_evaluate_deterministic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setattr(
         "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
     )
@@ -38,17 +41,17 @@ def test_plan_and_evaluate_deterministic(monkeypatch):
         io.StringIO(valve_df.to_csv(index=False)),
         io.StringIO(drain_df.to_csv(index=False)),
         io.StringIO(source_df.to_csv(index=False)),
-        asset_tag="asset",
-        rule_pack=RulePack(),
+        asset_tag="ASSET",
+        rule_pack=RulePack(risk_policies=None),
         stimuli=[],
-        asset_units={"asset": "U1"},
-        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},
+        asset_units={"ASSET": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
         unit_areas={"U1": "Area1"},
     )
 
-    assert [a.component_id for a in plan.actions] == ["steam:V->asset"]
+    assert [a.component_id for a in plan.actions] == ["steam:V->ASSET"]
     assert report.results == []
-    assert impact.unavailable_assets == {"asset"}
+    assert impact.unavailable_assets == {"ASSET"}
     assert impact.unit_mw_delta == {"U1": 5.0}
     assert impact.area_mw_delta == {"Area1": 5.0}
     assert prov.seed is None
