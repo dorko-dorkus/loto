@@ -46,7 +46,7 @@ test('renders virtualized gantt and updates conflicts', async () => {
       if (typeof input === 'string' && input === apiBase + '/schedule') {
         return Promise.resolve({ ok: true, json: async () => sample } as Response);
       }
-      if (typeof input === 'string' && input === apiBase + '/hats') {
+      if (typeof input === 'string' && input === apiBase + '/triage') {
         return Promise.resolve({ ok: true, json: async () => [] } as Response);
       }
       return Promise.resolve({ ok: true, json: async () => ({}) } as Response);

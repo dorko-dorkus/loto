@@ -73,7 +73,6 @@ from loto.service.blueprints import inventory_state
 
 from .audit import add_record
 from .demo_data import demo_data
-from .hats_endpoints import router as hats_router  # provides hats KPI endpoints
 from .pid_endpoints import router as pid_router
 from .policy_endpoints import router as policy_router
 from .schemas import (
@@ -87,6 +86,7 @@ from .schemas import (
     ScheduleResponse,
     Step,
 )
+from .triage_endpoints import router as triage_router  # provides triage KPI endpoints
 from .workorder_endpoints import router as workorder_router
 
 # mypy: ignore-errors
@@ -189,7 +189,7 @@ app.add_middleware(
 )
 
 app.include_router(pid_router)
-app.include_router(hats_router)
+app.include_router(triage_router)
 app.include_router(workorder_router)
 app.include_router(policy_router)
 
