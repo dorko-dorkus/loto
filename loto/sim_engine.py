@@ -13,15 +13,31 @@ and must not control real hardware.
 
 from __future__ import annotations
 
+import logging
+import random
 from typing import Dict, List
 
 import networkx as nx
 
 from .models import IsolationPlan, RulePack, SimReport, SimResultItem, Stimulus
 
+logger = logging.getLogger(__name__)
+
 
 class SimEngine:
     """Apply isolation plans and run stimulus tests."""
+
+    def __init__(self, seed: int | None = None) -> None:
+        """Create a new simulation engine.
+
+        Parameters
+        ----------
+        seed: int | None
+            Optional random seed used for deterministic behaviour when
+            running stimuli.
+        """
+
+        self.seed = seed
 
     def apply(
         self, plan: IsolationPlan, graphs: Dict[str, nx.MultiDiGraph]
@@ -104,6 +120,7 @@ class SimEngine:
         applied_graphs: Dict[str, nx.MultiDiGraph],
         stimuli: List[Stimulus],
         rule_pack: "RulePack" | None = None,
+        seed: int | None = None,
     ) -> SimReport:
         """Run stimuli on the isolated graphs and check invariants.
 
@@ -116,11 +133,16 @@ class SimEngine:
         rule_pack: RulePack | None
             Optional rule pack for domain-specific behaviour; may not be
             necessary for simple reachability checks.
+        seed: int | None
+            Optional random seed used for tie-breaking when enumerating
+            paths.  When omitted, the engine's seed from the constructor is
+            used.
 
         Returns
         -------
         SimReport
-            The simulation report containing results for each processed stimulus.
+            The simulation report containing results for each processed
+            stimulus and the seed used for reproducibility.
 
         Notes
         -----
@@ -128,6 +150,10 @@ class SimEngine:
         should add reachability checks and, optionally, simple cause &
         effect evaluation.
         """
+        rng_seed = seed if seed is not None else self.seed
+        rng = random.Random(rng_seed)
+        logger.info("run_stimuli_seed", extra={"seed": rng_seed})
+
         results: List[SimResultItem] = []
 
         def _open_by_control(control: str) -> None:
@@ -207,7 +233,7 @@ class SimEngine:
                 if len(paths) >= k:
                     break
 
-            paths.sort(key=len)
+            paths.sort(key=lambda p: (len(p), rng.random()))
             return paths[:k]
 
         total_time = 0.0
@@ -242,4 +268,4 @@ class SimEngine:
             )
             total_time += getattr(stim, "duration_s", 0.0)
 
-        return SimReport(results=results, total_time_s=total_time)
+        return SimReport(results=results, total_time_s=total_time, seed=rng_seed)

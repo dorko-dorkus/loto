@@ -163,7 +163,7 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     # Run simulation if not skipped.  If the simulation engine is not
     # implemented, keep an empty report.
-    sim_report: SimReport = SimReport(results=[], total_time_s=0.0)
+    sim_report: SimReport = SimReport(results=[], total_time_s=0.0, seed=None)
     if not args.no_sim:
         try:
             applied_graphs = sim.apply(plan, graphs)
