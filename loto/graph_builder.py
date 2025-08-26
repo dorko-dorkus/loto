@@ -22,6 +22,14 @@ from typing import IO, Dict, List, Optional
 import networkx as nx
 import pandas as pd
 
+NON_RETURN_DEVICE_KINDS: set[str] = {
+    "check valve",
+    "check-valve",
+    "check_valve",
+    "nrv",
+    "non-return valve",
+}
+
 
 @dataclass
 class Issue:
@@ -211,11 +219,46 @@ class GraphBuilder:
                 if graph.degree(node) == 0:
                     issues.append(Issue(f"Dangling node {node} in domain {domain}"))
             try:
-                if not nx.is_directed_acyclic_graph(graph):
-                    issues.append(
-                        Issue(f"Cycle detected in domain {domain}", severity="warning")
-                    )
+                cycles = list(nx.simple_cycles(graph))
             except Exception:
-                pass
+                cycles = []
+            for cycle in cycles:
+                edge_pairs = list(zip(cycle, cycle[1:] + [cycle[0]]))
+                all_nr_nodes = all(
+                    isinstance(graph.nodes[n].get("kind"), str)
+                    and graph.nodes[n]["kind"].lower() in NON_RETURN_DEVICE_KINDS
+                    for n in cycle
+                )
+                all_nr_edges = True
+                for u, v in edge_pairs:
+                    data_dict = graph.get_edge_data(u, v, default={})
+                    if not data_dict:
+                        all_nr_edges = False
+                        break
+                    for data in data_dict.values():
+                        kind = data.get("kind")
+                        if (
+                            not isinstance(kind, str)
+                            or kind.lower() not in NON_RETURN_DEVICE_KINDS
+                        ):
+                            all_nr_edges = False
+                            break
+                    if not all_nr_edges:
+                        break
+                cycle_str = " -> ".join(map(str, cycle + [cycle[0]]))
+                if all_nr_nodes and all_nr_edges:
+                    issues.append(
+                        Issue(
+                            f"Cycle detected in domain {domain}: {cycle_str}",
+                            severity="warning",
+                        )
+                    )
+                else:
+                    issues.append(
+                        Issue(
+                            f"Cycle detected in domain {domain}: {cycle_str}",
+                            severity="info",
+                        )
+                    )
 
         return issues
