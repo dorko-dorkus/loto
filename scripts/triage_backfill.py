@@ -1,7 +1,7 @@
-"""Seed hats ranking with synthetic KPI events.
+"""Seed triage ranking with synthetic KPI events.
 
 This script fabricates KPI metrics for a set of historical demo work orders
-and writes them to the hats ledger. After backfilling the ledger it logs a
+and writes them to the triage ledger. After backfilling the ledger it logs a
 ranking snapshot so that ranks and sample counts can be inspected manually.
 """
 
@@ -40,7 +40,7 @@ _HISTORICAL_WOS: list[tuple[str, str, list[float]]] = [
 def main() -> None:
     """Backfill ledger and print ranking snapshot."""
 
-    ledger_path = Path(os.getenv("HATS_LEDGER_PATH", "hats_ledger.jsonl"))
+    ledger_path = Path(os.getenv("TRIAGE_LEDGER_PATH", "triage_ledger.jsonl"))
 
     # Start with a fresh ledger so backfill is idempotent.
     if ledger_path.exists():

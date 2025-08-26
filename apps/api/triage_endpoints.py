@@ -17,11 +17,11 @@ router = APIRouter(prefix="/triage", tags=["triage", "LOTO"])
 
 
 def _ledger_path() -> Path:
-    return Path(os.getenv("HATS_LEDGER_PATH", "hats_ledger.jsonl"))
+    return Path(os.getenv("TRIAGE_LEDGER_PATH", "triage_ledger.jsonl"))
 
 
 def _snapshot_path() -> Path:
-    return Path(os.getenv("HATS_SNAPSHOT_PATH", "hats_snapshot.json"))
+    return Path(os.getenv("TRIAGE_SNAPSHOT_PATH", "triage_snapshot.json"))
 
 
 def _read_ledger() -> Tuple[Dict[str, List[List[float]]], Dict[str, Dict[str, Any]]]:

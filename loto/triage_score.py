@@ -5,7 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Mapping, Sequence
 
-_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "hats.json"
+_CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "triage.json"
 
 
 @lru_cache()
