@@ -54,6 +54,12 @@ class LineRow(BaseModel):
     line_tag: Optional[str] = None
     isolation_cost: Optional[float] = None
     medium: Optional[str] = None
+    op_cost_min: Optional[float] = None
+    reset_time_min: Optional[float] = None
+    risk_weight: Optional[float] = None
+    travel_time_min: Optional[float] = None
+    elevation_penalty: Optional[float] = None
+    outage_penalty: Optional[float] = None
 
     _normalise_domain = validator("domain", pre=True, allow_reuse=True)(
         _normalise_domain
@@ -74,6 +80,12 @@ class ValveRow(BaseModel):
     kind: Optional[str] = None
     isolation_cost: Optional[float] = None
     medium: Optional[str] = None
+    op_cost_min: Optional[float] = None
+    reset_time_min: Optional[float] = None
+    risk_weight: Optional[float] = None
+    travel_time_min: Optional[float] = None
+    elevation_penalty: Optional[float] = None
+    outage_penalty: Optional[float] = None
 
     _normalise_domain = validator("domain", pre=True, allow_reuse=True)(
         _normalise_domain
