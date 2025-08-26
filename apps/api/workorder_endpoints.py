@@ -4,15 +4,19 @@ import os
 from dataclasses import dataclass
 from typing import Any
 
+import structlog
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
+from loto.constants import HATS_FAILCLOSE_CRITICAL, HATS_WARN_ONLY_MECH
 from loto.integrations import get_hats_adapter, get_permit_adapter
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import Reservation, StockItem, check_wo_parts_required
 from loto.permits import StatusValidationError, validate_status_change
 
 from .demo_data import demo_data
+
+logger = structlog.get_logger()
 
 
 class WorkOrderSummary(BaseModel):
@@ -188,10 +192,15 @@ async def update_workorder_status(
         receivers = data.get("permitReceiversHats", [])
         ok, missing = get_hats_adapter().has_required(receivers, permit_types)
         if not ok:
-            raise HTTPException(
-                status_code=400,
-                detail={"reason": "HATS_CHECK_FAILED", "missing": missing},
-            )
+            critical = any(pt in {"Electrical", "ConfinedSpace"} for pt in permit_types)
+            if (critical and HATS_FAILCLOSE_CRITICAL) or (
+                not critical and not HATS_WARN_ONLY_MECH
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail={"reason": "HATS_CHECK_FAILED", "missing": missing},
+                )
+            logger.warning("HATS_CHECK_FAILED", missing=missing)
         if os.getenv("REQUIRE_EXTERNAL_PERMIT", "0") in (
             "1",
             "true",
