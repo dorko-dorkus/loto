@@ -113,7 +113,11 @@ class ImpactEngine:
                 for node in nx.descendants(open_graph, s) | {s}:
                     reachable.add(node)
 
-            assets = {n for n, d in g.nodes(data=True) if d.get("tag") == "asset"}
+            assets = {
+                n
+                for n, d in g.nodes(data=True)
+                if isinstance(d.get("tag"), str) and d.get("tag").upper() == "ASSET"
+            }
             unavailable.update(assets - reachable)
 
         # ------------------------------------------------------------------
