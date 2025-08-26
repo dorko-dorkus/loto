@@ -13,6 +13,7 @@ def test_plan_and_evaluate_deterministic(
     monkeypatch.setattr(
         "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
     )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},

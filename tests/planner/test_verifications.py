@@ -1,4 +1,5 @@
 import networkx as nx
+import pytest
 
 from loto.isolation_planner import IsolationPlanner, VerificationGate
 from loto.models import RulePack
@@ -34,7 +35,8 @@ def ddbb_with_bypass_graph() -> nx.MultiDiGraph:
     return g
 
 
-def test_basic_verifications() -> None:
+def test_basic_verifications(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
     planner = IsolationPlanner()
     plan = planner.compute(
         {"p": simple_graph()}, asset_tag="asset", rule_pack=RulePack(risk_policies=None)
@@ -44,7 +46,8 @@ def test_basic_verifications() -> None:
     assert any("no-movement" in v for v in plan.verifications)
 
 
-def test_ddbb_valid() -> None:
+def test_ddbb_valid(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
     planner = IsolationPlanner()
     plan = planner.compute(
         {"p": ddbb_graph()}, asset_tag="asset", rule_pack=RulePack(risk_policies=None)
@@ -54,7 +57,8 @@ def test_ddbb_valid() -> None:
     assert any("DDBB" in v for v in plan.verifications)
 
 
-def test_ddbb_bypass_not_flagged() -> None:
+def test_ddbb_bypass_not_flagged(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
     planner = IsolationPlanner()
     plan = planner.compute(
         {"p": ddbb_with_bypass_graph()},
