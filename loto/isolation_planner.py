@@ -15,9 +15,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Mapping, Set, Tuple
 
 import networkx as nx
+
+from loto.integrations import get_hats_adapter
 
 from .models import IsolationAction, IsolationPlan, RulePack
 
@@ -140,7 +143,16 @@ class IsolationPlanner:
 
         plan: Dict[str, List[Tuple[str, str]]] = {}
 
-        cbt = float((config or {}).get("callback_time_min", 0))
+        cfg = dict(config or {})
+        primary_craft = cfg.get("primary_craft") or ""
+        site = cfg.get("site") or ""
+        window_start = cfg.get("window_start") or datetime.utcnow()
+        cbt = (
+            get_hats_adapter().cbt_minutes(primary_craft, site, window_start)
+            or cfg.get("callback_time_min")
+            or 0
+        )
+        cbt = float(cbt)
 
         node_split = os.getenv("PLANNER_NODE_SPLIT", "1") not in ("0", "")
         work_graphs: Dict[str, nx.MultiDiGraph] = {}
