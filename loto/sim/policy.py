@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Literal
 
 from loto.impact import unit_derate_curve
-from loto.integrations import get_permit_adapter
+from loto.integrations import get_hats_adapter, get_permit_adapter
 from loto.permits import permit_ready
 
 
@@ -51,6 +52,9 @@ def compare_policies(
     derate_mw: float,
     downtime_hours: float,
     cbt_penalty: float,
+    craft: str = "",
+    site: str = "",
+    t_fail: datetime | None = None,
     permit_id: str | None = None,
     permit_verified: bool = False,
     workorder_id: str | None = None,
@@ -72,11 +76,30 @@ def compare_policies(
         except Exception:
             callback_min = 0.0
 
-    rtf_hours = downtime_hours + permit_delay + callback_min / 60.0
+    reactive_latency = 0.0
+    if craft and site and t_fail is not None:
+        try:
+            reactive_latency = float(
+                get_hats_adapter().cbt_minutes(craft, site, t_fail)
+            )
+        except Exception:  # pragma: no cover - network errors
+            reactive_latency = 0.0
+
+    rtf_hours = (
+        downtime_hours + permit_delay + callback_min / 60.0 + reactive_latency / 60.0
+    )
     rtf_downtime = _downtime_cost(derate_mw, rtf_hours, price_per_mwh)
     rtf = reactive_cost + secondary_damage + rtf_downtime + cbt_penalty
 
-    planned_hours = downtime_hours
+    planned_latency = 0.0
+    if craft and site and t_fail is not None:
+        try:
+            when = t_fail + timedelta(hours=tau)
+            planned_latency = float(get_hats_adapter().cbt_minutes(craft, site, when))
+        except Exception:  # pragma: no cover - network errors
+            planned_latency = 0.0
+
+    planned_hours = downtime_hours + planned_latency / 60.0
     planned_downtime = _downtime_cost(derate_mw, planned_hours, price_per_mwh)
     planned_base = planned_cost + planned_downtime
     survive = model.survival(tau)
