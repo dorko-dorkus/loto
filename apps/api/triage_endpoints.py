@@ -8,12 +8,12 @@ from typing import Any, Dict, List, Tuple, cast
 
 from fastapi import APIRouter
 
-from loto.hats import compute_ranking
 from loto.roster import storage
+from loto.triage_score import compute_ranking
 
 from .schemas import HatKpiRequest, HatSnapshot
 
-router = APIRouter(prefix="/hats", tags=["hats", "LOTO"])
+router = APIRouter(prefix="/triage", tags=["triage", "LOTO"])
 
 
 def _ledger_path() -> Path:

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export interface HatLane {
+export interface TriageLane {
   id: string;
   rank: 1 | 2 | 3 | 4;
   cr: number;
@@ -12,7 +12,7 @@ export interface HatLane {
 /**
  * Render a simple timeline for hats with rank badges and accessible tooltips.
  */
-export default function HatsTimeline({ lanes }: { lanes: HatLane[] }) {
+export default function TriageTimeline({ lanes }: { lanes: TriageLane[] }) {
   return (
     <div className="flex flex-col space-y-2">
       {lanes.map((lane) => {
