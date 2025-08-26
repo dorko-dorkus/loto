@@ -93,7 +93,11 @@ class IsolationPlanner:
             # Build weighted graph for min-cut computations
             weighted = nx.DiGraph()
             for u, v, data in graph.edges(data=True):
-                cap = 1.0 if data.get("is_isolation_point") else float("inf")
+                cap = (
+                    data.get("isolation_cost", 1.0)
+                    if data.get("is_isolation_point")
+                    else float("inf")
+                )
                 if weighted.has_edge(u, v):
                     # Keep the lowest capacity if multiple edges exist
                     weighted[u][v]["capacity"] = min(weighted[u][v]["capacity"], cap)

@@ -113,13 +113,24 @@ class GraphBuilder:
             g = graphs.setdefault(domain, nx.MultiDiGraph())
             _ensure_node(g, row["from_tag"])
             _ensure_node(g, row["to_tag"])
-            g.add_edge(row["from_tag"], row["to_tag"], line_tag=row.get("line_tag"))
+            cost = row.get("isolation_cost", 1.0)
+            if pd.isna(cost):
+                cost = 1.0
+            g.add_edge(
+                row["from_tag"],
+                row["to_tag"],
+                line_tag=row.get("line_tag"),
+                isolation_cost=float(cost),
+            )
 
         for _, row in valve_df.iterrows():
             domain = row["domain"]
             g = graphs.setdefault(domain, nx.MultiDiGraph())
             tag = row["tag"]
             _ensure_node(g, tag)
+            cost = row.get("isolation_cost", 1.0)
+            if pd.isna(cost):
+                cost = 1.0
             g.nodes[tag].update(
                 {
                     "is_isolation_point": True,
@@ -127,6 +138,12 @@ class GraphBuilder:
                     "kind": row.get("kind"),
                 }
             )
+            for u, v, data in list(g.in_edges(tag, data=True)):
+                data["is_isolation_point"] = True
+                data["isolation_cost"] = float(cost)
+            for u, v, data in list(g.out_edges(tag, data=True)):
+                data["is_isolation_point"] = True
+                data["isolation_cost"] = float(cost)
 
         for _, row in drain_df.iterrows():
             domain = row["domain"]
