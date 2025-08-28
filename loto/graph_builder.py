@@ -131,7 +131,7 @@ class GraphBuilder:
 
         for idx, row in line_df.iterrows():
             try:
-                line_row = LineRow.parse_obj(row.to_dict())
+                line_row = LineRow.model_validate(row.to_dict())
             except ValidationError as e:
                 errors.append(f"line_list row {idx}: {e}")
                 continue
@@ -163,7 +163,7 @@ class GraphBuilder:
 
         for idx, row in valve_df.iterrows():
             try:
-                valve_row = ValveRow.parse_obj(row.to_dict())
+                valve_row = ValveRow.model_validate(row.to_dict())
             except ValidationError as e:
                 errors.append(f"valves row {idx}: {e}")
                 continue
@@ -211,7 +211,7 @@ class GraphBuilder:
 
         for idx, row in drain_df.iterrows():
             try:
-                drain_row = DrainRow.parse_obj(row.to_dict())
+                drain_row = DrainRow.model_validate(row.to_dict())
             except ValidationError as e:
                 errors.append(f"drains row {idx}: {e}")
                 continue
@@ -225,7 +225,7 @@ class GraphBuilder:
         if not source_df.empty:
             for idx, row in source_df.iterrows():
                 try:
-                    source_row = SourceRow.parse_obj(row.to_dict())
+                    source_row = SourceRow.model_validate(row.to_dict())
                 except ValidationError as e:
                     errors.append(f"sources row {idx}: {e}")
                     continue
