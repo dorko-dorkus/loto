@@ -26,7 +26,7 @@ demo-up:
 	echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
 	exit 1; \
 	fi; \
-        $$COMPOSE --profile demo up --build -d; \
+        $$COMPOSE --profile demo --profile pilot up --build -d; \
 	end_time=$$(($(date +%s)+30)); \
 	until curl --silent --fail http://localhost:8000/healthz >/dev/null 2>&1; do \
 	[ $$(date +%s) -ge $$end_time ] && { echo "Health check failed"; exit 1; }; \
@@ -37,7 +37,7 @@ demo-up:
 	elif command -v open >/dev/null 2>&1; then \
 	open http://localhost:3000; \
 	fi; \
-        $$COMPOSE --profile demo logs -f
+        $$COMPOSE --profile demo --profile pilot logs -f
 
 demo-down:
         @COMPOSE="docker compose"; \
@@ -49,7 +49,7 @@ demo-down:
         echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
         exit 1; \
         fi; \
-        $$COMPOSE --profile demo down -v
+        $$COMPOSE --profile demo --profile pilot down -v
 
 check-prereqs:
 	./scripts/check-prereqs.sh
