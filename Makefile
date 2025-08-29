@@ -37,6 +37,11 @@ demo-up:
 	[ $$(date +%s) -ge $$end_time ] && { echo "Health check failed"; exit 1; }; \
 	sleep 1; \
 	done; \
+	end_time=$$(($(date +%s)+60)); \
+	until curl --silent --fail http://localhost:3000/ >/dev/null 2>&1; do \
+	[ $$(date +%s) -ge $$end_time ] && { echo "UI failed to start"; exit 1; }; \
+	sleep 1; \
+	done; \
 	if command -v xdg-open >/dev/null 2>&1; then \
 	xdg-open http://localhost:3000; \
 	elif command -v open >/dev/null 2>&1; then \
