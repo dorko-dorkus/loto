@@ -16,7 +16,8 @@ RUN pnpm -F maximo-extension-ui build
 FROM node:20.10.0-alpine
 WORKDIR /app
 
-RUN npm install -g pnpm@9.0.0
+RUN apk add --no-cache curl \
+    && npm install -g pnpm@9.0.0
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/maximo-extension-ui/package.json apps/maximo-extension-ui/
@@ -30,6 +31,6 @@ USER appuser
 
 EXPOSE 3000
 
-HEALTHCHECK CMD wget -qO- http://localhost:3000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD curl --fail http://localhost:3000/ || exit 1
 
 CMD ["pnpm", "-F", "maximo-extension-ui", "start"]
