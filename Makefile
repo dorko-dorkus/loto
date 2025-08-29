@@ -17,26 +17,32 @@ run-demo:
 	$(MAKE) demo-up
 
 demo-up:
-	@COMPOSE="docker compose"; \
-	if docker compose version >/dev/null 2>&1; then \
-	COMPOSE="docker compose"; \
-	elif command -v docker-compose >/dev/null 2>&1; then \
-	COMPOSE="docker-compose"; \
-	else \
-	echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
-	exit 1; \
-	fi; \
+        @COMPOSE="docker compose"; \
+        if docker compose version >/dev/null 2>&1; then \
+        COMPOSE="docker compose"; \
+        elif command -v docker-compose >/dev/null 2>&1; then \
+        COMPOSE="docker-compose"; \
+        else \
+        echo "Docker Compose is not installed. Install Docker and Docker Compose."; \
+        exit 1; \
+        fi; \
         $$COMPOSE --profile demo --profile pilot up --build -d; \
-	end_time=$$(($(date +%s)+30)); \
-	until curl --silent --fail http://localhost:8000/healthz >/dev/null 2>&1; do \
-	[ $$(date +%s) -ge $$end_time ] && { echo "Health check failed"; exit 1; }; \
-	sleep 1; \
-	done; \
-	if command -v xdg-open >/dev/null 2>&1; then \
-	xdg-open http://localhost:3000; \
-	elif command -v open >/dev/null 2>&1; then \
-	open http://localhost:3000; \
-	fi; \
+        end_time=$$(($(date +%s)+30)); \
+        until curl --silent http://localhost:8000/healthz >/dev/null 2>&1; do \
+        [ $$(date +%s) -ge $$end_time ] && { echo "API failed to start"; exit 1; }; \
+        sleep 1; \
+        done; \
+        $(MAKE) seed-demo; \
+        end_time=$$(($(date +%s)+30)); \
+        until curl --silent --fail http://localhost:8000/healthz >/dev/null 2>&1; do \
+        [ $$(date +%s) -ge $$end_time ] && { echo "Health check failed"; exit 1; }; \
+        sleep 1; \
+        done; \
+        if command -v xdg-open >/dev/null 2>&1; then \
+        xdg-open http://localhost:3000; \
+        elif command -v open >/dev/null 2>&1; then \
+        open http://localhost:3000; \
+        fi; \
         $$COMPOSE --profile demo --profile pilot logs -f
 
 demo-down:
