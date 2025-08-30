@@ -32,3 +32,4 @@ opentelemetry-sdk
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-requests
 types-PyYAML
+types-requests

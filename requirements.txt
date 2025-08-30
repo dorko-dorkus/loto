@@ -221,6 +221,8 @@ typer==0.16.1
     # via -r requirements.in
 types-pyyaml==6.0.12.20250822
     # via -r requirements.in
+types-requests==2.32.4.20250809
+    # via -r requirements.in
 typing-extensions==4.14.1
     # via
     #   anyio
@@ -245,6 +247,7 @@ urllib3==2.5.0
     #   requests
     #   responses
     #   sentry-sdk
+    #   types-requests
 virtualenv==20.34.0
     # via pre-commit
 weasyprint==66.0
