@@ -39,5 +39,7 @@
       "price": 0.0
     }
   ],
-  "status": "feasible"
+  "status": "feasible",
+  "percentiles_conditional": false,
+  "conditional_basis": null
 }

@@ -57,15 +57,30 @@ def test_schedule_inventory_gating(monkeypatch: MonkeyPatch) -> None:
         job = res.json()["job_id"]
         data = wait_for_job(client, job)["result"]
         assert data["status"] == "blocked_by_parts"
-        assert data["schedule"] == []
-        assert data["missing_parts"] == [{"item_id": "P-200", "quantity": 1}]
+        assert len(data["schedule"]) > 0
+        assert (
+            data["p10"] is not None
+            and data["p50"] is not None
+            and data["p90"] is not None
+        )
+        assert data["percentiles_conditional"] is True
+        assert data["conditional_basis"] == "assuming_parts_available"
+        assert data["missing_parts"] == [
+            {
+                "item": "P-200",
+                "required": 1,
+                "available": 1,
+                "shortfall": 0,
+                "reason": "critical_at_or_below_reorder_point",
+            }
+        ]
         assert data["gating_reason"] == "missing required parts"
         assert data["rulepack_sha256"] == main.RULE_PACK_HASH
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
 
 
-def test_schedule_inventory_gating_strict(monkeypatch: MonkeyPatch) -> None:
+def test_schedule_inventory_gating_policy_a(monkeypatch: MonkeyPatch) -> None:
     importlib.reload(main)
     client = TestClient(main.app)
     monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
@@ -73,7 +88,7 @@ def test_schedule_inventory_gating_strict(monkeypatch: MonkeyPatch) -> None:
     try:
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
         res = client.post(
-            "/schedule?strict=true",
+            "/schedule?parts_block_policy=A",
             json={"workorder": "WO-1"},
             headers={"Authorization": "Bearer x"},
         )
@@ -82,10 +97,16 @@ def test_schedule_inventory_gating_strict(monkeypatch: MonkeyPatch) -> None:
         job_data = wait_for_job(client, job)
         assert job_data["status"] == "failed"
         assert job_data["result"]["status"] == "failed"
-        assert job_data["result"]["error_code"] == "PARTS_BLOCKED_STRICT"
+        assert job_data["result"]["error_code"] == "PARTS_BLOCKED"
         assert job_data["result"]["provenance"]["plan_id"] == "uA"
         assert job_data["result"]["missing_parts"] == [
-            {"item_id": "P-200", "quantity": 1}
+            {
+                "item": "P-200",
+                "required": 1,
+                "available": 1,
+                "shortfall": 0,
+                "reason": "critical_at_or_below_reorder_point",
+            }
         ]
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
@@ -133,3 +154,26 @@ def test_schedule_schema_requires_provenance_and_status_contract() -> None:
                 "rulepack_sha256": "abc",
             }
         )
+
+
+def test_schedule_inventory_gating_strict_forces_policy_a(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    importlib.reload(main)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
+    original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
+    try:
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
+        res = client.post(
+            "/schedule?strict=true&parts_block_policy=B",
+            json={"workorder": "WO-1"},
+            headers={"Authorization": "Bearer x"},
+        )
+        assert res.status_code == 202
+        job = res.json()["job_id"]
+        job_data = wait_for_job(client, job)
+        assert job_data["status"] == "failed"
+        assert job_data["result"]["error_code"] == "PARTS_BLOCKED"
+    finally:
+        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original

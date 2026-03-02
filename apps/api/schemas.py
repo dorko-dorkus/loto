@@ -122,10 +122,24 @@ class ScheduleResponse(BaseModel):
     )
     missing_parts: List[Dict[str, Any]] = Field(
         default_factory=list,
-        description="Missing parts causing blocked scheduling",
+        description="Machine-readable parts gate details (`item`, `required`, `available`, `shortfall`, `reason`)",
     )
     gating_reason: str | None = Field(
         None, description="Human-readable summary of the gating condition"
+    )
+    percentiles_conditional: bool = Field(
+        False,
+        description=(
+            "Whether p10/p50/p90 values are conditional estimates that assume "
+            "missing parts are resolved"
+        ),
+    )
+    conditional_basis: str | None = Field(
+        None,
+        description=(
+            "Machine-readable marker describing what assumptions were applied "
+            "to conditional scheduling outputs"
+        ),
     )
     error_code: str | None = Field(None, description="Machine-readable failure code")
     error_message: str | None = Field(
@@ -184,6 +198,14 @@ class ScheduleResponse(BaseModel):
         ):
             raise ValueError(
                 "blocked_by_parts responses require missing_parts or gating_reason"
+            )
+        if (
+            self.status == "blocked_by_parts"
+            and any(value is not None for value in (self.p10, self.p50, self.p90))
+            and not self.percentiles_conditional
+        ):
+            raise ValueError(
+                "blocked_by_parts responses with percentiles must set percentiles_conditional=true"
             )
         if self.status == "failed" and not (self.error_code and self.error_message):
             raise ValueError("failed responses require error_code and error_message")
