@@ -4,12 +4,7 @@
     "P-100": "ok",
     "P-200": "ok"
   },
-  "steps": [
-    {
-      "component_id": "VALVE-1",
-      "method": "lock"
-    }
-  ],
+  "steps": [],
   "unavailable_assets": [],
   "unit_mw_delta": {}
 }

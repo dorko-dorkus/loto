@@ -57,6 +57,9 @@ def validate_fk_integrity(
         If the asset or location cannot be found.
     """
 
+    if adapter is None and os.environ.get("MAXIMO_MODE", "").upper() == "MOCK":
+        return
+
     adapter = adapter or MaximoAdapter()
     if not getattr(adapter, "base_url", None):
         return
