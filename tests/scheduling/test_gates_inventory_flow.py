@@ -22,7 +22,8 @@ def test_inventory_gate_flow() -> None:
     def check_parts(_: object) -> InventoryStatus:
         return status
 
-    tasks = scheduling.assemble_tasks(wo, plan, check_parts)
+    assembled = scheduling.assemble_tasks(wo, plan, check_parts)
+    tasks = assembled["tasks"]
     state = inventory_state(wo, check_parts)
     result = scheduling.run_schedule(tasks, {}, state=state)
     assert "p1-0" not in result.starts
