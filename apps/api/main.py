@@ -779,16 +779,6 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
         else:
             parts_status[res.item_id] = "ok"
 
-    bp = demo_data.get_blueprint(payload.workorder_id)
-    if bp is not None:
-        return BlueprintResponse(
-            steps=[Step(**s) for s in bp.get("steps", [])],
-            unavailable_assets=bp.get("unavailable_assets", []),
-            unit_mw_delta=bp.get("unit_mw_delta", {}),
-            blocked_by_parts=inv_status.blocked,
-            parts_status=parts_status,
-        )
-
     adapter = DemoMaximoAdapter()
     ctx = adapter.load_context(payload.workorder_id)
     impact_cfg = ctx["impact_cfg"]
