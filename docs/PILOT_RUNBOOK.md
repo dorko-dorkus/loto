@@ -78,3 +78,4 @@ Refer to [On-Call Guide](on_call.md) for contact rotations, escalation paths, an
 ## References
 
 - [Triage Ranking](TRIAGE_RANKING.md) – KPI calculations and scheduling integration.
+- [API Scheduling Validation Runbook](API_SCHEDULING_RUNBOOK.md) – exact `/blueprint` and `/schedule` validation calls.
