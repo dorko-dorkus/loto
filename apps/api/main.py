@@ -954,8 +954,7 @@ def _generate_schedule(
             for tid, task in simulation_tasks.items()
         }
 
-    labor_capacity = max(1, len(bundle.plan.actions))
-    resource_caps = {res: labor_capacity for res in resource_names}
+    resource_caps = {res: 1 for res in resource_names}
     summary = simulate_input_model(
         SimulationInput(
             tasks=simulation_tasks,
@@ -974,7 +973,7 @@ def _generate_schedule(
             p50=summary.p50,
             p90=summary.p90,
             price=0.0,
-            hats=labor_capacity,
+            hats=sum(resource_caps.values()),
         )
     ]
 

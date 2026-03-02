@@ -142,3 +142,15 @@ def test_monotonic_more_plan_actions_worsens_p50() -> None:
     p50_few = simulate_input_model(few_actions).p50
     p50_more = simulate_input_model(more_actions).p50
     assert p50_more >= p50_few
+
+
+def test_input_model_rejects_non_positive_sample_count() -> None:
+    sim_input = SimulationInput(
+        tasks={"a": SimulationTaskInput(base_duration=1)},
+        resource_capacities={"labor": 1},
+        calendars={"always_on": CalendarSpec(kind="always_on")},
+        run_config=RunConfig(N=0, seed=1),
+    )
+
+    with pytest.raises(ValueError, match="run_config.N"):
+        simulate_input_model(sim_input)

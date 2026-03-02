@@ -54,7 +54,7 @@ class SimulationTaskInput:
     predecessors: tuple[str, ...] = ()
     resources: Mapping[str, int] = field(default_factory=dict)
     calendar: str = "always_on"
-    distribution: DurationDistribution = DurationDistribution()
+    distribution: DurationDistribution = field(default_factory=DurationDistribution)
     cost_per_time: float | None = None
 
 
@@ -233,11 +233,13 @@ def _sample_duration(
 def simulate_input_model(sim_input: SimulationInput) -> SimulationSummary:
     """Run Monte Carlo using the explicit simulation-input model."""
 
+    if sim_input.run_config.N <= 0:
+        raise ValueError("run_config.N must be greater than zero")
+
     makespans: list[int] = []
     costs: list[float] = []
     run_metrics: list[RunMetrics] = []
     base_seed = sim_input.run_config.seed
-
     for run_idx in range(sim_input.run_config.N):
         rng = random.Random(base_seed + run_idx)
         sampled_tasks: dict[str, Task] = {}
