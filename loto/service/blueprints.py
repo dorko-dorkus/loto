@@ -23,6 +23,9 @@ from ..scheduling.assemble import InventoryFn
 from ..sim_engine import SimEngine
 
 logger = structlog.get_logger()
+STRICT_PERMIT_ISOLATIONS = bool(
+    os.getenv("LOTO_STRICT_PERMIT_ISOLATIONS") or os.getenv("LOTO_STRICT_VALIDATION")
+)
 
 
 @dataclass(frozen=True)
@@ -31,6 +34,41 @@ class Provenance:
 
     seed: int | None
     rule_hash: str
+
+
+def _parse_component_id(component_id: str) -> tuple[str, str, str]:
+    """Parse an isolation action component id as ``domain:u->v``."""
+
+    try:
+        domain, edge = component_id.split(":", 1)
+        u, v = edge.split("->", 1)
+    except ValueError as exc:
+        raise ValueError(f"Malformed component_id '{component_id}'") from exc
+
+    if not domain or not u or not v:
+        raise ValueError(f"Malformed component_id '{component_id}'")
+    return domain, u, v
+
+
+def parse_component_ids(
+    component_ids: Iterable[str], *, strict: bool | None = None
+) -> list[tuple[str, str, str]]:
+    """Validate and parse ``domain:u->v`` component IDs.
+
+    In strict mode malformed values raise ``ValueError``. In non-strict mode,
+    malformed values are skipped and a warning is logged.
+    """
+
+    strict_mode = STRICT_PERMIT_ISOLATIONS if strict is None else strict
+    parsed: list[tuple[str, str, str]] = []
+    for component_id in component_ids:
+        try:
+            parsed.append(_parse_component_id(component_id))
+        except ValueError:
+            if strict_mode:
+                raise
+            logger.warning("invalid_component_id", component_id=component_id)
+    return parsed
 
 
 def validate_fk_integrity(
