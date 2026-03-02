@@ -61,6 +61,7 @@ from loto.inventory import (
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.rule_engine import RuleEngine
+from loto.service import assemble_tasks
 from loto.service.blueprints import parse_component_ids
 
 from .audit import add_record
@@ -869,17 +870,18 @@ def _generate_schedule(
         "random_seed": str(seed_int),
         "seed_strategy": "deterministic",
     }
-    if bundle.inv_status.blocked:
+    assembled = assemble_tasks(
+        bundle.work_order,
+        bundle.plan,
+        check_parts=lambda _: bundle.inv_status,
+    )
+
+    if assembled["parts_gate"]["blocked"]:
         seed_var.set(seed_int)
         rule_hash_var.set(RULE_PACK_HASH)
-        structlog.contextvars.bind_contextvars(
-            seed=seed_int, rule_hash=RULE_PACK_HASH
-        )
+        structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
         logging.info("request complete")
-        missing_parts = [
-            {"item_id": res.item_id, "quantity": res.quantity}
-            for res in bundle.inv_status.missing
-        ]
+        missing_parts = assembled["missing_parts"]
         if strict:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -927,9 +929,7 @@ def _generate_schedule(
     makespan = 3.0
     seed_var.set(seed_int)
     rule_hash_var.set(bundle.provenance.rule_hash)
-    structlog.contextvars.bind_contextvars(
-        seed=seed_int, rule_hash=RULE_PACK_HASH
-    )
+    structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
     logging.info("request complete")
     return ScheduleResponse(
         status="feasible",

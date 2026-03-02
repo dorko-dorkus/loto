@@ -1,15 +1,19 @@
-from loto.service import scheduling
+from collections.abc import Mapping
+
+from loto.inventory import InventoryStatus, Reservation
+from loto.models import IsolationAction, IsolationPlan
 from loto.scheduling.des_engine import Task
+from loto.service import scheduling
 
 
-def test_run_schedule_deterministic():
+def test_run_schedule_deterministic() -> None:
     tasks = {"t": Task(duration=lambda rng: rng.randint(1, 3))}
     res1 = scheduling.run_schedule(tasks, {}, seed=7)
     res2 = scheduling.run_schedule(tasks, {}, seed=7)
     assert res1 == res2
 
 
-def test_monte_carlo_deterministic():
+def test_monte_carlo_deterministic() -> None:
     tasks = {
         "a": Task(duration=lambda rng: rng.randint(1, 3)),
         "b": Task(duration=lambda rng: rng.randint(1, 3), predecessors=["a"]),
@@ -17,3 +21,68 @@ def test_monte_carlo_deterministic():
     mc1 = scheduling.monte_carlo_schedule(tasks, {}, runs=5)
     mc2 = scheduling.monte_carlo_schedule(tasks, {}, runs=5)
     assert mc1 == mc2
+
+
+class _WO:
+    def __init__(self, wo_id: str) -> None:
+        self.id = wo_id
+        self.reservations: list[object] = []
+
+
+def test_assemble_tasks_feasible_gate_and_tasks() -> None:
+    wo = _WO("wo-1")
+    plan = IsolationPlan(
+        plan_id="p1",
+        actions=[IsolationAction(component_id="c", method="lock", duration_s=1)],
+    )
+
+    assembled = scheduling.assemble_tasks(
+        wo,
+        plan,
+        check_parts=lambda _: InventoryStatus(blocked=False),
+    )
+
+    assert assembled["parts_gate"] == {"blocked": False, "status": "feasible"}
+    assert assembled["missing_parts"] == []
+    assert set(assembled["tasks"]) == {"p1-0"}
+
+
+def test_assemble_tasks_blocked_gate_and_missing_parts() -> None:
+    wo = _WO("wo-1")
+    plan = IsolationPlan(
+        plan_id="p1",
+        actions=[IsolationAction(component_id="c", method="lock", duration_s=1)],
+    )
+    status = InventoryStatus(
+        blocked=True, missing=[Reservation(item_id="P-1", quantity=2)]
+    )
+
+    assembled = scheduling.assemble_tasks(wo, plan, check_parts=lambda _: status)
+
+    assert assembled["parts_gate"] == {"blocked": True, "status": "blocked_by_parts"}
+    assert assembled["missing_parts"] == [{"item_id": "P-1", "quantity": 2}]
+
+
+def test_assemble_tasks_supports_optional_ddbb_verification_hook() -> None:
+    wo = _WO("wo-1")
+    plan = IsolationPlan(
+        plan_id="p1",
+        actions=[IsolationAction(component_id="c", method="lock", duration_s=1)],
+        verifications=["Branch A DDBB cert"],
+    )
+
+    def verification_builder(
+        _wo: object, _plan: IsolationPlan, tasks: Mapping[str, Task]
+    ) -> Mapping[str, Task]:
+        return {"p1-verify": Task(duration=1, predecessors=list(tasks))}
+
+    assembled = scheduling.assemble_tasks(
+        wo,
+        plan,
+        check_parts=lambda _: InventoryStatus(blocked=False),
+        verification_task_builder=verification_builder,
+    )
+
+    assert "Branch A DDBB cert" in assembled["conditional"]["ddbb_candidates"]
+    assert assembled["conditional"]["applied_verification_tasks"] == ["p1-verify"]
+    assert "p1-verify" in assembled["tasks"]
