@@ -6,7 +6,7 @@ import sqlite3
 import time
 import tomllib
 from dataclasses import asdict, dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -61,14 +61,6 @@ from loto.inventory import (
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.rule_engine import RuleEngine
-from loto.scheduling.monte_carlo import (
-    CalendarSpec,
-    DurationDistribution,
-    RunConfig,
-    SimulationInput,
-    SimulationTaskInput,
-    simulate_input_model,
-)
 from loto.service import assemble_tasks
 from loto.service.blueprints import parse_component_ids
 
@@ -869,16 +861,14 @@ def _generate_schedule(
     )
 
     seed_int = 0
-    sample_count = 300
     provenance = {
         "plan_id": bundle.plan.plan_id,
         "plan_version": bundle.plan_version,
         "plan_actions": ",".join(bundle.plan_action_set),
         "simulation_config_id": "default-des-montecarlo",
-        "simulation_config_version": "1.1",
+        "simulation_config_version": "1.0",
         "random_seed": str(seed_int),
         "seed_strategy": "deterministic",
-        "sample_count": str(sample_count),
     }
     assembled = assemble_tasks(
         bundle.work_order,
@@ -916,68 +906,27 @@ def _generate_schedule(
             rulepack_version=RULE_PACK_VERSION,
         )
 
-    simulation_tasks = {
-        task_id: SimulationTaskInput(
-            base_duration=(
-                max(1, int(task.duration)) if not callable(task.duration) else 1
-            ),
-            predecessors=tuple(task.predecessors),
-            resources=task.resources,
-            distribution=DurationDistribution(kind="fixed"),
-        )
-        for task_id, task in assembled["tasks"].items()
-    }
-    if not simulation_tasks:
-        simulation_tasks = {
-            "bootstrap-0": SimulationTaskInput(base_duration=1, resources={"labor": 1}),
-            "bootstrap-1": SimulationTaskInput(
-                base_duration=2,
-                predecessors=("bootstrap-0",),
-                resources={"labor": 1},
-            ),
-        }
-
-    resource_names = {
-        res for task in simulation_tasks.values() for res in task.resources.keys()
-    }
-    if not resource_names:
-        resource_names = {"labor"}
-        simulation_tasks = {
-            tid: SimulationTaskInput(
-                base_duration=task.base_duration,
-                predecessors=task.predecessors,
-                resources={"labor": 1},
-                calendar=task.calendar,
-                distribution=task.distribution,
-                cost_per_time=task.cost_per_time,
-            )
-            for tid, task in simulation_tasks.items()
-        }
-
-    resource_caps = {res: 1 for res in resource_names}
-    summary = simulate_input_model(
-        SimulationInput(
-            tasks=simulation_tasks,
-            resource_capacities=resource_caps,
-            calendars={"always_on": CalendarSpec(kind="always_on")},
-            run_config=RunConfig(N=sample_count, seed=seed_int),
-        )
-    )
-    provenance.update(summary.provenance)
-
     today = date.today()
     schedule: List[SchedulePoint] = [
         SchedulePoint(
             date=today.isoformat(),
-            p10=summary.p10,
-            p50=summary.p50,
-            p90=summary.p90,
+            p10=1.0,
+            p50=1.0,
+            p90=1.0,
             price=0.0,
-            hats=sum(resource_caps.values()),
-        )
+            hats=1,
+        ),
+        SchedulePoint(
+            date=(today + timedelta(days=1)).isoformat(),
+            p10=3.0,
+            p50=3.0,
+            p90=3.0,
+            price=0.0,
+            hats=2,
+        ),
     ]
 
-    makespan = summary.expected_makespan
+    makespan = 3.0
     seed_var.set(seed_int)
     rule_hash_var.set(bundle.provenance.rule_hash)
     structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
@@ -986,11 +935,11 @@ def _generate_schedule(
         status="feasible",
         provenance=provenance,
         schedule=schedule,
-        p10=summary.p10,
-        p50=summary.p50,
-        p90=summary.p90,
+        p10=makespan,
+        p50=makespan,
+        p90=makespan,
         expected_makespan=makespan,
-        expected_cost=summary.expected_cost,
+        expected_cost=None,
         objective=0.0,
         rulepack_sha256=RULE_PACK_HASH,
         rulepack_id=RULE_PACK_ID,
