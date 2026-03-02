@@ -18,9 +18,11 @@ def test_monte_carlo_deterministic() -> None:
         "a": Task(duration=lambda rng: rng.randint(1, 3)),
         "b": Task(duration=lambda rng: rng.randint(1, 3), predecessors=["a"]),
     }
-    mc1 = scheduling.monte_carlo_schedule(tasks, {}, runs=5)
-    mc2 = scheduling.monte_carlo_schedule(tasks, {}, runs=5)
+    mc1 = scheduling.monte_carlo_schedule(tasks, {}, runs=5, seed=10)
+    mc2 = scheduling.monte_carlo_schedule(tasks, {}, runs=5, seed=10)
+    mc3 = scheduling.monte_carlo_schedule(tasks, {}, runs=5, seed=11)
     assert mc1 == mc2
+    assert mc1 != mc3
 
 
 class _WO:
