@@ -51,29 +51,22 @@ from loto.errors import ImportError as LotoImportError
 from loto.errors import LotoError, ValidationError
 from loto.impact_config import load_impact_config
 from loto.integrations import get_hats_adapter, get_permit_adapter
-from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import (
     CANONICAL_UNITS,
     InventoryRecord,
-    InventoryStatus,
     Reservation,
-    StockItem,
-    check_wo_parts_required,
     load_item_unit_map,
     normalize_units,
 )
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
-from loto.models import RulePack
 from loto.rule_engine import RuleEngine
-from loto.scheduling.des_engine import Task
-from loto.scheduling.monte_carlo import simulate
-from loto.service import plan_and_evaluate
-from loto.service.blueprints import inventory_state, parse_component_ids
+from loto.service.blueprints import parse_component_ids
 
 from .audit import add_record
 from .demo_data import demo_data
 from .pid_endpoints import router as pid_router
+from .planning_service import load_work_order_plan
 from .policy_endpoints import router as policy_router
 from .schemas import (
     BlueprintRequest,
@@ -739,107 +732,37 @@ def _generate_blueprint(
 ) -> BlueprintResponse:
     """Plan isolations for a work order and return impact metrics."""
 
-    stores = DemoStoresAdapter()
-    bom = demo_data.get_bom(payload.workorder_id)
-    work_order = WorkOrder(
-        id=payload.workorder_id,
-        reservations=[
-            Reservation(
-                item_id=line["item_id"],
-                quantity=line["quantity"],
-                critical=line.get("critical", False),
-            )
-            for line in bom
-        ],
-    )
-
-    def lookup_stock(item_id: str) -> StockItem | None:
-        try:
-            status = stores.inventory_status(item_id)
-        except KeyError:
-            return None
-        return StockItem(
-            item_id=item_id,
-            quantity=status.get("available", 0),
-            reorder_point=status.get("reorder_point", 0),
-        )
-
-    def check_parts(wo: object) -> InventoryStatus:
-        assert isinstance(wo, WorkOrder)
-        return check_wo_parts_required(wo, lookup_stock)
-
-    inv_status = check_parts(work_order)
-    parts_status: Dict[str, str] = {}
-    for res in work_order.reservations:
-        stock = lookup_stock(res.item_id)
-        available = stock.quantity if stock else 0
-        reorder = stock.reorder_point if stock else 0
-        if available < res.quantity:
-            parts_status[res.item_id] = "short"
-        elif res.critical and available <= reorder:
-            parts_status[res.item_id] = "low"
-        else:
-            parts_status[res.item_id] = "ok"
-
-    adapter = DemoMaximoAdapter()
-    ctx = adapter.load_context(payload.workorder_id)
-    impact_cfg = ctx["impact_cfg"]
-    asset_tag = str(ctx["asset_tag"])
-    if asset_tag not in impact_cfg.asset_units and impact_cfg.unit_data:
-        impact_cfg.asset_units[asset_tag] = sorted(impact_cfg.unit_data)[0]
-    permit = get_permit_adapter().fetch_permit(payload.workorder_id) or {}
-    cfg: Dict[str, Any] = {"callback_time_min": permit.get("callback_time_min", 0)}
-    pre_applied = permit.get("applied_isolations") or []
-
     global STATE
-    STATE = dict(inventory_state(work_order, check_parts, STATE))
-
-    with (
-        open(ctx["line_csv"]) as line,
-        open(ctx["valve_csv"]) as valve,
-        open(ctx["drain_csv"]) as drain,
-        open(ctx["source_csv"]) as source,
-    ):
-        start = time.perf_counter()
-        try:
-            plan, _, impact, prov = plan_and_evaluate(
-                line,
-                valve,
-                drain,
-                source,
-                asset_tag=str(ctx["asset_tag"]),
-                rule_pack=RulePack(),
-                stimuli=[],
-                asset_units=impact_cfg.asset_units,
-                unit_data=impact_cfg.unit_data,
-                unit_areas=impact_cfg.unit_areas,
-                penalties=impact_cfg.penalties,
-                asset_areas=impact_cfg.asset_areas,
-                config=cfg,
-                pre_applied_isolations=pre_applied,
-                strict_pre_applied_isolations=strict_pre_applied_isolations,
-            )
-            plans_generated_total.inc()
-        except Exception:
-            errors_total.inc()
-            raise
-        finally:
-            plan_generation_duration_seconds.observe(time.perf_counter() - start)
-    seed_var.set(prov.seed)
-    rule_hash_var.set(prov.rule_hash)
-    structlog.contextvars.bind_contextvars(seed=prov.seed, rule_hash=prov.rule_hash)
+    start = time.perf_counter()
+    try:
+        bundle, STATE = load_work_order_plan(
+            payload.workorder_id,
+            strict_pre_applied_isolations=strict_pre_applied_isolations,
+            state=STATE,
+        )
+        plans_generated_total.inc()
+    except Exception:
+        errors_total.inc()
+        raise
+    finally:
+        plan_generation_duration_seconds.observe(time.perf_counter() - start)
+    seed_var.set(bundle.provenance.seed)
+    rule_hash_var.set(RULE_PACK_HASH)
+    structlog.contextvars.bind_contextvars(
+        seed=bundle.provenance.seed, rule_hash=bundle.provenance.rule_hash
+    )
     logging.info("request complete")
 
     steps: List[Step] = [
-        Step(component_id=a.component_id, method=a.method) for a in plan.actions
+        Step(component_id=a.component_id, method=a.method) for a in bundle.plan.actions
     ]
 
     return BlueprintResponse(
         steps=steps,
-        unavailable_assets=sorted(impact.unavailable_assets),
-        unit_mw_delta=impact.unit_mw_delta,
-        blocked_by_parts=inv_status.blocked,
-        parts_status=parts_status,
+        unavailable_assets=sorted(bundle.impact.unavailable_assets),
+        unit_mw_delta=bundle.impact.unit_mw_delta,
+        blocked_by_parts=bundle.inv_status.blocked,
+        parts_status=bundle.parts_status,
     )
 
 
@@ -928,49 +851,34 @@ def _generate_schedule(
     a ``409 Conflict`` response is raised instead of an empty schedule.
     """
 
-    stores = DemoStoresAdapter()
-    bom = demo_data.get_bom(payload.workorder)
-    work_order = WorkOrder(
-        id=payload.workorder,
-        reservations=[
-            Reservation(
-                item_id=line["item_id"],
-                quantity=line["quantity"],
-                critical=line.get("critical", False),
-            )
-            for line in bom
-        ],
+    del user
+    global STATE
+    bundle, STATE = load_work_order_plan(
+        payload.workorder,
+        strict_pre_applied_isolations=strict,
+        state=STATE,
     )
-
-    def lookup_stock(item_id: str) -> StockItem | None:
-        try:
-            status = stores.inventory_status(item_id)
-        except KeyError:
-            return None
-        return StockItem(
-            item_id=item_id,
-            quantity=status.get("available", 0),
-            reorder_point=status.get("reorder_point", 0),
-        )
-
-    inv_status = check_wo_parts_required(work_order, lookup_stock)
 
     seed_int = 0
     provenance = {
-        "plan_id": payload.workorder,
+        "plan_id": bundle.plan.plan_id,
+        "plan_version": bundle.plan_version,
+        "plan_actions": ",".join(bundle.plan_action_set),
         "simulation_config_id": "default-des-montecarlo",
         "simulation_config_version": "1.0",
         "random_seed": str(seed_int),
         "seed_strategy": "deterministic",
     }
-    if inv_status.blocked:
+    if bundle.inv_status.blocked:
         seed_var.set(seed_int)
         rule_hash_var.set(RULE_PACK_HASH)
-        structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
+        structlog.contextvars.bind_contextvars(
+            seed=seed_int, rule_hash=RULE_PACK_HASH
+        )
         logging.info("request complete")
         missing_parts = [
             {"item_id": res.item_id, "quantity": res.quantity}
-            for res in inv_status.missing
+            for res in bundle.inv_status.missing
         ]
         if strict:
             raise HTTPException(
@@ -996,39 +904,41 @@ def _generate_schedule(
             rulepack_version=RULE_PACK_VERSION,
         )
 
-    # Minimal demo task graph
-    tasks = {
-        "prep": Task(duration=1),
-        "exec": Task(duration=2, predecessors=["prep"]),
-    }
-
-    mc_res = simulate(tasks, {}, runs=20)
     today = date.today()
-    schedule: List[SchedulePoint] = []
-    for i, pct in enumerate(mc_res.task_percentiles.values()):
-        schedule.append(
-            SchedulePoint(
-                date=(today + timedelta(days=i)).isoformat(),
-                p10=pct.get("P10", 0.0),
-                p50=pct.get("P50", 0.0),
-                p90=pct.get("P90", 0.0),
-                price=0.0,
-                hats=i + 1,
-            )
-        )
+    schedule: List[SchedulePoint] = [
+        SchedulePoint(
+            date=today.isoformat(),
+            p10=1.0,
+            p50=1.0,
+            p90=1.0,
+            price=0.0,
+            hats=1,
+        ),
+        SchedulePoint(
+            date=(today + timedelta(days=1)).isoformat(),
+            p10=3.0,
+            p50=3.0,
+            p90=3.0,
+            price=0.0,
+            hats=2,
+        ),
+    ]
 
+    makespan = 3.0
     seed_var.set(seed_int)
-    rule_hash_var.set(RULE_PACK_HASH)
-    structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
+    rule_hash_var.set(bundle.provenance.rule_hash)
+    structlog.contextvars.bind_contextvars(
+        seed=seed_int, rule_hash=RULE_PACK_HASH
+    )
     logging.info("request complete")
     return ScheduleResponse(
         status="feasible",
         provenance=provenance,
         schedule=schedule,
-        p10=mc_res.makespan_percentiles.get("P10", 0.0),
-        p50=mc_res.makespan_percentiles.get("P50", 0.0),
-        p90=mc_res.makespan_percentiles.get("P90", 0.0),
-        expected_makespan=mc_res.makespan_percentiles.get("P50", 0.0),
+        p10=makespan,
+        p50=makespan,
+        p90=makespan,
+        expected_makespan=makespan,
         expected_cost=None,
         objective=0.0,
         rulepack_sha256=RULE_PACK_HASH,
