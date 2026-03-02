@@ -69,7 +69,7 @@ from loto.rule_engine import RuleEngine
 from loto.scheduling.des_engine import Task
 from loto.scheduling.monte_carlo import simulate
 from loto.service import plan_and_evaluate
-from loto.service.blueprints import inventory_state
+from loto.service.blueprints import inventory_state, parse_component_ids
 
 from .audit import add_record
 from .demo_data import demo_data
@@ -734,7 +734,9 @@ class DemoMaximoAdapter:
         }
 
 
-def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
+def _generate_blueprint(
+    payload: BlueprintRequest, *, strict_pre_applied_isolations: bool = False
+) -> BlueprintResponse:
     """Plan isolations for a work order and return impact metrics."""
 
     stores = DemoStoresAdapter()
@@ -815,6 +817,7 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
                 asset_areas=impact_cfg.asset_areas,
                 config=cfg,
                 pre_applied_isolations=pre_applied,
+                strict_pre_applied_isolations=strict_pre_applied_isolations,
             )
             plans_generated_total.inc()
         except Exception:
@@ -840,7 +843,9 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     )
 
 
-def _blueprint_worker(job_id: str, payload: BlueprintRequest) -> None:
+def _blueprint_worker(
+    job_id: str, payload: BlueprintRequest, strict_pre_applied_isolations: bool
+) -> None:
     """Background task to compute a blueprint and store the result."""
 
     job = JOBS[job_id]
@@ -848,7 +853,10 @@ def _blueprint_worker(job_id: str, payload: BlueprintRequest) -> None:
     start = time.perf_counter()
     try:
         with tracer.start_as_current_span("blueprint"):
-            result = _generate_blueprint(payload)
+            result = _generate_blueprint(
+                payload,
+                strict_pre_applied_isolations=strict_pre_applied_isolations,
+            )
     except Exception as exc:
         job.status = "failed"
         job.error = str(exc)
@@ -861,13 +869,22 @@ def _blueprint_worker(job_id: str, payload: BlueprintRequest) -> None:
 
 @app.post("/blueprint", response_model=JobInfo, tags=["LOTO"], status_code=202)
 async def post_blueprint(
-    payload: BlueprintRequest, background_tasks: BackgroundTasks
+    payload: BlueprintRequest,
+    background_tasks: BackgroundTasks,
+    strict: bool = False,
 ) -> JobInfo:
     """Queue blueprint generation in a background task."""
 
+    if strict:
+        permit = get_permit_adapter().fetch_permit(payload.workorder_id) or {}
+        try:
+            parse_component_ids(permit.get("applied_isolations") or [], strict=True)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     job_id = str(uuid4())
     JOBS[job_id] = JobStatus(status="queued")
-    background_tasks.add_task(_blueprint_worker, job_id, payload)
+    background_tasks.add_task(_blueprint_worker, job_id, payload, strict)
     return JobInfo(job_id=job_id)
 
 
