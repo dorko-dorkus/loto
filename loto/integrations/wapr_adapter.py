@@ -57,8 +57,8 @@ class DemoWaprAdapter(WaprAdapter):
     """Dry-run WAPR adapter that returns fixture permit data."""
 
     _FIXTURE_PERMITS: Dict[str, Dict[str, List[str]]] = {
-        "WO-100": {"applied_isolations": ["ISO-1", "ISO-2"]},
-        "WO-200": {"applied_isolations": ["ISO-3"]},
+        "WO-100": {"applied_isolations": ["steam:source->VALVE1", "steam:VALVE1->A"]},
+        "WO-200": {"applied_isolations": ["steam:VALVE1->A"]},
     }
     _FIXTURE_CURVES: Dict[str, List[Tuple[int, float]]] = {
         "ASSET-1": [
