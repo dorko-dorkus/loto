@@ -104,7 +104,14 @@ def monte_carlo_schedule(
     runs: int,
     *,
     state: Mapping[str, object] | None = None,
+    seed: int = 0,
 ) -> MonteCarloResult:
     """Run Monte Carlo simulations of the scheduler."""
 
-    return monte_carlo.simulate(tasks, resource_caps, runs=runs, state=state)
+    return monte_carlo.simulate(
+        tasks,
+        resource_caps,
+        runs=runs,
+        state=state,
+        seed=seed,
+    )

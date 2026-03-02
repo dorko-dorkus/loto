@@ -60,6 +60,27 @@ def test_criticality_probability_on_dominant_path() -> None:
     assert mc.criticality["b"] == pytest.approx(0.0)
 
 
+def test_simulate_seed_controls_repeatability() -> None:
+    tasks = {
+        "a": Task(duration=lambda rng: rng.randint(1, 3)),
+        "b": Task(duration=lambda rng: rng.randint(1, 4), predecessors=["a"]),
+    }
+
+    result_a = simulate(tasks, {}, runs=100, seed=123)
+    result_b = simulate(tasks, {}, runs=100, seed=123)
+    result_c = simulate(tasks, {}, runs=100, seed=456)
+
+    expected_makespans = [
+        max(run(tasks, {}, seed=123 + i).ends.values()) for i in range(100)
+    ]
+
+    assert result_a == result_b
+    assert result_a != result_c
+    assert result_a.expected_makespan == pytest.approx(
+        sum(expected_makespans) / len(expected_makespans)
+    )
+
+
 def test_input_model_aggregates_and_provenance_with_seed() -> None:
     sim_input = SimulationInput(
         tasks={
