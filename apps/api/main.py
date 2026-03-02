@@ -785,8 +785,9 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     asset_tag = str(ctx["asset_tag"])
     if asset_tag not in impact_cfg.asset_units and impact_cfg.unit_data:
         impact_cfg.asset_units[asset_tag] = sorted(impact_cfg.unit_data)[0]
-    permit = get_permit_adapter().fetch_permit(payload.workorder_id)
+    permit = get_permit_adapter().fetch_permit(payload.workorder_id) or {}
     cfg: Dict[str, Any] = {"callback_time_min": permit.get("callback_time_min", 0)}
+    pre_applied = permit.get("applied_isolations") or []
 
     global STATE
     STATE = dict(inventory_state(work_order, check_parts, STATE))
@@ -813,6 +814,7 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
                 penalties=impact_cfg.penalties,
                 asset_areas=impact_cfg.asset_areas,
                 config=cfg,
+                pre_applied_isolations=pre_applied,
             )
             plans_generated_total.inc()
         except Exception:
