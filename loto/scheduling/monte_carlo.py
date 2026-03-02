@@ -25,6 +25,7 @@ class MonteCarloResult:
     task_percentiles: Dict[str, Dict[str, float]]
     makespan_percentiles: Dict[str, float]
     criticality: Dict[str, float]
+    expected_makespan: float
 
 
 @dataclass(frozen=True)
@@ -182,6 +183,7 @@ def simulate(
     resource_caps: Mapping[str, int],
     runs: int,
     state: Mapping[str, object] | None = None,
+    seed: int = 0,
 ) -> MonteCarloResult:
     """Run *runs* Monte Carlo simulations of the scheduler.
 
@@ -195,6 +197,8 @@ def simulate(
         Number of independent simulations to perform.
     state:
         Optional global state forwarded to task gate predicates.
+    seed:
+        Base random seed for the Monte Carlo campaign.
     """
 
     end_samples: Dict[str, list[int]] = {tid: [] for tid in tasks}
@@ -202,7 +206,7 @@ def simulate(
     crit_counts: Dict[str, int] = {tid: 0 for tid in tasks}
 
     for i in range(runs):
-        result = run(tasks, resource_caps, state=state, seed=i)
+        result = run(tasks, resource_caps, state=state, seed=seed + i)
         for tid, end in result.ends.items():
             end_samples[tid].append(end)
         makespan = max(result.ends.values()) if result.ends else 0
@@ -215,8 +219,14 @@ def simulate(
     }
     makespan_percentiles = _percentiles(makespans)
     criticality = {tid: crit_counts[tid] / runs for tid in tasks}
+    expected_makespan = sum(makespans) / len(makespans) if makespans else 0.0
 
-    return MonteCarloResult(task_percentiles, makespan_percentiles, criticality)
+    return MonteCarloResult(
+        task_percentiles,
+        makespan_percentiles,
+        criticality,
+        expected_makespan,
+    )
 
 
 def _sample_duration(
