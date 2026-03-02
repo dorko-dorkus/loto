@@ -66,3 +66,12 @@ packages = ["loto"]
 
 [tool.hatch.build.targets.sdist]
 include = ["loto", "README.md"]
+
+[[tool.mypy.overrides]]
+module = [
+    "loto.integrations.maximo_adapter",
+    "loto.integrations.ellipse_adapter",
+    "loto.integrations.coupa_adapter",
+    "loto.integrations.hats_adapter",
+]
+disable_error_code = ["import-untyped"]
