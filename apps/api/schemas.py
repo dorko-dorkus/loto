@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, List, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class BlueprintRequest(BaseModel):
@@ -99,13 +99,37 @@ class SchedulePoint(BaseModel):
 class ScheduleResponse(BaseModel):
     """Response model for the /schedule endpoint."""
 
+    status: Literal["feasible", "blocked_by_parts", "failed"] = Field(
+        ..., description="Outcome status of the schedule request"
+    )
+    provenance: Dict[str, str] = Field(
+        ...,
+        description=(
+            "Execution provenance including plan_id, simulation_config_id, "
+            "simulation_config_version, and random_seed or seed_strategy"
+        ),
+    )
     schedule: List[SchedulePoint] = Field(
         default_factory=list, description="Synthetic schedule data"
     )
-    seed: str = Field(..., description="Seed used for deterministic simulation")
-    objective: float = Field(..., description="Objective value for the schedule")
-    blocked_by_parts: bool = Field(
-        False, description="Whether execution is blocked due to missing parts"
+    p10: float | None = Field(None, description="P10 duration percentile")
+    p50: float | None = Field(None, description="P50 duration percentile")
+    p90: float | None = Field(None, description="P90 duration percentile")
+    expected_makespan: float | None = Field(None, description="Expected total makespan")
+    expected_cost: float | None = Field(None, description="Expected schedule cost")
+    objective: float | None = Field(
+        None, description="Objective value for the schedule"
+    )
+    missing_parts: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Missing parts causing blocked scheduling",
+    )
+    gating_reason: str | None = Field(
+        None, description="Human-readable summary of the gating condition"
+    )
+    error_code: str | None = Field(None, description="Machine-readable failure code")
+    error_message: str | None = Field(
+        None, description="Human-readable failure message"
     )
     rulepack_sha256: str = Field(
         ..., description="SHA-256 digest of the rule pack used"
@@ -127,15 +151,54 @@ class ScheduleResponse(BaseModel):
                         "hats": 2,
                     }
                 ],
-                "seed": "12345",
+                "status": "feasible",
+                "provenance": {
+                    "plan_id": "WO-1001",
+                    "simulation_config_id": "default-des-montecarlo",
+                    "simulation_config_version": "1.0",
+                    "random_seed": "12345",
+                    "seed_strategy": "deterministic",
+                },
+                "p10": 1.0,
+                "p50": 2.0,
+                "p90": 3.0,
+                "expected_makespan": 2.0,
                 "objective": 50.0,
-                "blocked_by_parts": False,
                 "rulepack_sha256": "abc123",
                 "rulepack_id": "default",
                 "rulepack_version": "1.0.0",
             }
         },
     )
+
+    @model_validator(mode="after")
+    def validate_status_contract(self) -> "ScheduleResponse":
+        if self.status == "feasible":
+            required = [self.p10, self.p50, self.p90, self.expected_makespan]
+            if any(value is None for value in required):
+                raise ValueError(
+                    "feasible responses require p10, p50, p90, and expected_makespan"
+                )
+        if self.status == "blocked_by_parts" and not (
+            self.missing_parts or self.gating_reason
+        ):
+            raise ValueError(
+                "blocked_by_parts responses require missing_parts or gating_reason"
+            )
+        if self.status == "failed" and not (self.error_code and self.error_message):
+            raise ValueError("failed responses require error_code and error_message")
+        required_provenance = {
+            "plan_id",
+            "simulation_config_id",
+            "simulation_config_version",
+        }
+        if not required_provenance.issubset(self.provenance.keys()):
+            raise ValueError(
+                "provenance requires plan_id, simulation_config_id, and simulation_config_version"
+            )
+        if not ("random_seed" in self.provenance or "seed_strategy" in self.provenance):
+            raise ValueError("provenance requires random_seed or seed_strategy")
+        return self
 
 
 class JobInfo(BaseModel):
