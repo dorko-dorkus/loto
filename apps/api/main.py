@@ -863,13 +863,19 @@ def _generate_schedule(
         state=STATE,
     )
 
-    seed_int = 0
+    seed_int = payload.seed
+    runs = payload.runs
+    resource_caps = payload.resource_caps
     provenance = {
         "plan_id": bundle.plan.plan_id,
         "plan_version": bundle.plan_version,
         "plan_actions": ",".join(bundle.plan_action_set),
         "simulation_config_id": "default-des-montecarlo",
         "simulation_config_version": "1.0",
+        "sample_count": str(runs),
+        "resource_profile": ",".join(
+            f"{resource}:{cap}" for resource, cap in sorted(resource_caps.items())
+        ),
         "random_seed": str(seed_int),
         "seed_strategy": "deterministic",
     }

@@ -16,7 +16,9 @@
     "random_seed": "0",
     "seed_strategy": "deterministic",
     "simulation_config_id": "default-des-montecarlo",
-    "simulation_config_version": "1.0"
+    "simulation_config_version": "1.0",
+    "sample_count": "200",
+    "resource_profile": "mech:2"
   },
   "rulepack_id": "hswa",
   "rulepack_sha256": "71fca39f45228dd22946c44559aef9b40b68e29e4c2b307c6593731d72ae0938",
