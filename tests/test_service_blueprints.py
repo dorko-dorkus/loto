@@ -3,7 +3,9 @@ import io
 import pandas as pd
 import pytest
 
+from loto.inventory import InventoryStatus
 from loto.models import RulePack
+from loto.service import scheduling
 from loto.service.blueprints import plan_and_evaluate
 
 
@@ -266,3 +268,87 @@ def test_plan_and_evaluate_non_strict_pre_applied_skips_malformed(
     assert report.results == []
     assert impact.unavailable_assets == {"ASSET"}
     assert events == [("invalid_component_id", {"component_id": "ISO-1"})]
+
+
+class _WO:
+    def __init__(self, wo_id: str) -> None:
+        self.id = wo_id
+        self.reservations: list[object] = []
+
+
+def test_pre_applied_permit_isolation_reduces_schedule_workload_and_makespan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+
+    line_df = pd.DataFrame(
+        [
+            {"domain": "steam", "from_tag": "S", "to_tag": "V"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "asset"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [{"domain": "steam", "tag": "V", "fail_state": "FC", "kind": "MV"}]
+    )
+    drain_df = pd.DataFrame([{"domain": "steam", "tag": "D", "kind": "drain"}])
+    source_df = pd.DataFrame([{"domain": "steam", "tag": "S", "kind": "source"}])
+
+    base_plan, _, _, _ = plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="ASSET",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"ASSET": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+        seed=7,
+    )
+    with_permit_plan, _, _, _ = plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="ASSET",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"ASSET": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+        pre_applied_isolations=["steam:V->ASSET"],
+        seed=7,
+    )
+
+    wo = _WO("WO-CONCURRENT-PERMIT")
+    base_assembled = scheduling.assemble_tasks(
+        wo,
+        base_plan,
+        check_parts=lambda _: InventoryStatus(blocked=False),
+    )
+    permit_assembled = scheduling.assemble_tasks(
+        wo,
+        with_permit_plan,
+        check_parts=lambda _: InventoryStatus(blocked=False),
+    )
+
+    base_run = scheduling.run_schedule(base_assembled["tasks"], {}, seed=7)
+    permit_run = scheduling.run_schedule(permit_assembled["tasks"], {}, seed=7)
+
+    base_task_count = len(base_assembled["tasks"])
+    permit_task_count = len(permit_assembled["tasks"])
+    base_makespan = max(base_run.ends.values()) if base_run.ends else 0
+    permit_makespan = max(permit_run.ends.values()) if permit_run.ends else 0
+
+    assert permit_task_count < base_task_count, (
+        "Expected concurrent permit benefit: pre-applied permit isolations should reduce "
+        f"assembled scheduling tasks (baseline={base_task_count}, with_permit={permit_task_count})."
+    )
+    assert permit_makespan < base_makespan, (
+        "Expected concurrent permit benefit: pre-applied permit isolations should improve "
+        f"deterministic p50 makespan proxy (baseline={base_makespan}, with_permit={permit_makespan})."
+    )
