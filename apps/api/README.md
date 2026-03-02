@@ -56,12 +56,16 @@ The `POST /schedule` job result now follows a canonical contract:
 - `provenance`: includes `plan_id`, `simulation_config_id`,
   `simulation_config_version`, and `random_seed` (or `seed_strategy`)
 
+Parts-block policy:
+
+- Default **Policy B** (`parts_block_policy=B`): returns `status=blocked_by_parts` and includes conditional percentiles marked with `percentiles_conditional=true` and `conditional_basis`.
+- Optional **Policy A** (`parts_block_policy=A`): returns failure with `HTTP 409` semantics in the job result and no Monte Carlo percentiles.
+
 Conditional fields by status:
 
 - `feasible`: requires `p10`, `p50`, `p90`, and `expected_makespan`
   (`expected_cost` is optional when available)
-- `blocked_by_parts`: requires `missing_parts` and/or `gating_reason`;
-  `schedule` data may be present only when policy allows
+- `blocked_by_parts`: requires `missing_parts` and/or `gating_reason`; when using Policy B, returned percentiles are explicitly marked conditional
 - `failed`: requires `error_code` and `error_message`
 
 The OpenAPI schema is generated from `apps/api/schemas.py::ScheduleResponse`,

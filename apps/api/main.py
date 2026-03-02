@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 from subprocess import CalledProcessError, run
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Literal
 from uuid import uuid4
 
 import jwt
@@ -844,12 +844,15 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
 
 
 def _generate_schedule(
-    payload: ScheduleRequest, strict: bool, user: OIDCUser
+    payload: ScheduleRequest,
+    strict: bool,
+    user: OIDCUser,
+    parts_block_policy: Literal["A", "B"],
 ) -> ScheduleResponse:
     """Return a synthetic schedule for the given work order.
 
-    When ``strict`` is ``True`` and the work order is blocked by missing parts,
-    a ``409 Conflict`` response is raised instead of an empty schedule.
+    Policy A short-circuits blocked requests with HTTP 409 and no percentiles.
+    Policy B returns blocked status and conditional percentiles.
     """
 
     del user
@@ -876,36 +879,6 @@ def _generate_schedule(
         check_parts=lambda _: bundle.inv_status,
     )
 
-    if assembled["parts_gate"]["blocked"]:
-        seed_var.set(seed_int)
-        rule_hash_var.set(RULE_PACK_HASH)
-        structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
-        logging.info("request complete")
-        missing_parts = assembled["missing_parts"]
-        if strict:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "status": "failed",
-                    "provenance": provenance,
-                    "error_code": "PARTS_BLOCKED_STRICT",
-                    "error_message": "Scheduling blocked by missing parts in strict mode",
-                    "missing_parts": missing_parts,
-                    "gating_reason": "missing required parts",
-                },
-            )
-        return ScheduleResponse(
-            status="blocked_by_parts",
-            provenance=provenance,
-            schedule=[],
-            missing_parts=missing_parts,
-            gating_reason="missing required parts",
-            objective=0.0,
-            rulepack_sha256=RULE_PACK_HASH,
-            rulepack_id=RULE_PACK_ID,
-            rulepack_version=RULE_PACK_VERSION,
-        )
-
     today = date.today()
     schedule: List[SchedulePoint] = [
         SchedulePoint(
@@ -925,6 +898,45 @@ def _generate_schedule(
             hats=2,
         ),
     ]
+
+    if assembled["parts_gate"]["blocked"]:
+        seed_var.set(seed_int)
+        rule_hash_var.set(RULE_PACK_HASH)
+        structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
+        logging.info("request complete")
+        missing_parts = bundle.missing_part_details
+        effective_policy = "A" if strict else parts_block_policy
+        if effective_policy == "A":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "status": "failed",
+                    "provenance": provenance,
+                    "error_code": "PARTS_BLOCKED",
+                    "error_message": "Scheduling blocked by missing parts",
+                    "missing_parts": missing_parts,
+                    "gating_reason": "missing required parts",
+                    "parts_policy": "A",
+                },
+            )
+        makespan = 3.0
+        return ScheduleResponse(
+            status="blocked_by_parts",
+            provenance=provenance,
+            schedule=schedule,
+            p10=makespan,
+            p50=makespan,
+            p90=makespan,
+            expected_makespan=makespan,
+            missing_parts=missing_parts,
+            gating_reason="missing required parts",
+            percentiles_conditional=True,
+            conditional_basis="assuming_parts_available",
+            objective=0.0,
+            rulepack_sha256=RULE_PACK_HASH,
+            rulepack_id=RULE_PACK_ID,
+            rulepack_version=RULE_PACK_VERSION,
+        )
 
     makespan = 3.0
     seed_var.set(seed_int)
@@ -948,7 +960,11 @@ def _generate_schedule(
 
 
 def _schedule_worker(
-    job_id: str, payload: ScheduleRequest, strict: bool, user: OIDCUser
+    job_id: str,
+    payload: ScheduleRequest,
+    strict: bool,
+    user: OIDCUser,
+    parts_block_policy: Literal["A", "B"],
 ) -> None:
     """Background task to compute a schedule."""
 
@@ -957,7 +973,7 @@ def _schedule_worker(
     start = time.perf_counter()
     try:
         with tracer.start_as_current_span("schedule"):
-            result = _generate_schedule(payload, strict, user)
+            result = _generate_schedule(payload, strict, user, parts_block_policy)
     except HTTPException as exc:
         job.status = "failed"
         if isinstance(exc.detail, dict):
@@ -979,13 +995,21 @@ async def post_schedule(
     payload: ScheduleRequest,
     background_tasks: BackgroundTasks,
     strict: bool = False,
+    parts_block_policy: Literal["A", "B"] = "B",
     user: OIDCUser = Depends(require_planner),
 ) -> JobInfo:
     """Enqueue schedule generation in a background task."""
 
     job_id = str(uuid4())
     JOBS[job_id] = JobStatus(status="queued")
-    background_tasks.add_task(_schedule_worker, job_id, payload, strict, user)
+    background_tasks.add_task(
+        _schedule_worker,
+        job_id,
+        payload,
+        strict,
+        user,
+        parts_block_policy,
+    )
     return JobInfo(job_id=job_id)
 
 

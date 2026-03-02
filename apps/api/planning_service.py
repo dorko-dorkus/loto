@@ -37,6 +37,7 @@ class WorkOrderPlanBundle:
     work_order: WorkOrder
     inv_status: InventoryStatus
     parts_status: Dict[str, str]
+    missing_part_details: list[Dict[str, Any]]
     plan: IsolationPlan
     impact: ImpactResult
     provenance: Provenance
@@ -106,14 +107,33 @@ def load_work_order_plan(
 
     inv_status = check_wo_parts_required(work_order, lookup_stock)
     parts_status: Dict[str, str] = {}
+    missing_part_details: list[Dict[str, Any]] = []
     for res in work_order.reservations:
         stock = lookup_stock(res.item_id)
         available = stock.quantity if stock else 0
         reorder = stock.reorder_point if stock else 0
         if available < res.quantity:
             parts_status[res.item_id] = "short"
+            missing_part_details.append(
+                {
+                    "item": res.item_id,
+                    "required": res.quantity,
+                    "available": available,
+                    "shortfall": res.quantity - available,
+                    "reason": "insufficient_available",
+                }
+            )
         elif res.critical and available <= reorder:
             parts_status[res.item_id] = "low"
+            missing_part_details.append(
+                {
+                    "item": res.item_id,
+                    "required": res.quantity,
+                    "available": available,
+                    "shortfall": 0,
+                    "reason": "critical_at_or_below_reorder_point",
+                }
+            )
         else:
             parts_status[res.item_id] = "ok"
 
@@ -163,6 +183,7 @@ def load_work_order_plan(
             work_order=work_order,
             inv_status=inv_status,
             parts_status=parts_status,
+            missing_part_details=missing_part_details,
             plan=plan,
             impact=impact,
             provenance=provenance,
