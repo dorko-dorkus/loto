@@ -5,14 +5,52 @@ from _pytest.monkeypatch import MonkeyPatch
 from fastapi.testclient import TestClient
 
 import apps.api.main as main
+from apps.api.planning_service import WorkOrder, WorkOrderPlanBundle
 from apps.api.schemas import ScheduleResponse
+from loto.impact import ImpactResult
 from loto.integrations.stores_adapter import DemoStoresAdapter
+from loto.inventory import InventoryStatus, Reservation
+from loto.models import IsolationAction, IsolationPlan
+from loto.service.blueprints import Provenance
 from tests.job_utils import wait_for_job
 
 
 def _planner() -> main.OIDCUser:
     return main.OIDCUser(
         iss="iss", sub="sub", aud="aud", exp=0, iat=0, roles=["planner"]
+    )
+
+
+@pytest.fixture  # type: ignore[misc]
+def planner_stub_bundle() -> WorkOrderPlanBundle:
+    """Small deterministic 3-action bundle returned by the planner stub."""
+
+    return WorkOrderPlanBundle(
+        work_order=WorkOrder(
+            id="WO-STUB",
+            reservations=[Reservation(item_id="P-200", quantity=1, critical=True)],
+        ),
+        inv_status=InventoryStatus(blocked=False),
+        parts_status={"P-200": "ok"},
+        missing_part_details=[],
+        plan=IsolationPlan(
+            plan_id="stub-plan-3a",
+            actions=[
+                IsolationAction(
+                    component_id="steam:S1->V1", method="lock", duration_s=1.0
+                ),
+                IsolationAction(
+                    component_id="steam:V1->D1", method="lock", duration_s=1.0
+                ),
+                IsolationAction(
+                    component_id="steam:D1->sink", method="tag", duration_s=1.0
+                ),
+            ],
+        ),
+        impact=ImpactResult(
+            unavailable_assets=set(), unit_mw_delta={}, area_mw_delta={}
+        ),
+        provenance=Provenance(seed=7, rule_hash="f" * 64),
     )
 
 
@@ -41,75 +79,94 @@ def test_schedule_endpoint(monkeypatch: MonkeyPatch) -> None:
     assert data["rulepack_sha256"] == main.RULE_PACK_HASH
 
 
-def test_schedule_inventory_gating(monkeypatch: MonkeyPatch) -> None:
+def test_schedule_not_blocked_with_stubbed_parts_check(
+    monkeypatch: MonkeyPatch,
+    planner_stub_bundle: WorkOrderPlanBundle,
+) -> None:
     importlib.reload(main)
     client = TestClient(main.app)
     monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
-    original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
-    try:
-        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
-        res = client.post(
-            "/schedule",
-            json={"workorder": "WO-1"},
-            headers={"Authorization": "Bearer x"},
-        )
-        assert res.status_code == 202
-        job = res.json()["job_id"]
-        data = wait_for_job(client, job)["result"]
-        assert data["status"] == "blocked_by_parts"
-        assert len(data["schedule"]) > 0
-        assert (
-            data["p10"] is not None
-            and data["p50"] is not None
-            and data["p90"] is not None
-        )
-        assert data["percentiles_conditional"] is True
-        assert data["conditional_basis"] == "assuming_parts_available"
-        assert data["missing_parts"] == [
-            {
-                "item": "P-200",
-                "required": 1,
-                "available": 1,
-                "shortfall": 0,
-                "reason": "critical_at_or_below_reorder_point",
-            }
-        ]
-        assert data["gating_reason"] == "missing required parts"
-        assert data["rulepack_sha256"] == main.RULE_PACK_HASH
-    finally:
-        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
+    monkeypatch.setattr(
+        main,
+        "load_work_order_plan",
+        lambda *a, **kw: (planner_stub_bundle, {}),
+    )
+
+    res = client.post(
+        "/schedule",
+        json={"workorder": "WO-STUB"},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    data = wait_for_job(client, job)["result"]
+
+    assert data["status"] == "feasible"
+    assert data["p10"] <= data["p50"] <= data["p90"]
+    assert data["provenance"]["plan_id"] == "stub-plan-3a"
+    assert data["provenance"]["plan_actions"] == ",".join(
+        ["steam:S1->V1:lock", "steam:V1->D1:lock", "steam:D1->sink:tag"]
+    )
+    assert data["provenance"]["random_seed"] == "0"
+    assert data["provenance"]["simulation_config_id"] == "default-des-montecarlo"
+    assert data["provenance"]["simulation_config_version"] == "1.0"
 
 
-def test_schedule_inventory_gating_policy_a(monkeypatch: MonkeyPatch) -> None:
+def test_schedule_blocked_with_stubbed_parts_check(
+    monkeypatch: MonkeyPatch,
+    planner_stub_bundle: WorkOrderPlanBundle,
+) -> None:
     importlib.reload(main)
     client = TestClient(main.app)
     monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
-    original = DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"]
-    try:
-        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = 2
-        res = client.post(
-            "/schedule?parts_block_policy=A",
-            json={"workorder": "WO-1"},
-            headers={"Authorization": "Bearer x"},
-        )
-        assert res.status_code == 202
-        job = res.json()["job_id"]
-        job_data = wait_for_job(client, job)
-        assert job_data["status"] == "failed"
-        assert job_data["result"]["status"] == "failed"
-        assert job_data["result"]["error_code"] == "PARTS_BLOCKED"
-        assert job_data["result"]["provenance"]["plan_id"] == "uA"
-        assert job_data["result"]["missing_parts"] == [
+    blocked_bundle = WorkOrderPlanBundle(
+        work_order=planner_stub_bundle.work_order,
+        inv_status=InventoryStatus(
+            blocked=True,
+            missing=[Reservation(item_id="P-200", quantity=1, critical=True)],
+        ),
+        parts_status={"P-200": "short"},
+        missing_part_details=[
             {
                 "item": "P-200",
                 "required": 1,
-                "available": 1,
-                "shortfall": 0,
-                "reason": "critical_at_or_below_reorder_point",
+                "available": 0,
+                "shortfall": 1,
+                "reason": "insufficient_available",
             }
-        ]
-    finally:
-        DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
+        ],
+        plan=planner_stub_bundle.plan,
+        impact=planner_stub_bundle.impact,
+        provenance=planner_stub_bundle.provenance,
+    )
+    monkeypatch.setattr(
+        main, "load_work_order_plan", lambda *a, **kw: (blocked_bundle, {})
+    )
+
+    res = client.post(
+        "/schedule?parts_block_policy=A",
+        json={"workorder": "WO-STUB"},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    job_data = wait_for_job(client, job)
+    assert job_data["status"] == "failed"
+    assert job_data["result"]["status"] == "failed"
+    assert job_data["result"]["error_code"] == "PARTS_BLOCKED"
+    assert job_data["result"]["provenance"]["plan_id"] == "stub-plan-3a"
+    assert job_data["result"]["missing_parts"] == [
+        {
+            "item": "P-200",
+            "required": 1,
+            "available": 0,
+            "shortfall": 1,
+            "reason": "insufficient_available",
+        }
+    ]
+    assert "p10" not in job_data["result"]
+    assert "p50" not in job_data["result"]
+    assert "p90" not in job_data["result"]
 
 
 def test_blueprint_and_schedule_share_plan_identity_and_actions(
