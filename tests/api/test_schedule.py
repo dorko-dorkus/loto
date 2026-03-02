@@ -108,8 +108,41 @@ def test_schedule_not_blocked_with_stubbed_parts_check(
         ["steam:S1->V1:lock", "steam:V1->D1:lock", "steam:D1->sink:tag"]
     )
     assert data["provenance"]["random_seed"] == "0"
+    assert data["provenance"]["sample_count"] == "200"
+    assert data["provenance"]["resource_profile"] == "mech:2"
     assert data["provenance"]["simulation_config_id"] == "default-des-montecarlo"
     assert data["provenance"]["simulation_config_version"] == "1.0"
+
+
+def test_schedule_honors_request_overrides(
+    monkeypatch: MonkeyPatch,
+    planner_stub_bundle: WorkOrderPlanBundle,
+) -> None:
+    importlib.reload(main)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
+    monkeypatch.setattr(
+        main,
+        "load_work_order_plan",
+        lambda *a, **kw: (planner_stub_bundle, {}),
+    )
+
+    res = client.post(
+        "/schedule",
+        json={
+            "workorder": "WO-STUB",
+            "runs": 17,
+            "resource_caps": {"elec": 1, "mech": 3},
+            "seed": 42,
+        },
+        headers={"Authorization": "Bearer x"},
+    )
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    data = wait_for_job(client, job)["result"]
+    assert data["provenance"]["random_seed"] == "42"
+    assert data["provenance"]["sample_count"] == "17"
+    assert data["provenance"]["resource_profile"] == "elec:1,mech:3"
 
 
 def test_schedule_blocked_with_stubbed_parts_check(

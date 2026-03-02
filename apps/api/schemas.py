@@ -77,10 +77,47 @@ class ScheduleRequest(BaseModel):
     """Request body for the /schedule endpoint."""
 
     workorder: str = Field(..., description="Identifier of the work order")
+    runs: int = Field(
+        200,
+        ge=1,
+        strict=True,
+        description="Number of Monte Carlo runs to execute",
+    )
+    resource_caps: Dict[str, int] = Field(
+        default_factory=lambda: {"mech": 2},
+        description="Resource capacity profile used for scheduling",
+    )
+    seed: int = Field(
+        0,
+        ge=0,
+        strict=True,
+        description="Deterministic random seed",
+    )
 
     model_config = ConfigDict(
-        extra="forbid", json_schema_extra={"example": {"workorder": "WO-1001"}}
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "workorder": "WO-1001",
+                "runs": 200,
+                "resource_caps": {"mech": 2},
+                "seed": 0,
+            }
+        },
     )
+
+    @model_validator(mode="after")
+    def validate_resource_caps(self) -> "ScheduleRequest":
+        if not self.resource_caps:
+            raise ValueError("resource_caps must not be empty")
+        if any(not key for key in self.resource_caps):
+            raise ValueError("resource_caps keys must be non-empty")
+        if any(
+            not isinstance(value, int) or value < 1
+            for value in self.resource_caps.values()
+        ):
+            raise ValueError("resource_caps values must be integers >= 1")
+        return self
 
 
 class SchedulePoint(BaseModel):
