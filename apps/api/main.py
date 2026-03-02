@@ -729,7 +729,7 @@ class DemoMaximoAdapter:
             "valve_csv": base / "valves.csv",
             "drain_csv": base / "drains.csv",
             "source_csv": base / "sources.csv",
-            "asset_tag": "A",  # arbitrary asset tag for demo data
+            "asset_tag": "uA",
             "impact_cfg": impact_cfg,
         }
 
@@ -782,6 +782,9 @@ def _generate_blueprint(payload: BlueprintRequest) -> BlueprintResponse:
     adapter = DemoMaximoAdapter()
     ctx = adapter.load_context(payload.workorder_id)
     impact_cfg = ctx["impact_cfg"]
+    asset_tag = str(ctx["asset_tag"])
+    if asset_tag not in impact_cfg.asset_units and impact_cfg.unit_data:
+        impact_cfg.asset_units[asset_tag] = sorted(impact_cfg.unit_data)[0]
     permit = get_permit_adapter().fetch_permit(payload.workorder_id)
     cfg: Dict[str, Any] = {"callback_time_min": permit.get("callback_time_min", 0)}
 
