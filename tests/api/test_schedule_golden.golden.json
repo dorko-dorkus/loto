@@ -2,13 +2,13 @@
   "error_code": null,
   "error_message": null,
   "expected_cost": null,
-  "expected_makespan": 3.0,
+  "expected_makespan": 1.0,
   "gating_reason": null,
   "missing_parts": [],
   "objective": 0.0,
-  "p10": 3.0,
-  "p50": 3.0,
-  "p90": 3.0,
+  "p10": 1.0,
+  "p50": 1.0,
+  "p90": 1.0,
   "provenance": {
     "plan_id": "uA",
     "plan_version": "e3b0c44298fc",
@@ -24,18 +24,10 @@
   "schedule": [
     {
       "date": "2024-01-01",
-      "hats": 1,
+      "hats": 0,
       "p10": 1.0,
       "p50": 1.0,
       "p90": 1.0,
-      "price": 0.0
-    },
-    {
-      "date": "2024-01-02",
-      "hats": 2,
-      "p10": 3.0,
-      "p50": 3.0,
-      "p90": 3.0,
       "price": 0.0
     }
   ],

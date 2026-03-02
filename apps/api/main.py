@@ -6,7 +6,7 @@ import sqlite3
 import time
 import tomllib
 from dataclasses import asdict, dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
@@ -879,24 +879,22 @@ def _generate_schedule(
         check_parts=lambda _: bundle.inv_status,
     )
 
-    today = date.today()
+    total_duration = float(
+        sum(
+            int(task.duration) if isinstance(task.duration, int) else 1
+            for task in assembled["tasks"].values()
+        )
+    )
+    makespan = total_duration if total_duration > 0 else 1.0
     schedule: List[SchedulePoint] = [
         SchedulePoint(
-            date=today.isoformat(),
-            p10=1.0,
-            p50=1.0,
-            p90=1.0,
+            date=date.today().isoformat(),
+            p10=makespan,
+            p50=makespan,
+            p90=makespan,
             price=0.0,
-            hats=1,
-        ),
-        SchedulePoint(
-            date=(today + timedelta(days=1)).isoformat(),
-            p10=3.0,
-            p50=3.0,
-            p90=3.0,
-            price=0.0,
-            hats=2,
-        ),
+            hats=len(assembled["tasks"]),
+        )
     ]
 
     if assembled["parts_gate"]["blocked"]:
@@ -919,7 +917,6 @@ def _generate_schedule(
                     "parts_policy": "A",
                 },
             )
-        makespan = 3.0
         return ScheduleResponse(
             status="blocked_by_parts",
             provenance=provenance,
@@ -938,7 +935,6 @@ def _generate_schedule(
             rulepack_version=RULE_PACK_VERSION,
         )
 
-    makespan = 3.0
     seed_var.set(seed_int)
     rule_hash_var.set(bundle.provenance.rule_hash)
     structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
