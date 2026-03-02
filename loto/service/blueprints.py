@@ -17,7 +17,7 @@ from ..impact import ImpactEngine, ImpactResult
 from ..integrations import MaximoAdapter
 from ..integrations._errors import AdapterRequestError
 from ..isolation_planner import IsolationPlanner
-from ..models import IsolationPlan, RulePack, SimReport, Stimulus
+from ..models import IsolationAction, IsolationPlan, RulePack, SimReport, Stimulus
 from ..scheduling import gates
 from ..scheduling.assemble import InventoryFn
 from ..sim_engine import SimEngine
@@ -129,6 +129,7 @@ def plan_and_evaluate(
     unit_areas: Dict[str, str],
     penalties: Dict[str, float] | None = None,
     asset_areas: Dict[str, str] | None = None,
+    pre_applied_isolations: list[str] | None = None,
     seed: int | None = None,
     config: Mapping[str, object] | None = None,
 ) -> Tuple[IsolationPlan, SimReport, ImpactResult, Provenance]:
@@ -160,16 +161,25 @@ def plan_and_evaluate(
             if g.nodes[u].get("is_isolation_point"):
                 data["is_isolation_point"] = True
 
+    pre_plan = IsolationPlan(
+        plan_id="pre",
+        actions=[
+            IsolationAction(component_id=component_id, method="lock", duration_s=None)
+            for component_id in (pre_applied_isolations or [])
+        ],
+    )
+    graphs_pre = SimEngine(seed=seed).apply(pre_plan, graphs)
+
     planner = IsolationPlanner()
     start = time.perf_counter()
     plan = planner.compute(
-        graphs, asset_tag=asset_tag, rule_pack=rule_pack, config=config
+        graphs_pre, asset_tag=asset_tag, rule_pack=rule_pack, config=config
     )
     duration = time.perf_counter() - start
     logger.info("plan_generated", duration=duration)
 
     sim = SimEngine(seed=seed)
-    applied = sim.apply(plan, graphs)
+    applied = sim.apply(plan, graphs_pre)
     report = sim.run_stimuli(applied, list(stimuli), rule_pack)
 
     impact = ImpactEngine().evaluate(
