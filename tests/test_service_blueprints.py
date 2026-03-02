@@ -106,3 +106,68 @@ def test_plan_and_evaluate_with_pre_applied_isolations(
     assert plan.actions == []
     assert report.results == []
     assert impact.unavailable_assets == {"ASSET"}
+
+
+def test_plan_and_evaluate_pre_applied_becomes_base_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+    line_df = pd.DataFrame(
+        [
+            {"domain": "process", "from_tag": "S", "to_tag": "A"},
+            {"domain": "process", "from_tag": "A", "to_tag": "B"},
+            {"domain": "process", "from_tag": "S", "to_tag": "B"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [
+            {"domain": "process", "tag": "B", "fail_state": "FC", "kind": "MV"},
+        ]
+    )
+    drain_df = pd.DataFrame(
+        [
+            {"domain": "process", "tag": "D", "kind": "drain"},
+        ]
+    )
+    source_df = pd.DataFrame(
+        [
+            {"domain": "process", "tag": "S", "kind": "source"},
+        ]
+    )
+
+    plan, _, _, _ = plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="B",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"B": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+    )
+
+    initial_edges = [action.component_id for action in plan.actions]
+    assert "process:A->B" in initial_edges
+
+    plan_with_pre_applied, _, _, _ = plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="B",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"B": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+        pre_applied_isolations=["process:A->B"],
+    )
+
+    selected_edges = [action.component_id for action in plan_with_pre_applied.actions]
+    assert "process:A->B" not in selected_edges
+    assert "process:S->B" in selected_edges
