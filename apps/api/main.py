@@ -956,6 +956,13 @@ def _generate_schedule(
     inv_status = check_wo_parts_required(work_order, lookup_stock)
 
     seed_int = 0
+    provenance = {
+        "plan_id": payload.workorder,
+        "simulation_config_id": "default-des-montecarlo",
+        "simulation_config_version": "1.0",
+        "random_seed": str(seed_int),
+        "seed_strategy": "deterministic",
+    }
     if inv_status.blocked:
         seed_var.set(seed_int)
         rule_hash_var.set(RULE_PACK_HASH)
@@ -969,15 +976,21 @@ def _generate_schedule(
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
-                    "blocked_by_parts": True,
+                    "status": "failed",
+                    "provenance": provenance,
+                    "error_code": "PARTS_BLOCKED_STRICT",
+                    "error_message": "Scheduling blocked by missing parts in strict mode",
                     "missing_parts": missing_parts,
+                    "gating_reason": "missing required parts",
                 },
             )
         return ScheduleResponse(
+            status="blocked_by_parts",
+            provenance=provenance,
             schedule=[],
-            seed=str(seed_int),
+            missing_parts=missing_parts,
+            gating_reason="missing required parts",
             objective=0.0,
-            blocked_by_parts=True,
             rulepack_sha256=RULE_PACK_HASH,
             rulepack_id=RULE_PACK_ID,
             rulepack_version=RULE_PACK_VERSION,
@@ -1009,10 +1022,15 @@ def _generate_schedule(
     structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
     logging.info("request complete")
     return ScheduleResponse(
+        status="feasible",
+        provenance=provenance,
         schedule=schedule,
-        seed=str(seed_int),
+        p10=mc_res.makespan_percentiles.get("P10", 0.0),
+        p50=mc_res.makespan_percentiles.get("P50", 0.0),
+        p90=mc_res.makespan_percentiles.get("P90", 0.0),
+        expected_makespan=mc_res.makespan_percentiles.get("P50", 0.0),
+        expected_cost=None,
         objective=0.0,
-        blocked_by_parts=False,
         rulepack_sha256=RULE_PACK_HASH,
         rulepack_id=RULE_PACK_ID,
         rulepack_version=RULE_PACK_VERSION,

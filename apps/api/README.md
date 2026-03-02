@@ -47,3 +47,22 @@ python -m apps.api.audit my-audit-log-bucket
 
 Plan a scheduled job (for example, cron) to run this command regularly.  This
 implements the retention policy of keeping audit logs for seven years.
+
+## `/schedule` response contract
+
+The `POST /schedule` job result now follows a canonical contract:
+
+- `status`: one of `feasible`, `blocked_by_parts`, or `failed`
+- `provenance`: includes `plan_id`, `simulation_config_id`,
+  `simulation_config_version`, and `random_seed` (or `seed_strategy`)
+
+Conditional fields by status:
+
+- `feasible`: requires `p10`, `p50`, `p90`, and `expected_makespan`
+  (`expected_cost` is optional when available)
+- `blocked_by_parts`: requires `missing_parts` and/or `gating_reason`;
+  `schedule` data may be present only when policy allows
+- `failed`: requires `error_code` and `error_message`
+
+The OpenAPI schema is generated from `apps/api/schemas.py::ScheduleResponse`,
+which enforces these status-dependent requirements via model validation.
