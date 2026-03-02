@@ -41,13 +41,13 @@ class DemoEllipseAdapter(EllipseAdapter):
         "WO-1": {
             "id": "PRM-1",
             "status": "Active",
-            "applied_isolations": ["ISO-1", "ISO-2"],
+            "applied_isolations": ["steam:source->VALVE1", "steam:VALVE1->A"],
             "callback_time_min": 0,
         },
         "WO-2": {
             "id": "PRM-2",
             "status": "Authorised",
-            "applied_isolations": ["ISO-3"],
+            "applied_isolations": ["steam:VALVE1->A"],
             "callback_time_min": 0,
         },
     }

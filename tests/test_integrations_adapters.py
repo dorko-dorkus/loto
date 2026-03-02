@@ -33,4 +33,4 @@ def test_wapr_demo_adapter_returns_fixture_permit() -> None:
     """Ensure fixture permit data is returned for a work order."""
     adapter = DemoWaprAdapter()
     permit = adapter.fetch_permit("WO-100")
-    assert permit == {"applied_isolations": ["ISO-1", "ISO-2"]}
+    assert permit == {"applied_isolations": ["steam:source->VALVE1", "steam:VALVE1->A"]}

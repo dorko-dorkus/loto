@@ -9,6 +9,6 @@ def test_demo_adapter_returns_work_order_and_permit() -> None:
     assert permit == {
         "id": "PRM-1",
         "status": "Active",
-        "applied_isolations": ["ISO-1", "ISO-2"],
+        "applied_isolations": ["steam:source->VALVE1", "steam:VALVE1->A"],
         "callback_time_min": 0,
     }
