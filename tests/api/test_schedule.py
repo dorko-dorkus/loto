@@ -30,7 +30,9 @@ def test_schedule_endpoint(monkeypatch: MonkeyPatch) -> None:
     first = data["schedule"][0]
     assert {"date", "p10", "p50", "p90", "price", "hats"} <= first.keys()
     assert data["status"] == "feasible"
-    assert data["provenance"]["plan_id"] == "WO-1"
+    assert data["provenance"]["plan_id"] == "uA"
+    assert "plan_version" in data["provenance"]
+    assert "plan_actions" in data["provenance"]
     assert data["provenance"]["random_seed"] == "0"
     assert (
         data["p10"] is not None and data["p50"] is not None and data["p90"] is not None
@@ -81,12 +83,42 @@ def test_schedule_inventory_gating_strict(monkeypatch: MonkeyPatch) -> None:
         assert job_data["status"] == "failed"
         assert job_data["result"]["status"] == "failed"
         assert job_data["result"]["error_code"] == "PARTS_BLOCKED_STRICT"
-        assert job_data["result"]["provenance"]["plan_id"] == "WO-1"
+        assert job_data["result"]["provenance"]["plan_id"] == "uA"
         assert job_data["result"]["missing_parts"] == [
             {"item_id": "P-200", "quantity": 1}
         ]
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
+
+
+def test_blueprint_and_schedule_share_plan_identity_and_actions(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    importlib.reload(main)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
+
+    blueprint_res = client.post("/blueprint", json={"workorder_id": "WO-1"})
+    assert blueprint_res.status_code == 202
+    blueprint_job = blueprint_res.json()["job_id"]
+    blueprint_data = wait_for_job(client, blueprint_job)["result"]
+    expected_actions = ",".join(
+        f"{step['component_id']}:{step['method']}" for step in blueprint_data["steps"]
+    )
+
+    schedule_res = client.post(
+        "/schedule",
+        json={"workorder": "WO-1"},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert schedule_res.status_code == 202
+    schedule_job = schedule_res.json()["job_id"]
+    schedule_data = wait_for_job(client, schedule_job)["result"]
+    provenance = schedule_data["provenance"]
+
+    assert provenance["plan_id"] == "uA"
+    assert provenance["plan_actions"] == expected_actions
+    assert provenance["plan_version"]
 
 
 def test_schedule_schema_requires_provenance_and_status_contract() -> None:

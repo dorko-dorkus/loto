@@ -16,14 +16,6 @@ def test_blueprint_prefers_pipeline_over_canned(
 ) -> None:
     reloaded_main = importlib.reload(main)
 
-    monkeypatch.setattr(
-        reloaded_main.demo_data,
-        "get_blueprint",
-        lambda _workorder_id: {
-            "steps": [{"component_id": "CANNED", "method": "close"}],
-        },
-    )
-
     fake_plan = SimpleNamespace(
         actions=[SimpleNamespace(component_id="PIPELINE", method="close")]
     )
@@ -34,8 +26,7 @@ def test_blueprint_prefers_pipeline_over_canned(
     fake_provenance = SimpleNamespace(seed=123, rule_hash="f" * 64)
 
     monkeypatch.setattr(
-        reloaded_main,
-        "plan_and_evaluate",
+        "apps.api.planning_service.plan_and_evaluate",
         lambda *args, **kwargs: (fake_plan, None, fake_impact, fake_provenance),
     )
 
@@ -55,18 +46,16 @@ def test_blueprint_job_fails_when_context_csv_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reloaded_main = importlib.reload(main)
-    original_load_context = reloaded_main.DemoMaximoAdapter.load_context
+    from apps.api.planning_service import DemoMaximoAdapter
+
+    original_load_context = DemoMaximoAdapter.load_context
 
     def _broken_context(self: Any, workorder_id: str) -> dict[str, Any]:
         ctx = cast(dict[str, Any], original_load_context(self, workorder_id))
         ctx["line_csv"] = "missing-line-list.csv"
         return ctx
 
-    monkeypatch.setattr(
-        reloaded_main.DemoMaximoAdapter,
-        "load_context",
-        _broken_context,
-    )
+    monkeypatch.setattr(DemoMaximoAdapter, "load_context", _broken_context)
 
     client = TestClient(reloaded_main.app)
     response = client.post("/blueprint", json={"workorder_id": "WO-1"})
