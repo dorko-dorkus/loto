@@ -63,6 +63,7 @@ from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.rule_engine import RuleEngine
 from loto.service import assemble_tasks
 from loto.service.blueprints import parse_component_ids
+from loto.service.scheduling import monte_carlo_schedule
 
 from .audit import add_record
 from .demo_data import demo_data
@@ -885,19 +886,25 @@ def _generate_schedule(
         check_parts=lambda _: bundle.inv_status,
     )
 
-    total_duration = float(
-        sum(
-            int(task.duration) if isinstance(task.duration, int) else 1
-            for task in assembled["tasks"].values()
-        )
+    mc = monte_carlo_schedule(
+        assembled["tasks"],
+        resource_caps,
+        runs,
+        state=STATE,
     )
-    makespan = total_duration if total_duration > 0 else 1.0
+    p10 = float(mc.makespan_percentiles.get("P10", 0.0))
+    p50 = float(mc.makespan_percentiles.get("P50", 0.0))
+    p90 = float(mc.makespan_percentiles.get("P90", 0.0))
+    if not (p10 <= p50 <= p90):
+        p10, p50, p90 = sorted((p10, p50, p90))
+    expected_makespan = p50
+
     schedule: List[SchedulePoint] = [
         SchedulePoint(
             date=date.today().isoformat(),
-            p10=makespan,
-            p50=makespan,
-            p90=makespan,
+            p10=p10,
+            p50=p50,
+            p90=p90,
             price=0.0,
             hats=len(assembled["tasks"]),
         )
@@ -927,10 +934,10 @@ def _generate_schedule(
             status="blocked_by_parts",
             provenance=provenance,
             schedule=schedule,
-            p10=makespan,
-            p50=makespan,
-            p90=makespan,
-            expected_makespan=makespan,
+            p10=p10,
+            p50=p50,
+            p90=p90,
+            expected_makespan=expected_makespan,
             missing_parts=missing_parts,
             gating_reason="missing required parts",
             percentiles_conditional=True,
@@ -949,10 +956,10 @@ def _generate_schedule(
         status="feasible",
         provenance=provenance,
         schedule=schedule,
-        p10=makespan,
-        p50=makespan,
-        p90=makespan,
-        expected_makespan=makespan,
+        p10=p10,
+        p50=p50,
+        p90=p90,
+        expected_makespan=expected_makespan,
         expected_cost=None,
         objective=0.0,
         rulepack_sha256=RULE_PACK_HASH,
