@@ -132,6 +132,7 @@ def plan_and_evaluate(
     pre_applied_isolations: list[str] | None = None,
     seed: int | None = None,
     config: Mapping[str, object] | None = None,
+    strict_pre_applied_isolations: bool | None = None,
 ) -> Tuple[IsolationPlan, SimReport, ImpactResult, Provenance]:
     """Run builder → planner → simulator → impact evaluation pipeline.
 
@@ -161,11 +162,18 @@ def plan_and_evaluate(
             if g.nodes[u].get("is_isolation_point"):
                 data["is_isolation_point"] = True
 
+    parsed_pre_applied = [
+        f"{domain}:{u}->{v}"
+        for domain, u, v in parse_component_ids(
+            pre_applied_isolations or [], strict=strict_pre_applied_isolations
+        )
+    ]
+
     pre_plan = IsolationPlan(
         plan_id="pre",
         actions=[
             IsolationAction(component_id=component_id, method="lock", duration_s=None)
-            for component_id in (pre_applied_isolations or [])
+            for component_id in parsed_pre_applied
         ],
     )
     graphs_pre = SimEngine(seed=seed).apply(pre_plan, graphs)
