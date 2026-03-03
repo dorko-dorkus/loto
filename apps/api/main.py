@@ -68,7 +68,7 @@ from loto.service import assemble_tasks
 from loto.service.blueprints import parse_component_ids
 from loto.service.scheduling import monte_carlo_schedule
 
-from .audit import add_record
+from .audit import add_record, ensure_audit_table
 from .demo_data import demo_data
 from .pid_endpoints import router as pid_router
 from .planning_service import load_work_order_plan
@@ -147,6 +147,13 @@ logging.info("loaded rulepack %s sha256=%s", _rulepack_path, RULE_PACK_HASH)
 _APPROVAL_DB = Path(__file__).resolve().parents[2] / "approvals.db"
 
 app = FastAPI(title="loto API")
+
+
+@app.on_event("startup")
+async def _initialize_audit_table() -> None:
+    """Ensure audit table exists for the configured database."""
+    ensure_audit_table()
+
 
 # In-memory storage for background job statuses
 JOBS: Dict[str, JobStatus] = {}
