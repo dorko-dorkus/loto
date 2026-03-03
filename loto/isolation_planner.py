@@ -22,6 +22,7 @@ import networkx as nx
 
 from loto.integrations import get_hats_adapter
 
+from .errors import AssetTagNotFoundError
 from .models import IsolationAction, IsolationPlan, RulePack
 
 
@@ -141,6 +142,29 @@ class IsolationPlanner:
         that domain.
         """
 
+        normalized_tag = str(asset_tag).strip().upper()
+        if not normalized_tag:
+            normalized_tag = str(asset_tag).upper()
+
+        candidate_tags = sorted(
+            {
+                str(data.get("tag")).strip().upper()
+                for graph in graphs.values()
+                for _, data in graph.nodes(data=True)
+                if data.get("tag") is not None and str(data.get("tag")).strip()
+            }
+        )
+        has_legacy_u_alias = (
+            normalized_tag.startswith("U")
+            and len(normalized_tag) > 1
+            and normalized_tag[1:] in candidate_tags
+        )
+        if normalized_tag not in candidate_tags and not has_legacy_u_alias:
+            total_nodes = sum(graph.number_of_nodes() for graph in graphs.values())
+            raise AssetTagNotFoundError(
+                normalized_tag, hint=f"graph contains {total_nodes} nodes"
+            )
+
         plan: Dict[str, List[Tuple[str, str]]] = {}
 
         cfg = dict(config or {})
@@ -162,7 +186,9 @@ class IsolationPlanner:
             work_graphs[domain] = graph
             sources = [n for n, data in graph.nodes(data=True) if data.get("is_source")]
             targets = [
-                n for n, data in graph.nodes(data=True) if data.get("tag") == asset_tag
+                n
+                for n, data in graph.nodes(data=True)
+                if str(data.get("tag", "")).strip().upper() == normalized_tag
             ]
 
             if not sources or not targets:
@@ -258,7 +284,11 @@ class IsolationPlanner:
                     open_graph.add_edge(u, v)
 
             sources = [n for n, d in g.nodes(data=True) if d.get("is_source")]
-            targets = [n for n, d in g.nodes(data=True) if d.get("tag") == asset_tag]
+            targets = [
+                n
+                for n, d in g.nodes(data=True)
+                if str(d.get("tag", "")).strip().upper() == normalized_tag
+            ]
 
             best: List[str] | None = None
             for s in sources:
@@ -282,7 +312,7 @@ class IsolationPlanner:
             targets = [
                 n
                 for n, d in work_graphs[domain].nodes(data=True)
-                if d.get("tag") == asset_tag
+                if str(d.get("tag", "")).strip().upper() == normalized_tag
             ]
             for component in nx.connected_components(branch_graph):
                 branch_label = f"{domain}:{'-'.join(sorted(component))}"
