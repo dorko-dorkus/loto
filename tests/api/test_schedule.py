@@ -86,7 +86,7 @@ def test_schedule_endpoint(monkeypatch: MonkeyPatch) -> None:
     first = data["schedule"][0]
     assert {"date", "p10", "p50", "p90", "price", "hats"} <= first.keys()
     assert data["status"] == "feasible"
-    assert data["provenance"]["plan_id"] == "uA"
+    assert data["provenance"]["plan_id"] == "UA"
     assert "plan_version" in data["provenance"]
     assert "plan_actions" in data["provenance"]
     assert data["provenance"]["random_seed"] == "0"
@@ -366,7 +366,7 @@ def test_blueprint_and_schedule_share_plan_identity_and_actions(
     schedule_data = wait_for_job(client, schedule_job)["result"]
     provenance = schedule_data["provenance"]
 
-    assert provenance["plan_id"] == "uA"
+    assert provenance["plan_id"] == "UA"
     assert provenance["plan_actions"] == expected_actions
     assert provenance["plan_version"]
 

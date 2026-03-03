@@ -270,6 +270,88 @@ def test_plan_and_evaluate_non_strict_pre_applied_skips_malformed(
     assert events == [("invalid_component_id", {"component_id": "ISO-1"})]
 
 
+def test_plan_and_evaluate_strict_pre_applied_normalizes_component_variants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+    line_df = pd.DataFrame(
+        [
+            {"domain": "steam", "from_tag": "SRC", "to_tag": "V_1"},
+            {"domain": "steam", "from_tag": "V_1", "to_tag": "ASSET_1"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [{"domain": "steam", "tag": "V_1", "fail_state": "FC", "kind": "MV"}]
+    )
+    drain_df = pd.DataFrame([{"domain": "steam", "tag": "D", "kind": "drain"}])
+    source_df = pd.DataFrame([{"domain": "steam", "tag": "SRC", "kind": "source"}])
+
+    plan, _, _, _ = plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="ASSET_1",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"ASSET_1": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+        pre_applied_isolations=["StEaM: v-1 -> asset-1"],
+        strict_pre_applied_isolations=True,
+    )
+
+    assert plan.actions == []
+
+
+def test_plan_and_evaluate_non_strict_pre_applied_normalizes_component_variants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+    events: list[tuple[str, dict[str, str]]] = []
+
+    def fake_warning(event: str, **kw: str) -> None:
+        events.append((event, kw))
+
+    monkeypatch.setattr("loto.service.blueprints.logger.warning", fake_warning)
+
+    line_df = pd.DataFrame(
+        [
+            {"domain": "steam", "from_tag": "SRC", "to_tag": "V_1"},
+            {"domain": "steam", "from_tag": "V_1", "to_tag": "ASSET_1"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [{"domain": "steam", "tag": "V_1", "fail_state": "FC", "kind": "MV"}]
+    )
+    drain_df = pd.DataFrame([{"domain": "steam", "tag": "D", "kind": "drain"}])
+    source_df = pd.DataFrame([{"domain": "steam", "tag": "SRC", "kind": "source"}])
+
+    plan, _, _, _ = plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="ASSET_1",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"ASSET_1": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+        pre_applied_isolations=["bad-id", "StEaM: v-1 -> asset-1"],
+        strict_pre_applied_isolations=False,
+    )
+
+    assert plan.actions == []
+    assert events == [("invalid_component_id", {"component_id": "bad-id"})]
+
+
 class _WO:
     def __init__(self, wo_id: str) -> None:
         self.id = wo_id

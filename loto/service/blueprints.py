@@ -18,6 +18,7 @@ from ..integrations import MaximoAdapter
 from ..integrations._errors import AdapterRequestError
 from ..isolation_planner import IsolationPlanner
 from ..models import IsolationAction, IsolationPlan, RulePack, SimReport, Stimulus
+from ..normalization import canonicalize_graph_domain, canonicalize_graph_tag
 from ..scheduling import gates
 from ..scheduling.assemble import InventoryFn
 from ..sim_engine import SimEngine
@@ -163,7 +164,7 @@ def plan_and_evaluate(
                 data["is_isolation_point"] = True
 
     parsed_pre_applied = [
-        f"{domain}:{u}->{v}"
+        f"{canonicalize_graph_domain(domain)}:{canonicalize_graph_tag(u)}->{canonicalize_graph_tag(v)}"
         for domain, u, v in parse_component_ids(
             pre_applied_isolations or [], strict=strict_pre_applied_isolations
         )
