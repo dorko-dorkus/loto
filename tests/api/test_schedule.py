@@ -1,4 +1,5 @@
 import importlib
+from typing import Any
 
 import pytest
 from _pytest.monkeypatch import MonkeyPatch
@@ -217,6 +218,54 @@ def test_schedule_blocked_with_stubbed_parts_check(
     assert "p10" not in job_data["result"]
     assert "p50" not in job_data["result"]
     assert "p90" not in job_data["result"]
+
+
+def test_schedule_blocked_policy_a_skips_monte_carlo(
+    monkeypatch: MonkeyPatch,
+    planner_stub_bundle: WorkOrderPlanBundle,
+) -> None:
+    importlib.reload(main)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
+    blocked_bundle = WorkOrderPlanBundle(
+        work_order=planner_stub_bundle.work_order,
+        inv_status=InventoryStatus(
+            blocked=True,
+            missing=[Reservation(item_id="P-200", quantity=1, critical=True)],
+        ),
+        parts_status={"P-200": "short"},
+        missing_part_details=[
+            {
+                "item": "P-200",
+                "required": 1,
+                "available": 0,
+                "shortfall": 1,
+                "reason": "insufficient_available",
+            }
+        ],
+        plan=planner_stub_bundle.plan,
+        impact=planner_stub_bundle.impact,
+        provenance=planner_stub_bundle.provenance,
+    )
+    monkeypatch.setattr(
+        main, "load_work_order_plan", lambda *a, **kw: (blocked_bundle, {})
+    )
+
+    def _unexpected_mc(*args: Any, **kwargs: Any) -> None:
+        raise AssertionError("monte_carlo_schedule should not run for policy A blocks")
+
+    monkeypatch.setattr(main, "monte_carlo_schedule", _unexpected_mc)
+
+    res = client.post(
+        "/schedule?parts_block_policy=A",
+        json={"workorder": "WO-STUB"},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    job_data = wait_for_job(client, job)
+    assert job_data["status"] == "failed"
+    assert job_data["result"]["error_code"] == "PARTS_BLOCKED"
 
 
 def test_blueprint_and_schedule_share_plan_identity_and_actions(
