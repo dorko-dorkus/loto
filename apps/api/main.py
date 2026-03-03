@@ -93,13 +93,13 @@ from .workorder_endpoints import router as workorder_router
 configure_logging()
 validate_env_vars()
 
-_required_env = [
-    "MAXIMO_BASE_URL",
-    "MAXIMO_APIKEY",
-    "OIDC_CLIENT_ID",
-    "OIDC_CLIENT_SECRET",
-    "OIDC_ISSUER",
-]
+AUTH_MODE = os.getenv("AUTH_MODE", "").lower()
+OIDC_DISABLED = os.getenv("OIDC_DISABLED", "").lower() in {"1", "true", "yes"}
+DEV_AUTH_MODE = AUTH_MODE == "dev" or OIDC_DISABLED
+
+_required_env = ["MAXIMO_BASE_URL", "MAXIMO_APIKEY"]
+if not DEV_AUTH_MODE:
+    _required_env.extend(["OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_ISSUER"])
 _missing = [k for k in _required_env if not os.getenv(k)]
 if _missing:
     raise RuntimeError("Missing required environment variables: " + ", ".join(_missing))
@@ -262,6 +262,8 @@ OIDC_SERVER = os.getenv("OIDC_SERVER", OIDC_ISSUER)
 OIDC_AUDIENCE = os.getenv("OIDC_AUDIENCE", OIDC_CLIENT_ID)
 OIDC_CACHE_TTL = int(os.getenv("OIDC_CACHE_TTL", "3600"))
 PLANNER_EMAIL_DOMAIN = os.getenv("PLANNER_EMAIL_DOMAIN", "")
+DEV_AUTH_TOKEN = os.getenv("OIDC_DEV_STATIC_TOKEN", "")
+DEV_AUTH_EMAIL = os.getenv("OIDC_DEV_EMAIL", "planner@local.dev")
 
 
 class OIDCUser(IDToken):
@@ -290,17 +292,43 @@ def _assign_roles(user: OIDCUser) -> OIDCUser:
 
 
 def _auth_header(authorization: str | None = Header(default=None)) -> str:
+    if DEV_AUTH_MODE:
+        return authorization or ""
     if authorization is None:
         raise HTTPException(status_code=401, detail="unauthorized")
     return authorization
 
 
 def get_current_user(auth_header: str = Depends(_auth_header)) -> OIDCUser:
+    if DEV_AUTH_MODE:
+        if DEV_AUTH_TOKEN and auth_header != f"Bearer {DEV_AUTH_TOKEN}":
+            raise HTTPException(status_code=401, detail="unauthorized")
+        return OIDCUser(
+            iss="dev",
+            sub="planner-dev",
+            aud=OIDC_AUDIENCE or "dev",
+            exp=0,
+            iat=0,
+            email=DEV_AUTH_EMAIL,
+            roles=["planner"],
+        )
     user = authenticate_user(auth_header)
     return _assign_roles(user)
 
 
 def current_user_from_header(auth_header: str) -> OIDCUser:
+    if DEV_AUTH_MODE:
+        if DEV_AUTH_TOKEN and auth_header != f"Bearer {DEV_AUTH_TOKEN}":
+            raise HTTPException(status_code=401, detail="unauthorized")
+        return OIDCUser(
+            iss="dev",
+            sub="planner-dev",
+            aud=OIDC_AUDIENCE or "dev",
+            exp=0,
+            iat=0,
+            email=DEV_AUTH_EMAIL,
+            roles=["planner"],
+        )
     user = authenticate_user(auth_header)
     return _assign_roles(user)
 
