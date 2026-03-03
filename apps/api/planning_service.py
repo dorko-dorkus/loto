@@ -16,6 +16,7 @@ from loto.inventory import (
     check_wo_parts_required,
 )
 from loto.models import IsolationPlan, RulePack
+from loto.normalization import canonicalize_graph_tag
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import Provenance, inventory_state
 
@@ -67,7 +68,7 @@ class DemoMaximoAdapter:
             "valve_csv": base / "valves.csv",
             "drain_csv": base / "drains.csv",
             "source_csv": base / "sources.csv",
-            "asset_tag": "uA",
+            "asset_tag": canonicalize_graph_tag("uA"),
             "impact_cfg": impact_cfg,
         }
 
@@ -140,7 +141,7 @@ def load_work_order_plan(
     adapter = DemoMaximoAdapter()
     ctx = adapter.load_context(workorder_id)
     impact_cfg = ctx["impact_cfg"]
-    asset_tag = str(ctx["asset_tag"])
+    asset_tag = str(canonicalize_graph_tag(ctx["asset_tag"]))
     if asset_tag not in impact_cfg.asset_units and impact_cfg.unit_data:
         impact_cfg.asset_units[asset_tag] = sorted(impact_cfg.unit_data)[0]
 

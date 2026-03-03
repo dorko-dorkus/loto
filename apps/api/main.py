@@ -61,6 +61,7 @@ from loto.inventory import (
 )
 from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_var
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
+from loto.normalization import canonicalize_graph_tag
 from loto.rule_engine import RuleEngine
 from loto.scheduling.des_engine import Task
 from loto.service import assemble_tasks
@@ -728,7 +729,7 @@ class DemoMaximoAdapter:
             "valve_csv": base / "valves.csv",
             "drain_csv": base / "drains.csv",
             "source_csv": base / "sources.csv",
-            "asset_tag": "uA",
+            "asset_tag": canonicalize_graph_tag("uA"),
             "impact_cfg": impact_cfg,
         }
 

@@ -6,6 +6,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, validator
 
+from .normalization import canonicalize_graph_domain, canonicalize_graph_tag
+
 MEDIUM_WHITELIST = {"STEAM", "WATER", "AIR", "OIL", "NITROGEN"}
 
 
@@ -19,19 +21,11 @@ class Domain(str, Enum):
 
 
 def _normalise_tag(cls: type[Any], value: Any) -> Any:
-    if value is None:
-        return value
-    if isinstance(value, float) and math.isnan(value):
-        return None
-    if isinstance(value, str):
-        return value.strip().replace("-", "_").upper()
-    return value
+    return canonicalize_graph_tag(value)
 
 
 def _normalise_domain(cls: type[Any], value: Any) -> Any:
-    if isinstance(value, str):
-        return value.strip().replace("-", "_").lower()
-    return value
+    return canonicalize_graph_domain(value)
 
 
 def _validate_medium(cls: type[Any], value: Any) -> Any:

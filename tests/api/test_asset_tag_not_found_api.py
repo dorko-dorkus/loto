@@ -11,7 +11,6 @@ import apps.api.main as main
 from apps.api.planning_service import DemoMaximoAdapter
 from tests.job_utils import wait_for_job
 
-
 ORIGINAL_LOAD_CONTEXT = DemoMaximoAdapter.load_context
 
 
@@ -35,7 +34,7 @@ def test_blueprint_unknown_asset_tag_returns_structured_failure(
     assert job["status"] == "failed"
     assert job["result"] == {
         "code": "ASSET_TAG_NOT_FOUND",
-        "message": "asset_tag 'UA-404' not found in graph",
+        "message": "asset_tag 'UA_404' not found in graph",
         "hint": "graph contains 4 nodes",
     }
     assert job["error"] == job["result"]
@@ -66,7 +65,7 @@ def test_schedule_unknown_asset_tag_preserves_structured_payload(
     assert job["status"] == "failed"
     assert job["result"] == {
         "code": "ASSET_TAG_NOT_FOUND",
-        "message": "asset_tag 'UA-404' not found in graph",
+        "message": "asset_tag 'UA_404' not found in graph",
         "hint": "graph contains 4 nodes",
     }
     assert job["error"] == job["result"]
