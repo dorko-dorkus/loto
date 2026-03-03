@@ -12,8 +12,8 @@ from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import InventoryStatus, Reservation
 from loto.models import IsolationAction, IsolationPlan
 from loto.scheduling.des_engine import Task
-from loto.service.scheduling import monte_carlo_schedule
 from loto.service.blueprints import Provenance
+from loto.service.scheduling import monte_carlo_schedule
 from tests.job_utils import wait_for_job
 
 
@@ -54,6 +54,21 @@ def planner_stub_bundle() -> WorkOrderPlanBundle:
         ),
         provenance=Provenance(seed=7, rule_hash="f" * 64),
     )
+
+
+@pytest.fixture  # type: ignore[misc]
+def constrained_duration_tasks() -> dict[str, Task]:
+    """Task graph with fixed integer durations and a tight shared resource."""
+
+    return {
+        "prep": Task(duration=9, resources={"crew": 1}),
+        "isolate": Task(duration=11, resources={"crew": 1}),
+        "verify": Task(
+            duration=7,
+            predecessors=["prep", "isolate"],
+            resources={"crew": 1},
+        ),
+    }
 
 
 def test_schedule_endpoint(monkeypatch: MonkeyPatch) -> None:
@@ -271,19 +286,13 @@ def test_schedule_inventory_gating_strict_forces_policy_a(
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
 
 
-def test_fixed_durations_are_seeded_and_spread_under_resource_constraints() -> None:
+def test_fixed_durations_are_seeded_and_spread_under_resource_constraints(
+    constrained_duration_tasks: dict[str, Task],
+) -> None:
     importlib.reload(main)
 
-    tasks = {
-        "a": Task(duration=10, resources={"crew": 1}),
-        "b": Task(duration=10, resources={"crew": 1}),
-        "c": Task(duration=8, predecessors=["a", "b"], resources={"crew": 1}),
-    }
-
-    wrapped = main._with_seeded_duration_variability(tasks)
-    assert callable(wrapped["a"].duration)
-    assert callable(wrapped["b"].duration)
-    assert callable(wrapped["c"].duration)
+    wrapped = main._with_seeded_duration_variability(constrained_duration_tasks)
+    assert all(callable(task.duration) for task in wrapped.values())
 
     mc_a = monte_carlo_schedule(wrapped, {"crew": 1}, runs=300, seed=123)
     mc_b = monte_carlo_schedule(wrapped, {"crew": 1}, runs=300, seed=123)
