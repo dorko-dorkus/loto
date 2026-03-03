@@ -19,8 +19,8 @@ def test_plan_and_evaluate_deterministic(
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},
-            {"domain": "steam", "from_tag": "V", "to_tag": "asset"},
-            {"domain": "steam", "from_tag": "asset", "to_tag": "D"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
+            {"domain": "steam", "from_tag": "DEMO_ASSET_1", "to_tag": "D"},
         ]
     )
     valve_df = pd.DataFrame(
@@ -44,17 +44,17 @@ def test_plan_and_evaluate_deterministic(
         io.StringIO(valve_df.to_csv(index=False)),
         io.StringIO(drain_df.to_csv(index=False)),
         io.StringIO(source_df.to_csv(index=False)),
-        asset_tag="ASSET",
+        asset_tag="DEMO_ASSET_1",
         rule_pack=RulePack(risk_policies=None),
         stimuli=[],
-        asset_units={"ASSET": "U1"},
+        asset_units={"DEMO_ASSET_1": "U1"},
         unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
         unit_areas={"U1": "Area1"},
     )
 
-    assert [a.component_id for a in plan.actions] == ["steam:V->ASSET"]
+    assert [a.component_id for a in plan.actions] == ["steam:V->DEMO_ASSET_1"]
     assert report.results == []
-    assert impact.unavailable_assets == {"ASSET"}
+    assert impact.unavailable_assets == {"DEMO_ASSET_1"}
     assert impact.unit_mw_delta == {"U1": 5.0}
     assert impact.area_mw_delta == {"Area1": 5.0}
     assert prov.seed is None
@@ -71,8 +71,8 @@ def test_plan_and_evaluate_with_pre_applied_isolations(
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},
-            {"domain": "steam", "from_tag": "V", "to_tag": "asset"},
-            {"domain": "steam", "from_tag": "asset", "to_tag": "D"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
+            {"domain": "steam", "from_tag": "DEMO_ASSET_1", "to_tag": "D"},
         ]
     )
     valve_df = pd.DataFrame(
@@ -96,18 +96,18 @@ def test_plan_and_evaluate_with_pre_applied_isolations(
         io.StringIO(valve_df.to_csv(index=False)),
         io.StringIO(drain_df.to_csv(index=False)),
         io.StringIO(source_df.to_csv(index=False)),
-        asset_tag="ASSET",
+        asset_tag="DEMO_ASSET_1",
         rule_pack=RulePack(risk_policies=None),
         stimuli=[],
-        asset_units={"ASSET": "U1"},
+        asset_units={"DEMO_ASSET_1": "U1"},
         unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
         unit_areas={"U1": "Area1"},
-        pre_applied_isolations=["steam:V->ASSET"],
+        pre_applied_isolations=["steam:V->DEMO_ASSET_1"],
     )
 
     assert plan.actions == []
     assert report.results == []
-    assert impact.unavailable_assets == {"ASSET"}
+    assert impact.unavailable_assets == {"DEMO_ASSET_1"}
 
 
 def test_plan_and_evaluate_pre_applied_becomes_base_state(
@@ -185,7 +185,7 @@ def test_plan_and_evaluate_strict_pre_applied_raises_on_malformed(
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},
-            {"domain": "steam", "from_tag": "V", "to_tag": "asset"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
         ]
     )
     valve_df = pd.DataFrame(
@@ -206,13 +206,13 @@ def test_plan_and_evaluate_strict_pre_applied_raises_on_malformed(
             io.StringIO(valve_df.to_csv(index=False)),
             io.StringIO(drain_df.to_csv(index=False)),
             io.StringIO(source_df.to_csv(index=False)),
-            asset_tag="ASSET",
+            asset_tag="DEMO_ASSET_1",
             rule_pack=RulePack(risk_policies=None),
             stimuli=[],
-            asset_units={"ASSET": "U1"},
+            asset_units={"DEMO_ASSET_1": "U1"},
             unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
             unit_areas={"U1": "Area1"},
-            pre_applied_isolations=["ISO-1", "steam:V->ASSET"],
+            pre_applied_isolations=["ISO-1", "steam:V->DEMO_ASSET_1"],
             strict_pre_applied_isolations=True,
         )
 
@@ -234,7 +234,7 @@ def test_plan_and_evaluate_non_strict_pre_applied_skips_malformed(
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},
-            {"domain": "steam", "from_tag": "V", "to_tag": "asset"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
         ]
     )
     valve_df = pd.DataFrame(
@@ -254,19 +254,19 @@ def test_plan_and_evaluate_non_strict_pre_applied_skips_malformed(
         io.StringIO(valve_df.to_csv(index=False)),
         io.StringIO(drain_df.to_csv(index=False)),
         io.StringIO(source_df.to_csv(index=False)),
-        asset_tag="ASSET",
+        asset_tag="DEMO_ASSET_1",
         rule_pack=RulePack(risk_policies=None),
         stimuli=[],
-        asset_units={"ASSET": "U1"},
+        asset_units={"DEMO_ASSET_1": "U1"},
         unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
         unit_areas={"U1": "Area1"},
-        pre_applied_isolations=["ISO-1", "steam:V->ASSET"],
+        pre_applied_isolations=["ISO-1", "steam:V->DEMO_ASSET_1"],
         strict_pre_applied_isolations=False,
     )
 
     assert plan.actions == []
     assert report.results == []
-    assert impact.unavailable_assets == {"ASSET"}
+    assert impact.unavailable_assets == {"DEMO_ASSET_1"}
     assert events == [("invalid_component_id", {"component_id": "ISO-1"})]
 
 
@@ -369,7 +369,7 @@ def test_pre_applied_permit_isolation_reduces_schedule_workload_and_makespan(
     line_df = pd.DataFrame(
         [
             {"domain": "steam", "from_tag": "S", "to_tag": "V"},
-            {"domain": "steam", "from_tag": "V", "to_tag": "asset"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
         ]
     )
     valve_df = pd.DataFrame(
@@ -383,10 +383,10 @@ def test_pre_applied_permit_isolation_reduces_schedule_workload_and_makespan(
         io.StringIO(valve_df.to_csv(index=False)),
         io.StringIO(drain_df.to_csv(index=False)),
         io.StringIO(source_df.to_csv(index=False)),
-        asset_tag="ASSET",
+        asset_tag="DEMO_ASSET_1",
         rule_pack=RulePack(risk_policies=None),
         stimuli=[],
-        asset_units={"ASSET": "U1"},
+        asset_units={"DEMO_ASSET_1": "U1"},
         unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
         unit_areas={"U1": "Area1"},
         seed=7,
@@ -396,13 +396,13 @@ def test_pre_applied_permit_isolation_reduces_schedule_workload_and_makespan(
         io.StringIO(valve_df.to_csv(index=False)),
         io.StringIO(drain_df.to_csv(index=False)),
         io.StringIO(source_df.to_csv(index=False)),
-        asset_tag="ASSET",
+        asset_tag="DEMO_ASSET_1",
         rule_pack=RulePack(risk_policies=None),
         stimuli=[],
-        asset_units={"ASSET": "U1"},
+        asset_units={"DEMO_ASSET_1": "U1"},
         unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
         unit_areas={"U1": "Area1"},
-        pre_applied_isolations=["steam:V->ASSET"],
+        pre_applied_isolations=["steam:V->DEMO_ASSET_1"],
         seed=7,
     )
 

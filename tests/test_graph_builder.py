@@ -268,3 +268,36 @@ def test_validate_reports_cycles_with_severity() -> None:
     assert "info" in severities
     assert any("A" in m and "B" in m for m in messages)
     assert any("C" in m and "D" in m for m in messages)
+
+
+def test_from_csvs_marks_assets_with_explicit_marker(tmp_path: Path) -> None:
+    line_df = pd.DataFrame(
+        [
+            {"domain": "steam", "from_tag": "S1", "to_tag": "V1"},
+            {"domain": "steam", "from_tag": "V1", "to_tag": "A1"},
+            {"domain": "steam", "from_tag": "A1", "to_tag": "D1"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [{"domain": "steam", "tag": "V1", "fail_state": "CLOSED", "kind": "MV"}]
+    )
+    drain_df = pd.DataFrame([{"domain": "steam", "tag": "D1", "kind": "drain"}])
+    source_df = pd.DataFrame([{"domain": "steam", "tag": "S1", "kind": "source"}])
+
+    line_path = tmp_path / "lines.csv"
+    valve_path = tmp_path / "valves.csv"
+    drain_path = tmp_path / "drains.csv"
+    source_path = tmp_path / "sources.csv"
+    line_df.to_csv(line_path, index=False)
+    valve_df.to_csv(valve_path, index=False)
+    drain_df.to_csv(drain_path, index=False)
+    source_df.to_csv(source_path, index=False)
+
+    g = GraphBuilder().from_csvs(line_path, valve_path, drain_path, source_path)[
+        "steam"
+    ]
+
+    assert g.nodes["S1"]["is_asset"] is False
+    assert g.nodes["V1"]["is_asset"] is False
+    assert g.nodes["D1"]["is_asset"] is False
+    assert g.nodes["A1"]["is_asset"] is True
