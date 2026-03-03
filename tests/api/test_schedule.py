@@ -11,6 +11,8 @@ from loto.impact import ImpactResult
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import InventoryStatus, Reservation
 from loto.models import IsolationAction, IsolationPlan
+from loto.scheduling.des_engine import Task
+from loto.service.scheduling import monte_carlo_schedule
 from loto.service.blueprints import Provenance
 from tests.job_utils import wait_for_job
 
@@ -267,3 +269,42 @@ def test_schedule_inventory_gating_strict_forces_policy_a(
         assert job_data["result"]["error_code"] == "PARTS_BLOCKED"
     finally:
         DemoStoresAdapter._INVENTORY["P-200"]["reorder_point"] = original
+
+
+def test_fixed_durations_are_seeded_and_spread_under_resource_constraints() -> None:
+    importlib.reload(main)
+
+    tasks = {
+        "a": Task(duration=10, resources={"crew": 1}),
+        "b": Task(duration=10, resources={"crew": 1}),
+        "c": Task(duration=8, predecessors=["a", "b"], resources={"crew": 1}),
+    }
+
+    wrapped = main._with_seeded_duration_variability(tasks)
+    assert callable(wrapped["a"].duration)
+    assert callable(wrapped["b"].duration)
+    assert callable(wrapped["c"].duration)
+
+    mc_a = monte_carlo_schedule(wrapped, {"crew": 1}, runs=300, seed=123)
+    mc_b = monte_carlo_schedule(wrapped, {"crew": 1}, runs=300, seed=123)
+
+    assert mc_a == mc_b
+    assert (
+        mc_a.makespan_percentiles["P10"]
+        < mc_a.makespan_percentiles["P50"]
+        < mc_a.makespan_percentiles["P90"]
+    )
+
+
+def test_duration_wrapper_preserves_existing_callable_tasks() -> None:
+    importlib.reload(main)
+
+    tasks = {
+        "callable": Task(duration=lambda rng: rng.randint(1, 2)),
+        "fixed": Task(duration=5),
+    }
+
+    wrapped = main._with_seeded_duration_variability(tasks)
+
+    assert wrapped["callable"] is tasks["callable"]
+    assert callable(wrapped["fixed"].duration)
