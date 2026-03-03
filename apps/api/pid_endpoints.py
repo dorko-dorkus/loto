@@ -78,13 +78,20 @@ class OverlayResponse(BaseModel):
 
 @router.get("/{drawing_id}/svg")
 async def get_pid_svg(drawing_id: str) -> StreamingResponse:
-    """Stream the raw SVG for a given drawing identifier."""
+    """Stream drawing artifacts, preferring SVG and falling back to raster/PDF."""
 
     base = Path(__file__).resolve().parents[2] / "demo"
-    svg_path = base / f"{drawing_id}.svg"
-    if not _svg_exists(svg_path):
-        raise HTTPException(status_code=404, detail="Drawing not found")
-    return StreamingResponse(svg_path.open("rb"), media_type="image/svg+xml")
+    candidates: list[tuple[str, str]] = [
+        (".svg", "image/svg+xml"),
+        (".png", "image/png"),
+        (".jpg", "image/jpeg"),
+        (".pdf", "application/pdf"),
+    ]
+    for suffix, media_type in candidates:
+        path = base / f"{drawing_id}{suffix}"
+        if _svg_exists(path):
+            return StreamingResponse(path.open("rb"), media_type=media_type)
+    raise HTTPException(status_code=404, detail="Drawing not found")
 
 
 @router.post("/overlay", response_model=OverlayResponse)
@@ -98,6 +105,12 @@ async def post_overlay(payload: OverlayRequest) -> OverlayResponse:
         svg_path_raw = svg_obj
     else:
         svg_path_raw = None
+
+    if svg_path_raw and not svg_path_raw.lower().endswith(".svg"):
+        raise HTTPException(
+            status_code=422,
+            detail="/pid/overlay requires an SVG input; raster and PDF artifacts are not supported",
+        )
 
     with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
         yaml.safe_dump(pid_map, fh)
