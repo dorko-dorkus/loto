@@ -10,11 +10,13 @@ from pathlib import Path
 import structlog
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 DB_URL = os.getenv("DATABASE_URL", "sqlite:////tmp/loto.db")
 
 
 logger = structlog.get_logger(__name__)
+_MISSING_TABLE_LOGGED = False
 
 
 def _redact(value: str) -> str:
@@ -57,13 +59,49 @@ def _engine(db_path: Path | str | None = None) -> Engine:
     return create_engine(url)
 
 
-def add_record(*, user: str, action: str, db_path: Path | str | None = None) -> None:
-    """Insert an audit record into the database."""
+def ensure_audit_table(*, db_path: Path | str | None = None) -> None:
+    """Create the ``audit_records`` table when it is missing."""
     with _engine(db_path).begin() as conn:
         conn.execute(
-            text("INSERT INTO audit_records (user, action) VALUES (:user, :action)"),
-            {"user": user, "action": action},
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS audit_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    timestamp TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+                )
+                """
+            )
         )
+
+
+def _is_missing_audit_table_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return "audit_records" in message and (
+        "no such table" in message or "does not exist" in message
+    )
+
+
+def add_record(*, user: str, action: str, db_path: Path | str | None = None) -> None:
+    """Insert an audit record into the database."""
+    global _MISSING_TABLE_LOGGED
+
+    try:
+        with _engine(db_path).begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO audit_records (user, action) VALUES (:user, :action)"
+                ),
+                {"user": user, "action": action},
+            )
+    except (OperationalError, ProgrammingError) as exc:
+        if _is_missing_audit_table_error(exc):
+            if not _MISSING_TABLE_LOGGED:
+                logger.info("audit_records_table_missing_skip_write")
+                _MISSING_TABLE_LOGGED = True
+            return
+        raise
 
 
 def export_records(
