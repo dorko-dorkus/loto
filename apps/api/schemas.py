@@ -277,7 +277,9 @@ class JobStatus(BaseModel):
     result: Dict[str, Any] | None = Field(
         None, description="Result payload when the job has completed"
     )
-    error: str | None = Field(None, description="Error message if the job failed")
+    error: Dict[str, Any] | str | None = Field(
+        None, description="Structured error payload if the job failed"
+    )
 
     model_config = ConfigDict(extra="forbid")
 

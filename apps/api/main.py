@@ -47,7 +47,7 @@ from sqlalchemy import create_engine, text
 from starlette.datastructures import MutableHeaders
 
 from loto.config import validate_env_vars
-from loto.errors import GenerationError
+from loto.errors import AssetTagNotFoundError, GenerationError
 from loto.errors import ImportError as LotoImportError
 from loto.errors import LotoError, ValidationError
 from loto.impact_config import load_impact_config
@@ -435,13 +435,15 @@ async def _handle_loto_error(request: Request, exc: LotoError) -> None:
     """Convert internal errors into HTTP errors."""
     status_map = {
         ValidationError: status.HTTP_400_BAD_REQUEST,
+        AssetTagNotFoundError: status.HTTP_400_BAD_REQUEST,
         LotoImportError: status.HTTP_500_INTERNAL_SERVER_ERROR,
         GenerationError: status.HTTP_500_INTERNAL_SERVER_ERROR,
     }
     status_code = status_map.get(type(exc), status.HTTP_500_INTERNAL_SERVER_ERROR)
-    raise HTTPException(
-        status_code=status_code, detail={"code": exc.code, "message": exc.hint}
-    )
+    detail = {"code": exc.code, "message": exc.hint}
+    if isinstance(exc, AssetTagNotFoundError) and exc.public_hint:
+        detail["hint"] = exc.public_hint
+    raise HTTPException(status_code=status_code, detail=detail)
 
 
 @app.exception_handler(Exception)
@@ -784,9 +786,23 @@ def _blueprint_worker(
                 payload,
                 strict_pre_applied_isolations=strict_pre_applied_isolations,
             )
+    except HTTPException as exc:
+        job.status = "failed"
+        if isinstance(exc.detail, dict):
+            job.result = exc.detail
+            job.error = exc.detail
+        else:
+            job.error = exc.detail
     except Exception as exc:
         job.status = "failed"
-        job.error = str(exc)
+        if isinstance(exc, LotoError):
+            detail = {"code": exc.code, "message": exc.hint}
+            if isinstance(exc, AssetTagNotFoundError) and exc.public_hint:
+                detail["hint"] = exc.public_hint
+            job.result = detail
+            job.error = detail
+        else:
+            job.error = str(exc)
     else:
         job.result = result.model_dump()
         job.status = "done"
@@ -1029,10 +1045,17 @@ def _schedule_worker(
         if isinstance(exc.detail, dict):
             job.result = exc.detail
         else:
-            job.error = str(exc.detail)
+            job.error = exc.detail
     except Exception as exc:  # pragma: no cover - unexpected errors
         job.status = "failed"
-        job.error = str(exc)
+        if isinstance(exc, LotoError):
+            detail = {"code": exc.code, "message": exc.hint}
+            if isinstance(exc, AssetTagNotFoundError) and exc.public_hint:
+                detail["hint"] = exc.public_hint
+            job.result = detail
+            job.error = detail
+        else:
+            job.error = str(exc)
     else:
         job.result = result.model_dump()
         job.status = "done"

@@ -80,6 +80,17 @@ class ValidationError(LotoError):
         super().__init__(self.code, hint)
 
 
+class AssetTagNotFoundError(ValidationError):
+    """Raised when the requested asset tag is not present in planner graphs."""
+
+    code = "ASSET_TAG_NOT_FOUND"
+
+    def __init__(self, tag: str, hint: str | None = None):
+        self.message = f"asset_tag '{tag}' not found in graph"
+        self.public_hint = hint
+        super().__init__(self.message)
+
+
 class ImportError(LotoError):  # noqa: A001 - intended name clash with builtin
     """Importing external data failed."""
 
@@ -107,6 +118,7 @@ __all__ = [
     "IntegrationError",
     "RenderError",
     "ValidationError",
+    "AssetTagNotFoundError",
     "ImportError",
     "GenerationError",
 ]
