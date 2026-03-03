@@ -113,6 +113,7 @@ class GraphBuilder:
                     tag,
                     tag=tag,
                     is_source=False,
+                    is_asset=False,
                     is_isolation_point=False,
                     fail_state=None,
                     kind=None,
@@ -221,6 +222,7 @@ class GraphBuilder:
             _ensure_node(g, tag)
             if drain_row.kind is not None:
                 g.nodes[tag]["kind"] = drain_row.kind
+            g.nodes[tag]["is_asset"] = False
 
         if not source_df.empty:
             for idx, row in source_df.iterrows():
@@ -233,7 +235,24 @@ class GraphBuilder:
                 g = graphs.setdefault(domain, nx.MultiDiGraph())
                 tag = source_row.tag
                 _ensure_node(g, tag)
-                g.nodes[tag].update({"is_source": True, "kind": source_row.kind})
+                g.nodes[tag].update(
+                    {"is_source": True, "is_asset": False, "kind": source_row.kind}
+                )
+
+        for g in graphs.values():
+            for _node, attrs in g.nodes(data=True):
+                kind = attrs.get("kind")
+                normalized_kind = (
+                    kind.strip().lower().replace("-", "_").replace(" ", "_")
+                    if isinstance(kind, str)
+                    else None
+                )
+                attrs["kind_class"] = normalized_kind
+                attrs["is_asset"] = bool(
+                    not attrs.get("is_source")
+                    and not attrs.get("is_isolation_point")
+                    and normalized_kind not in {"source", "drain", "vent"}
+                )
 
         if errors:
             raise ValueError("\n".join(errors))

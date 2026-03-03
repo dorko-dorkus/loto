@@ -8,10 +8,10 @@ from loto.sim_engine import SimEngine
 def build_graph() -> nx.MultiDiGraph:
     g = nx.MultiDiGraph()
     g.add_node("source", is_source=True)
-    g.add_node("uA", tag="asset")
-    g.add_node("uB1", tag="asset")
-    g.add_node("uB2", tag="asset")
-    g.add_node("local1", tag="asset")
+    g.add_node("uA", tag="asset", is_asset=True)
+    g.add_node("uB1", tag="asset", is_asset=True)
+    g.add_node("uB2", tag="asset", is_asset=True)
+    g.add_node("local1", tag="asset", is_asset=True)
 
     # edges to assets; some are isolation points
     g.add_edge("source", "uA", is_isolation_point=True)
@@ -126,3 +126,19 @@ def test_include_unit_penalties() -> None:
     assert result.unavailable_assets == {"uA", "uB1", "uB2", "local1"}
     assert result.unit_mw_delta == {"UnitA": 110.0, "UnitB": 70.0}
     assert result.area_mw_delta == {"North": 180.0, "South": 5.0}
+
+
+def test_legacy_asset_tag_fallback_when_marker_absent() -> None:
+    g = nx.MultiDiGraph()
+    g.add_node("source", is_source=True)
+    g.add_node("ASSET", tag="ASSET")
+    g.add_edge("source", "ASSET", is_isolation_point=True, state="closed")
+
+    result = ImpactEngine().evaluate(
+        {"steam": g},
+        asset_units={"ASSET": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},
+        unit_areas={"U1": "Area1"},
+    )
+
+    assert result.unavailable_assets == {"ASSET"}

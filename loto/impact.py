@@ -140,7 +140,12 @@ class ImpactEngine:
             assets = {
                 n
                 for n, d in g.nodes(data=True)
-                if isinstance(d.get("tag"), str) and d.get("tag").upper() == "ASSET"
+                if d.get("is_asset") is True
+                or (
+                    d.get("is_asset") is None
+                    and isinstance(d.get("tag"), str)
+                    and d.get("tag").upper() == "ASSET"
+                )
             }
             unavailable.update(assets - reachable)
 

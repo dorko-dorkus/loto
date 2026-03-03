@@ -5,6 +5,6 @@
     "P-200": "ok"
   },
   "steps": [],
-  "unavailable_assets": [],
+  "unavailable_assets": ["A"],
   "unit_mw_delta": {}
 }
