@@ -887,6 +887,26 @@ def _generate_schedule(
         bundle.plan,
         check_parts=lambda _: bundle.inv_status,
     )
+
+    effective_policy = "A" if strict else parts_block_policy
+    if assembled["parts_gate"]["blocked"] and effective_policy == "A":
+        seed_var.set(seed_int)
+        rule_hash_var.set(RULE_PACK_HASH)
+        structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
+        logging.info("request complete")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "status": "failed",
+                "provenance": provenance,
+                "error_code": "PARTS_BLOCKED",
+                "error_message": "Scheduling blocked by missing parts",
+                "missing_parts": bundle.missing_part_details,
+                "gating_reason": "missing required parts",
+                "parts_policy": "A",
+            },
+        )
+
     sampled_tasks = _with_seeded_duration_variability(assembled["tasks"])
 
     mc = monte_carlo_schedule(
@@ -920,20 +940,6 @@ def _generate_schedule(
         structlog.contextvars.bind_contextvars(seed=seed_int, rule_hash=RULE_PACK_HASH)
         logging.info("request complete")
         missing_parts = bundle.missing_part_details
-        effective_policy = "A" if strict else parts_block_policy
-        if effective_policy == "A":
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail={
-                    "status": "failed",
-                    "provenance": provenance,
-                    "error_code": "PARTS_BLOCKED",
-                    "error_message": "Scheduling blocked by missing parts",
-                    "missing_parts": missing_parts,
-                    "gating_reason": "missing required parts",
-                    "parts_policy": "A",
-                },
-            )
         return ScheduleResponse(
             status="blocked_by_parts",
             provenance=provenance,
