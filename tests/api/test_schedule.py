@@ -163,6 +163,79 @@ def test_schedule_honors_request_overrides(
     assert data["provenance"]["resource_profile"] == "elec:1,mech:3"
 
 
+def test_schedule_feasible_returns_ordered_percentiles_from_mc(
+    monkeypatch: MonkeyPatch,
+    planner_stub_bundle: WorkOrderPlanBundle,
+) -> None:
+    importlib.reload(main)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
+    monkeypatch.setattr(
+        main,
+        "load_work_order_plan",
+        lambda *a, **kw: (planner_stub_bundle, {}),
+    )
+
+    res = client.post(
+        "/schedule",
+        json={"workorder": "WO-STUB", "seed": 21},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert res.status_code == 202
+    job = res.json()["job_id"]
+    data = wait_for_job(client, job)["result"]
+
+    assert data["status"] == "feasible"
+    assert len(data["schedule"]) >= 1
+    assert data["p10"] <= data["p50"] <= data["p90"]
+    assert data["expected_makespan"] > 0
+
+
+def test_schedule_knob_change_shifts_p50(
+    monkeypatch: MonkeyPatch,
+    planner_stub_bundle: WorkOrderPlanBundle,
+) -> None:
+    importlib.reload(main)
+    client = TestClient(main.app)
+    monkeypatch.setattr(main, "authenticate_user", lambda *a, **kw: _planner())
+    monkeypatch.setattr(
+        main,
+        "load_work_order_plan",
+        lambda *a, **kw: (planner_stub_bundle, {}),
+    )
+    monkeypatch.setattr(
+        main,
+        "assemble_tasks",
+        lambda *a, **kw: {
+            "tasks": {
+                "a": Task(duration=10, resources={"mech": 1}),
+                "b": Task(duration=10, resources={"mech": 1}),
+            },
+            "parts_gate": {"blocked": False},
+        },
+    )
+
+    base_payload = {"workorder": "WO-STUB", "seed": 42, "runs": 200}
+    low_cap = client.post(
+        "/schedule",
+        json={**base_payload, "resource_caps": {"mech": 1}},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert low_cap.status_code == 202
+    low_data = wait_for_job(client, low_cap.json()["job_id"])["result"]
+
+    high_cap = client.post(
+        "/schedule",
+        json={**base_payload, "resource_caps": {"mech": 3}},
+        headers={"Authorization": "Bearer x"},
+    )
+    assert high_cap.status_code == 202
+    high_data = wait_for_job(client, high_cap.json()["job_id"])["result"]
+
+    assert low_data["p50"] != high_data["p50"]
+    assert low_data["p50"] > high_data["p50"]
+
+
 def test_schedule_blocked_with_stubbed_parts_check(
     monkeypatch: MonkeyPatch,
     planner_stub_bundle: WorkOrderPlanBundle,
