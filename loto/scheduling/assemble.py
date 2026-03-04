@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 from collections.abc import Callable, Iterable
 from typing import cast
 
@@ -22,6 +23,9 @@ DEFAULT_BASELINE_DURATION_MIN = 20
 DEFAULT_RESOURCE_BUCKET = "Mechanical"
 DEFAULT_DURATION_VARIABILITY_RATIO = 0.15
 DEFAULT_WORK_TASK_NAME = "work"
+LOTO_COMPLETE_TASK_ID = "LOTO_COMPLETE"
+WORK_COMPLETE_TASK_ID = "WORK_COMPLETE"
+MILESTONE_DURATION_MIN = 1
 
 
 def _minutes_from_seconds(duration_s: object, fallback_min: int) -> int:
@@ -217,6 +221,33 @@ def _link_groups(before: Iterable[PlanningTask], after: list[PlanningTask]) -> N
     after[0].depends_on[:] = [before_list[-1].task_id]
 
 
+def validate_dag_acyclic(tasks: list[PlanningTask]) -> None:
+    """Raise ``ValueError`` when ``tasks`` contain cyclic dependencies."""
+
+    ids = {task.task_id for task in tasks}
+    indegree: dict[str, int] = {task.task_id: 0 for task in tasks}
+    graph: dict[str, list[str]] = {task.task_id: [] for task in tasks}
+
+    for task in tasks:
+        for dep in task.depends_on:
+            if dep in ids:
+                graph[dep].append(task.task_id)
+                indegree[task.task_id] += 1
+
+    queue: deque[str] = deque([tid for tid, degree in indegree.items() if degree == 0])
+    visited = 0
+    while queue:
+        node = queue.popleft()
+        visited += 1
+        for nxt in graph[node]:
+            indegree[nxt] -= 1
+            if indegree[nxt] == 0:
+                queue.append(nxt)
+
+    if visited != len(tasks):
+        raise ValueError("planning task graph contains a cycle")
+
+
 def build_job_dag(
     work_order: object,
     plan: IsolationPlan,
@@ -254,11 +285,43 @@ def build_job_dag(
     _chain_within_group(work_tasks)
     _chain_within_group(restoration_tasks)
 
-    _link_groups(isolation_tasks, work_tasks)
-    _link_groups(work_tasks, restoration_tasks)
+    loto_complete = PlanningTask(
+        task_id=LOTO_COMPLETE_TASK_ID,
+        kind="milestone",
+        name="LOTO complete",
+        resources={},
+        duration=DurationSpec(
+            baseline_min=MILESTONE_DURATION_MIN, variability_ratio=0.0
+        ),
+        depends_on=[task.task_id for task in isolation_tasks],
+        meta={"milestone": LOTO_COMPLETE_TASK_ID},
+    )
+    work_complete = PlanningTask(
+        task_id=WORK_COMPLETE_TASK_ID,
+        kind="milestone",
+        name="Work complete",
+        resources={},
+        duration=DurationSpec(
+            baseline_min=MILESTONE_DURATION_MIN, variability_ratio=0.0
+        ),
+        depends_on=[task.task_id for task in work_tasks],
+        meta={"milestone": WORK_COMPLETE_TASK_ID},
+    )
 
-    dag = isolation_tasks + work_tasks + restoration_tasks
+    for task in work_tasks:
+        task.depends_on[:] = [*task.depends_on, LOTO_COMPLETE_TASK_ID]
+    for task in restoration_tasks:
+        task.depends_on[:] = [*task.depends_on, WORK_COMPLETE_TASK_ID]
+
+    dag = (
+        isolation_tasks
+        + [loto_complete]
+        + work_tasks
+        + [work_complete]
+        + restoration_tasks
+    )
     ensure_unique_task_ids(dag)
+    validate_dag_acyclic(dag)
     return dag
 
 
