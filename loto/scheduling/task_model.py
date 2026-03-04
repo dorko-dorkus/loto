@@ -2,20 +2,34 @@
 
 from __future__ import annotations
 
+import random
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from .des_engine import DurationDistribution
 from .des_engine import Task as SchedulerTask
 
 
 @dataclass(frozen=True)
-class DurationSpec:
-    """Duration configuration used before mapping to runtime tasks."""
+class DeterministicDurationSpec:
+    """Fixed duration configuration in minutes."""
 
-    baseline_min: int
-    variability_ratio: float = 0.0
+    kind: Literal["deterministic"] = "deterministic"
+    minutes: int = 1
+
+
+@dataclass(frozen=True)
+class TriangularDurationSpec:
+    """Triangular duration configuration in minutes."""
+
+    kind: Literal["triangular"] = "triangular"
+    min: int = 1
+    mode: int = 1
+    max: int = 1
+
+
+DurationSpec: TypeAlias = DeterministicDurationSpec | TriangularDurationSpec
 
 
 @dataclass(frozen=True)
@@ -32,25 +46,70 @@ class PlanningTask:
     gate: Callable[[Mapping[str, object]], bool] | None = None
 
 
+def duration_spec_from_baseline_variability(
+    baseline_min: int,
+    variability_ratio: float = 0.0,
+) -> DurationSpec:
+    """Create a :class:`DurationSpec` from the legacy baseline/variability form."""
+
+    baseline = max(1, int(baseline_min))
+    variability = max(0.0, float(variability_ratio))
+    if variability <= 0:
+        return DeterministicDurationSpec(minutes=baseline)
+    minimum = max(1, int(round(baseline * (1.0 - variability))))
+    maximum = max(minimum, int(round(baseline * (1.0 + variability))))
+    return TriangularDurationSpec(min=minimum, mode=baseline, max=maximum)
+
+
+def duration_sampler_from_spec(
+    duration: DurationSpec,
+) -> tuple[int | Callable[[random.Random], int], int, DurationDistribution]:
+    """Convert a planning-layer duration spec into runtime scheduling representation."""
+
+    if duration.kind == "deterministic":
+        minutes = max(1, int(duration.minutes))
+        return (
+            minutes,
+            minutes,
+            DurationDistribution(kind="fixed"),
+        )
+
+    minimum = max(1, int(duration.min))
+    mode = max(minimum, int(duration.mode))
+    maximum = max(mode, int(duration.max))
+
+    def triangular_sampler(rng: random.Random) -> int:
+        sampled = rng.triangular(minimum, maximum, mode)
+        return max(1, int(round(sampled)))
+
+    return (
+        triangular_sampler,
+        mode,
+        DurationDistribution(
+            kind="triangular",
+            low=minimum / mode,
+            mode=1.0,
+            high=maximum / mode,
+        ),
+    )
+
+
 def to_scheduler_task(
     task: PlanningTask, *, include_resources: bool = False
 ) -> SchedulerTask:
     """Map a planning task into the runtime scheduler primitive."""
 
-    variability = max(0.0, float(task.duration.variability_ratio))
-    baseline = max(1, int(task.duration.baseline_min))
+    runtime_duration, base_duration, distribution = duration_sampler_from_spec(
+        task.duration
+    )
     runtime_resources = dict(task.resources) if include_resources else {}
     return SchedulerTask(
-        duration=baseline,
+        duration=runtime_duration,
         predecessors=tuple(task.depends_on),
         resources=runtime_resources,
         gate=task.gate,
-        base_duration=baseline,
-        distribution=DurationDistribution(
-            kind="uniform" if variability > 0 else "fixed",
-            low=max(0.0, 1.0 - variability),
-            high=max(1.0 - variability, 1.0 + variability),
-        ),
+        base_duration=base_duration,
+        distribution=distribution,
     )
 
 

@@ -14,7 +14,11 @@ from loto.scheduling.assemble import (
     planning_to_scheduler_tasks,
     validate_dag_acyclic,
 )
-from loto.scheduling.task_model import DurationSpec, PlanningTask
+from loto.scheduling.task_model import (
+    DeterministicDurationSpec,
+    PlanningTask,
+    TriangularDurationSpec,
+)
 
 
 class _WO:
@@ -63,7 +67,7 @@ def test_validate_dag_acyclic_raises_for_cycle() -> None:
             kind="work",
             name="a",
             resources={"Mechanical": 1},
-            duration=DurationSpec(baseline_min=1),
+            duration=DeterministicDurationSpec(minutes=1),
             depends_on=["b"],
         ),
         PlanningTask(
@@ -71,7 +75,7 @@ def test_validate_dag_acyclic_raises_for_cycle() -> None:
             kind="work",
             name="b",
             resources={"Mechanical": 1},
-            duration=DurationSpec(baseline_min=1),
+            duration=DeterministicDurationSpec(minutes=1),
             depends_on=["a"],
         ),
     ]
@@ -87,8 +91,10 @@ def test_mapping_is_deterministic_for_same_input() -> None:
     second = build_isolation_tasks(plan)
 
     assert first == second
-    assert first[0].duration.baseline_min == DEFAULT_BASELINE_DURATION_MIN
-    assert first[1].duration.baseline_min == 30
+    assert isinstance(first[0].duration, TriangularDurationSpec)
+    assert isinstance(first[1].duration, TriangularDurationSpec)
+    assert first[0].duration.mode == DEFAULT_BASELINE_DURATION_MIN
+    assert first[1].duration.mode == 30
     assert first[0].task_id == "plan-1-iso-0"
 
 
@@ -153,7 +159,8 @@ def test_build_job_dag_includes_milestones_and_phase_dependencies() -> None:
 
     assert loto_complete.kind == "milestone"
     assert loto_complete.resources == {}
-    assert loto_complete.duration.baseline_min == 1
+    assert loto_complete.duration.kind == "deterministic"
+    assert loto_complete.duration.minutes == 1
     assert loto_complete.depends_on == [
         task.task_id for task in dag if task.kind == "isolation"
     ]
@@ -164,3 +171,13 @@ def test_build_job_dag_includes_milestones_and_phase_dependencies() -> None:
     assert work_complete.kind == "milestone"
     assert work_complete.depends_on == [task.task_id for task in work_tasks]
     assert all(WORK_COMPLETE_TASK_ID in task.depends_on for task in restoration_tasks)
+
+
+def test_mapping_with_variability_uses_triangular_duration_spec_and_sampler() -> None:
+    tasks = build_isolation_tasks(_plan(), duration_variability_ratio=0.2)
+
+    assert tasks[0].duration.kind == "triangular"
+    scheduler_task = planning_to_scheduler_tasks(tasks)["plan-1-iso-0"]
+    assert callable(scheduler_task.duration)
+    assert scheduler_task.distribution is not None
+    assert scheduler_task.distribution.kind == "triangular"
