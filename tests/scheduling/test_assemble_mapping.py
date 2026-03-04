@@ -24,10 +24,19 @@ from loto.scheduling.task_model import (
 
 class _WO:
     def __init__(
-        self, wo_id: str, tasks: list[dict[str, object]] | None = None
+        self,
+        wo_id: str,
+        tasks: list[dict[str, object]] | None = None,
+        *,
+        description: str | None = None,
+        trade: str | None = None,
+        job_steps: list[dict[str, object]] | None = None,
     ) -> None:
         self.id = wo_id
         self.tasks = tasks or []
+        self.description = description
+        self.trade = trade
+        self.job_steps = job_steps
 
 
 def _plan() -> IsolationPlan:
@@ -119,12 +128,35 @@ def test_mapping_places_isolation_details_in_meta() -> None:
     assert tasks[1].meta["valve_tag"] == "B"
 
 
-def test_build_work_tasks_uses_default_when_no_details() -> None:
-    tasks = build_work_tasks(_WO("wo-9"))
+def test_build_work_tasks_uses_single_fallback_for_empty_job_steps() -> None:
+    tasks = build_work_tasks(
+        _WO("wo-9", description="Replace pump seal", trade="mechanical", job_steps=[])
+    )
 
     assert len(tasks) == 1
     assert tasks[0].task_id == "wo-9-work-0"
+    assert tasks[0].name == "Replace pump seal"
+    assert tasks[0].resources == {"mech": 1}
+    assert tasks[0].duration.kind == "triangular"
+    assert tasks[0].duration.min == 30
+    assert tasks[0].duration.mode == 120
+    assert tasks[0].duration.max == 360
     assert tasks[0].meta["default_work_task"] is True
+
+
+def test_build_work_tasks_creates_one_task_per_job_step() -> None:
+    tasks = build_work_tasks(
+        _WO(
+            "wo-11",
+            job_steps=[
+                {"description": "remove", "duration_s": 600},
+                {"description": "install", "duration_s": 900},
+            ],
+        )
+    )
+
+    assert [task.task_id for task in tasks] == ["wo-11-work-0", "wo-11-work-1"]
+    assert [task.name for task in tasks] == ["remove", "install"]
 
 
 def test_build_restoration_tasks_mirror_actions() -> None:
@@ -186,3 +218,24 @@ def test_mapping_with_variability_uses_triangular_duration_spec_and_sampler() ->
     assert callable(scheduler_task.duration)
     assert scheduler_task.distribution is not None
     assert scheduler_task.distribution.kind == "triangular"
+
+
+def test_build_job_dag_has_stable_task_ids_and_barrier_dependencies() -> None:
+    wo = _WO(
+        "wo-12",
+        job_steps=[
+            {"description": "remove", "duration_s": 120},
+            {"description": "replace", "duration_s": 180},
+        ],
+    )
+
+    first = build_job_dag(wo, _plan())
+    second = build_job_dag(wo, _plan())
+
+    assert [task.task_id for task in first] == [task.task_id for task in second]
+
+    by_id = {task.task_id: task for task in first}
+    assert by_id["wo-12-work-0"].depends_on == [LOTO_COMPLETE_TASK_ID]
+    assert by_id["wo-12-work-1"].depends_on == ["wo-12-work-0", LOTO_COMPLETE_TASK_ID]
+    assert by_id[WORK_COMPLETE_TASK_ID].depends_on == ["wo-12-work-0", "wo-12-work-1"]
+    assert by_id["wo-12-restore-0"].depends_on == [WORK_COMPLETE_TASK_ID]
