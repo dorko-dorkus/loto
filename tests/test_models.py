@@ -193,6 +193,27 @@ def test_rulepack_defaults_policy_matrix_for_backward_compatibility() -> None:
     assert effective[WorkType.INTRUSIVE_MECH].chemical.default.require_ddbb
 
 
+def test_rulepack_rejects_unknown_exposure_override_mode() -> None:
+    with pytest.raises(ValidationError):
+        RulePack.model_validate(
+            {
+                "domain_rules": [],
+                "verification_rules": [],
+                "risk_policies": None,
+                "isolation_policy_matrix": {
+                    "external_maintenance": {
+                        "pressure": {
+                            "default": {"block_sources": True},
+                            "exposure_overrides": {
+                                "unknown_mode": {"depressurize_to_sink": True}
+                            },
+                        }
+                    }
+                },
+            }
+        )
+
+
 def test_invalid_type_raises_error() -> None:
     """Invalid field types should raise clear validation errors."""
 
