@@ -46,7 +46,7 @@ def test_assemble_tasks_feasible_gate_and_tasks() -> None:
 
     assert assembled["parts_gate"] == {"blocked": False, "status": "feasible"}
     assert assembled["missing_parts"] == []
-    assert set(assembled["tasks"]) == {"p1-0"}
+    assert set(assembled["tasks"]) == {"p1-iso-0"}
 
 
 def test_assemble_tasks_blocked_gate_and_missing_parts() -> None:
