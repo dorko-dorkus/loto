@@ -80,3 +80,16 @@ def test_planning_tasks_map_to_scheduler_tasks() -> None:
 
     assert set(scheduler_tasks) == {"plan-1-iso-0", "plan-1-iso-1", "plan-1-iso-2"}
     assert scheduler_tasks["plan-1-iso-1"].predecessors == ("plan-1-iso-0",)
+
+
+def test_mapping_places_isolation_details_in_meta() -> None:
+    tasks = map_plan_tasks(_plan())
+
+    assert tasks[0].name == "isolation-0"
+    assert tasks[0].meta == {
+        "action_index": 0,
+        "method": "lock",
+        "component_id": "A",
+        "valve_tag": "A",
+    }
+    assert tasks[1].meta["valve_tag"] == "B"

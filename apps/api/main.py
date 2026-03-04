@@ -907,6 +907,22 @@ async def post_propose(payload: ProposeRequest) -> ProposeResponse:
     return ProposeResponse(diff=diff, idempotency_key=str(uuid4()))
 
 
+def _plan_actions_from_task_meta(task_meta: Dict[str, Dict[str, object]]) -> list[str]:
+    """Derive canonical ``component_id:method`` action refs from task metadata."""
+
+    refs: list[tuple[int, str, str]] = []
+    for task_id, meta in task_meta.items():
+        component_id = meta.get("component_id")
+        method = meta.get("method")
+        if isinstance(component_id, str) and isinstance(method, str):
+            idx = meta.get("action_index")
+            action_index = idx if isinstance(idx, int) else 10**9
+            refs.append((action_index, task_id, f"{component_id}:{method}"))
+
+    refs.sort(key=lambda item: (item[0], item[1]))
+    return [ref for _, _, ref in refs]
+
+
 def _generate_schedule(
     payload: ScheduleRequest,
     strict: bool,
@@ -930,10 +946,19 @@ def _generate_schedule(
     seed_int = payload.seed
     runs = payload.runs
     resource_caps = payload.resource_caps
+    assembled = assemble_tasks(
+        bundle.work_order,
+        bundle.plan,
+        check_parts=lambda _: bundle.inv_status,
+    )
+    plan_actions = _plan_actions_from_task_meta(assembled["task_meta"])
+    if not plan_actions:
+        plan_actions = bundle.plan_action_set
+
     provenance = {
         "plan_id": bundle.plan.plan_id,
         "plan_version": bundle.plan_version,
-        "plan_actions": ",".join(bundle.plan_action_set),
+        "plan_actions": ",".join(plan_actions),
         "simulation_config_id": "default-des-montecarlo",
         "simulation_config_version": "1.0",
         "sample_count": str(runs),
@@ -943,11 +968,6 @@ def _generate_schedule(
         "random_seed": str(seed_int),
         "seed_strategy": "deterministic",
     }
-    assembled = assemble_tasks(
-        bundle.work_order,
-        bundle.plan,
-        check_parts=lambda _: bundle.inv_status,
-    )
 
     effective_policy = "A" if strict else parts_block_policy
     if assembled["parts_gate"]["blocked"] and effective_policy == "A":

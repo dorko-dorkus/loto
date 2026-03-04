@@ -37,6 +37,11 @@ def map_plan_tasks(
     for idx, action in enumerate(plan.actions):
         task_id = f"{plan.plan_id}-iso-{idx}"
         dependencies = [previous_id] if previous_id is not None else []
+        valve_tag = (
+            action.component_id.split(":", 1)[1]
+            if ":" in action.component_id
+            else action.component_id
+        )
         duration_min = (
             int(math.ceil(action.duration_s / 60))
             if action.duration_s is not None
@@ -46,7 +51,7 @@ def map_plan_tasks(
             PlanningTask(
                 task_id=task_id,
                 kind="isolation",
-                name=f"{action.method}:{action.component_id}",
+                name=f"isolation-{idx}",
                 resources={default_resource_bucket: 1},
                 duration=DurationSpec(
                     baseline_min=max(1, duration_min),
@@ -55,8 +60,9 @@ def map_plan_tasks(
                 depends_on=dependencies,
                 meta={
                     "action_index": idx,
-                    "action_method": action.method,
+                    "method": action.method,
                     "component_id": action.component_id,
+                    "valve_tag": valve_tag,
                 },
             )
         )
