@@ -154,6 +154,7 @@ def monte_carlo_schedule(
     *,
     state: Mapping[str, object] | None = None,
     seed: int | None = 0,
+    makespan_task_id: str | None = None,
 ) -> MonteCarloResult:
     """Run Monte Carlo simulations of the scheduler."""
 
@@ -163,4 +164,5 @@ def monte_carlo_schedule(
         runs=runs,
         state=state,
         seed=seed,
+        makespan_task_id=makespan_task_id,
     )

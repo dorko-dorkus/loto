@@ -35,5 +35,6 @@
   ],
   "status": "feasible",
   "percentiles_conditional": false,
-  "conditional_basis": null
+  "conditional_basis": null,
+  "milestone_percentiles": null
 }

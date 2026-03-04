@@ -62,6 +62,11 @@ from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.normalization import canonicalize_graph_tag
 from loto.rule_engine import RuleEngine
+from loto.scheduling.assemble import (
+    LOTO_COMPLETE_TASK_ID,
+    RETURN_TO_SERVICE_COMPLETE_TASK_ID,
+    WORK_COMPLETE_TASK_ID,
+)
 from loto.service import assemble_tasks
 from loto.service.blueprints import parse_component_ids
 from loto.service.scheduling import apply_duration_variability, monte_carlo_schedule
@@ -923,6 +928,42 @@ def _plan_actions_from_task_meta(task_meta: Dict[str, Dict[str, object]]) -> lis
     return [ref for _, _, ref in refs]
 
 
+def _select_makespan_task_id(task_ids: set[str]) -> str | None:
+    """Return task id to use for total makespan computation."""
+
+    if RETURN_TO_SERVICE_COMPLETE_TASK_ID in task_ids:
+        return RETURN_TO_SERVICE_COMPLETE_TASK_ID
+
+    restoration_tasks = sorted(
+        task_id for task_id in task_ids if "-restore-" in task_id
+    )
+    if restoration_tasks:
+        return restoration_tasks[-1]
+
+    if WORK_COMPLETE_TASK_ID in task_ids:
+        return WORK_COMPLETE_TASK_ID
+
+    return None
+
+
+def _milestone_percentiles(
+    mc_task_percentiles: Dict[str, Dict[str, float]],
+) -> Dict[str, Dict[str, float]]:
+    """Extract optional milestone percentiles from Monte Carlo task outputs."""
+
+    milestones: Dict[str, Dict[str, float]] = {}
+    for milestone in (LOTO_COMPLETE_TASK_ID, WORK_COMPLETE_TASK_ID):
+        pct = mc_task_percentiles.get(milestone)
+        if pct is None:
+            continue
+        milestones[milestone] = {
+            "p10": float(pct.get("P10", 0.0)),
+            "p50": float(pct.get("P50", 0.0)),
+            "p90": float(pct.get("P90", 0.0)),
+        }
+    return milestones
+
+
 def _generate_schedule(
     payload: ScheduleRequest,
     strict: bool,
@@ -990,19 +1031,22 @@ def _generate_schedule(
 
     sampled_tasks = apply_duration_variability(assembled["tasks"])
 
+    makespan_task_id = _select_makespan_task_id(set(sampled_tasks))
     mc = monte_carlo_schedule(
         sampled_tasks,
         resource_caps,
         runs,
         state=STATE,
         seed=seed_int,
+        makespan_task_id=makespan_task_id,
     )
     p10 = float(mc.makespan_percentiles.get("P10", 0.0))
     p50 = float(mc.makespan_percentiles.get("P50", 0.0))
     p90 = float(mc.makespan_percentiles.get("P90", 0.0))
     if not (p10 <= p50 <= p90):
         p10, p50, p90 = sorted((p10, p50, p90))
-    expected_makespan = p50
+    expected_makespan = float(mc.expected_makespan)
+    milestone_percentiles = _milestone_percentiles(mc.task_percentiles)
 
     schedule: List[SchedulePoint] = [
         SchedulePoint(
@@ -1037,6 +1081,7 @@ def _generate_schedule(
             rulepack_sha256=RULE_PACK_HASH,
             rulepack_id=RULE_PACK_ID,
             rulepack_version=RULE_PACK_VERSION,
+            milestone_percentiles=milestone_percentiles or None,
         )
 
     seed_var.set(seed_int)
@@ -1056,6 +1101,7 @@ def _generate_schedule(
         rulepack_sha256=RULE_PACK_HASH,
         rulepack_id=RULE_PACK_ID,
         rulepack_version=RULE_PACK_VERSION,
+        milestone_percentiles=milestone_percentiles or None,
     )
 
 

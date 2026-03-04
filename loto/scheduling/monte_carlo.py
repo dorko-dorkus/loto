@@ -26,6 +26,7 @@ class MonteCarloResult:
     makespan_percentiles: Dict[str, float]
     criticality: Dict[str, float]
     expected_makespan: float
+    makespan_task_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,7 @@ def simulate(
     runs: int,
     state: Mapping[str, object] | None = None,
     seed: int | None = 0,
+    makespan_task_id: str | None = None,
 ) -> MonteCarloResult:
     """Run *runs* Monte Carlo simulations of the scheduler.
 
@@ -201,7 +203,11 @@ def simulate(
         result = run(tasks, resource_caps, state=state, seed=base_seed + i)
         for tid, end in result.ends.items():
             end_samples[tid].append(end)
-        makespan = max(result.ends.values()) if result.ends else 0
+        makespan = (
+            result.ends.get(makespan_task_id, 0)
+            if makespan_task_id is not None
+            else (max(result.ends.values()) if result.ends else 0)
+        )
         makespans.append(makespan)
         for tid in _critical_tasks(tasks, result):
             crit_counts[tid] += 1
@@ -218,6 +224,7 @@ def simulate(
         makespan_percentiles,
         criticality,
         expected_makespan,
+        makespan_task_id=makespan_task_id,
     )
 
 

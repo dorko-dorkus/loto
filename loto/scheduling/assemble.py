@@ -26,6 +26,7 @@ DEFAULT_DURATION_VARIABILITY_RATIO = 0.15
 DEFAULT_WORK_TASK_NAME = "work"
 LOTO_COMPLETE_TASK_ID = "LOTO_COMPLETE"
 WORK_COMPLETE_TASK_ID = "WORK_COMPLETE"
+RETURN_TO_SERVICE_COMPLETE_TASK_ID = "RETURN_TO_SERVICE_COMPLETE"
 MILESTONE_DURATION_MIN = 1
 
 
@@ -310,12 +311,27 @@ def build_job_dag(
     for task in restoration_tasks:
         task.depends_on[:] = [*task.depends_on, WORK_COMPLETE_TASK_ID]
 
+    return_to_service_complete = PlanningTask(
+        task_id=RETURN_TO_SERVICE_COMPLETE_TASK_ID,
+        kind="milestone",
+        name="Return to service complete",
+        resources={},
+        duration=DeterministicDurationSpec(minutes=MILESTONE_DURATION_MIN),
+        depends_on=(
+            [task.task_id for task in restoration_tasks]
+            if restoration_tasks
+            else [WORK_COMPLETE_TASK_ID]
+        ),
+        meta={"milestone": RETURN_TO_SERVICE_COMPLETE_TASK_ID},
+    )
+
     dag = (
         isolation_tasks
         + [loto_complete]
         + work_tasks
         + [work_complete]
         + restoration_tasks
+        + [return_to_service_complete]
     )
     ensure_unique_task_ids(dag)
     validate_dag_acyclic(dag)

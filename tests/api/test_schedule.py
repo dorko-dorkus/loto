@@ -94,6 +94,9 @@ def test_schedule_endpoint(monkeypatch: MonkeyPatch) -> None:
         data["p10"] is not None and data["p50"] is not None and data["p90"] is not None
     )
     assert data["expected_makespan"] is not None
+    milestones = data["milestone_percentiles"]
+    if milestones is not None:
+        assert set(milestones) >= {"LOTO_COMPLETE", "WORK_COMPLETE"}
     assert data["rulepack_sha256"] == main.RULE_PACK_HASH
 
 
@@ -189,6 +192,18 @@ def test_schedule_feasible_returns_ordered_percentiles_from_mc(
     assert len(data["schedule"]) >= 1
     assert data["p10"] <= data["p50"] <= data["p90"]
     assert data["expected_makespan"] > 0
+    milestones = data["milestone_percentiles"]
+    assert milestones is not None
+    assert (
+        milestones["LOTO_COMPLETE"]["p10"]
+        <= milestones["LOTO_COMPLETE"]["p50"]
+        <= milestones["LOTO_COMPLETE"]["p90"]
+    )
+    assert (
+        milestones["WORK_COMPLETE"]["p10"]
+        <= milestones["WORK_COMPLETE"]["p50"]
+        <= milestones["WORK_COMPLETE"]["p90"]
+    )
 
 
 def test_schedule_knob_change_shifts_p50(

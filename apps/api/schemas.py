@@ -133,6 +133,29 @@ class SchedulePoint(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class MilestonePercentileSummary(BaseModel):
+    """Percentiles for a specific schedule milestone."""
+
+    p10: float = Field(..., description="P10 completion percentile")
+    p50: float = Field(..., description="P50 completion percentile")
+    p90: float = Field(..., description="P90 completion percentile")
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class MilestonePercentiles(BaseModel):
+    """Optional milestone percentile summary."""
+
+    LOTO_COMPLETE: MilestonePercentileSummary | None = Field(
+        None, description="Optional percentiles for the LOTO_COMPLETE milestone"
+    )
+    WORK_COMPLETE: MilestonePercentileSummary | None = Field(
+        None, description="Optional percentiles for the WORK_COMPLETE milestone"
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class ScheduleResponse(BaseModel):
     """Response model for the /schedule endpoint."""
 
@@ -152,7 +175,20 @@ class ScheduleResponse(BaseModel):
     p10: float | None = Field(None, description="P10 duration percentile")
     p50: float | None = Field(None, description="P50 duration percentile")
     p90: float | None = Field(None, description="P90 duration percentile")
-    expected_makespan: float | None = Field(None, description="Expected total makespan")
+    expected_makespan: float | None = Field(
+        None,
+        description=(
+            "Expected total makespan measured at final return-to-service completion "
+            "(or final restoration task when no terminal milestone exists)"
+        ),
+    )
+    milestone_percentiles: MilestonePercentiles | None = Field(
+        None,
+        description=(
+            "Optional percentile summary for milestone completion times "
+            "(currently LOTO_COMPLETE and WORK_COMPLETE)"
+        ),
+    )
     expected_cost: float | None = Field(None, description="Expected schedule cost")
     objective: float | None = Field(
         None, description="Objective value for the schedule"
@@ -214,6 +250,10 @@ class ScheduleResponse(BaseModel):
                 "p50": 2.0,
                 "p90": 3.0,
                 "expected_makespan": 2.0,
+                "milestone_percentiles": {
+                    "LOTO_COMPLETE": {"p10": 0.5, "p50": 1.0, "p90": 1.5},
+                    "WORK_COMPLETE": {"p10": 1.0, "p50": 1.5, "p90": 2.0},
+                },
                 "objective": 50.0,
                 "rulepack_sha256": "abc123",
                 "rulepack_id": "default",
