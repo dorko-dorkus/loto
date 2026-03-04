@@ -7,7 +7,7 @@ from typing import TypedDict
 
 from ..inventory import InventoryStatus
 from ..models import IsolationPlan
-from ..scheduling import assemble, des_engine, monte_carlo
+from ..scheduling import assemble, des_engine, gates, monte_carlo
 from ..scheduling.des_engine import DurationDistribution, RunResult, Task
 from ..scheduling.monte_carlo import MonteCarloResult
 from .blueprints import validate_fk_integrity
@@ -31,6 +31,7 @@ class AssembledTasks(TypedDict):
     """Structured output returned by :func:`assemble_tasks`."""
 
     tasks: dict[str, Task]
+    task_meta: dict[str, dict[str, object]]
     parts_gate: dict[str, object]
     missing_parts: list[MissingPart]
     conditional: VerificationInfo
@@ -58,12 +59,18 @@ def assemble_tasks(
     def cached_status(_: object) -> InventoryStatus:
         return status
 
-    tasks = assemble.from_work_order(
-        work_order,
-        plan,
-        cached_status if check_parts is not None else None,
-        duration_variability_ratio=duration_variability_ratio,
+    planning_tasks = assemble.map_plan_tasks(
+        plan, duration_variability_ratio=duration_variability_ratio
     )
+    tasks = assemble.planning_to_scheduler_tasks(planning_tasks)
+
+    if check_parts is not None and status.blocked:
+        wo_id = getattr(work_order, "id", "")
+        gate = gates.parts_available(wo_id)
+        for task in tasks.values():
+            task.gate = (
+                gate if task.gate is None else gates.compose_gates(task.gate, gate)
+            )
 
     extra_tasks: Mapping[str, Task] = {}
     if verification_task_builder is not None:
@@ -72,6 +79,7 @@ def assemble_tasks(
 
     return {
         "tasks": tasks,
+        "task_meta": {task.task_id: dict(task.meta) for task in planning_tasks},
         "parts_gate": {
             "blocked": status.blocked,
             "status": "blocked_by_parts" if status.blocked else "feasible",

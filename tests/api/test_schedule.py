@@ -211,7 +211,21 @@ def test_schedule_knob_change_shifts_p50(
                 "a": Task(duration=10, resources={"mech": 1}),
                 "b": Task(duration=10, resources={"mech": 1}),
             },
+            "task_meta": {
+                "a": {
+                    "component_id": "steam:S1->V1",
+                    "method": "lock",
+                    "action_index": 0,
+                },
+                "b": {
+                    "component_id": "steam:V1->D1",
+                    "method": "lock",
+                    "action_index": 1,
+                },
+            },
             "parts_gate": {"blocked": False},
+            "missing_parts": [],
+            "conditional": {"ddbb_candidates": [], "applied_verification_tasks": []},
         },
     )
 
@@ -440,3 +454,15 @@ def test_duration_wrapper_preserves_existing_callable_tasks() -> None:
     assert wrapped["callable"] is tasks["callable"]
     assert wrapped["fixed"].distribution is not None
     assert wrapped["fixed"].base_duration == 5
+
+
+def test_plan_actions_from_task_meta_prefers_action_index_order() -> None:
+    refs = main._plan_actions_from_task_meta(
+        {
+            "t2": {"component_id": "steam:B", "method": "tag", "action_index": 2},
+            "t0": {"component_id": "steam:A", "method": "lock", "action_index": 0},
+            "t1": {"component_id": "steam:A->D", "method": "test", "action_index": 1},
+        }
+    )
+
+    assert refs == ["steam:A:lock", "steam:A->D:test", "steam:B:tag"]
