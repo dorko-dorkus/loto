@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
 
+import structlog
+
 from loto.impact import ImpactResult
 from loto.impact_config import load_impact_config
 from loto.integrations import get_permit_adapter
@@ -24,8 +26,11 @@ from loto.normalization import (
 )
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import Provenance, inventory_state
+from loto.work_scope import infer_exposure_mode
 
 from .demo_data import demo_data
+
+logger = structlog.get_logger()
 
 
 @dataclass
@@ -196,7 +201,7 @@ def load_work_order_plan(
             inferred.append("temperature")
         return inferred or ["mechanical"]
 
-    def infer_exposure_mode(normalized_hazards: list[str]) -> str:
+    def fallback_exposure_mode(normalized_hazards: list[str]) -> str:
         permit_exposure = canonicalize_exposure_mode(permit.get("exposure_mode"))
         if isinstance(permit_exposure, str) and permit_exposure:
             return permit_exposure
@@ -209,7 +214,8 @@ def load_work_order_plan(
             return "thermal_only"
         return "none"
 
-    normalized_work_type = canonicalize_work_type(work_type) or infer_work_type()
+    provided_work_type = canonicalize_work_type(work_type)
+    normalized_work_type = provided_work_type or infer_work_type()
     normalized_hazard_class: list[str]
     if isinstance(hazard_class, list):
         normalized_hazard_class = [
@@ -223,9 +229,36 @@ def load_work_order_plan(
         normalized_hazard_class = []
     if not normalized_hazard_class:
         normalized_hazard_class = infer_hazard_class()
-    normalized_exposure_mode = canonicalize_exposure_mode(
-        exposure_mode
-    ) or infer_exposure_mode(normalized_hazard_class)
+    provided_exposure_mode = canonicalize_exposure_mode(exposure_mode)
+    scope_inference = infer_exposure_mode(description, permit=permit)
+    inferred_exposure_mode = scope_inference.exposure_mode or fallback_exposure_mode(
+        normalized_hazard_class
+    )
+    normalized_exposure_mode = provided_exposure_mode or inferred_exposure_mode
+
+    escalation_applied = (
+        scope_inference.escalate_to_intrusive_mech
+        and not provided_work_type
+        and normalized_work_type != "intrusive_mech"
+    )
+    if escalation_applied:
+        normalized_work_type = "intrusive_mech"
+
+    inference_meta = {
+        "exposure_mode": {
+            "provided": provided_exposure_mode,
+            "inferred": inferred_exposure_mode,
+            "final": normalized_exposure_mode,
+            "source": "request" if provided_exposure_mode else "inferred",
+            "matched_terms": list(scope_inference.matched_terms),
+        },
+        "work_type": {
+            "provided": provided_work_type,
+            "final": normalized_work_type,
+            "escalated_to_intrusive_mech": escalation_applied,
+        },
+    }
+    logger.info("work_scope_inference", **inference_meta)
 
     cfg: Dict[str, Any] = {
         "callback_time_min": permit.get("callback_time_min", 0),
@@ -267,6 +300,12 @@ def load_work_order_plan(
             hazard_class=normalized_hazard_class,
             exposure_mode=normalized_exposure_mode,
         )
+
+    provenance = Provenance(
+        seed=provenance.seed,
+        rule_hash=provenance.rule_hash,
+        context=inference_meta,
+    )
 
     return (
         WorkOrderPlanBundle(

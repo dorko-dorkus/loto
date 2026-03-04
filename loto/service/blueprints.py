@@ -8,7 +8,7 @@ import random
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Dict, Iterable, Mapping, Tuple
+from typing import IO, Any, Dict, Iterable, Mapping, Tuple
 
 import structlog
 
@@ -41,6 +41,7 @@ class Provenance:
 
     seed: int | None
     rule_hash: str
+    context: Mapping[str, Any] | None = None
 
 
 def _parse_component_id(component_id: str) -> tuple[str, str, str]:
