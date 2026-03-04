@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -28,6 +29,7 @@ class PlanningTask:
     duration: DurationSpec
     depends_on: list[str] = field(default_factory=list)
     meta: dict[str, object] = field(default_factory=dict)
+    gate: Callable[[Mapping[str, object]], bool] | None = None
 
 
 def to_scheduler_task(
@@ -42,6 +44,7 @@ def to_scheduler_task(
         duration=baseline,
         predecessors=tuple(task.depends_on),
         resources=runtime_resources,
+        gate=task.gate,
         base_duration=baseline,
         distribution=DurationDistribution(
             kind="uniform" if variability > 0 else "fixed",

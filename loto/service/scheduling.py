@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import replace
 from typing import TypedDict
 
 from ..inventory import InventoryStatus
@@ -56,21 +57,24 @@ def assemble_tasks(
     )
     status = check_parts(work_order) if check_parts else InventoryStatus(blocked=False)
 
-    def cached_status(_: object) -> InventoryStatus:
-        return status
-
-    planning_tasks = assemble.map_plan_tasks(
-        plan, duration_variability_ratio=duration_variability_ratio
+    planning_tasks = assemble.build_job_dag(
+        work_order,
+        plan,
+        duration_variability_ratio=duration_variability_ratio,
     )
-    tasks = assemble.planning_to_scheduler_tasks(planning_tasks)
 
     if check_parts is not None and status.blocked:
         wo_id = getattr(work_order, "id", "")
         gate = gates.parts_available(wo_id)
-        for task in tasks.values():
-            task.gate = (
-                gate if task.gate is None else gates.compose_gates(task.gate, gate)
+        for idx, task in enumerate(planning_tasks):
+            planning_tasks[idx] = replace(
+                task,
+                gate=(
+                    gate if task.gate is None else gates.compose_gates(task.gate, gate)
+                ),
             )
+
+    tasks = assemble.planning_to_scheduler_tasks(planning_tasks)
 
     extra_tasks: Mapping[str, Task] = {}
     if verification_task_builder is not None:

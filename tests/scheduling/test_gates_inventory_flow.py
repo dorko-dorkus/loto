@@ -31,4 +31,6 @@ def test_inventory_gate_flow() -> None:
     status.blocked = False
     state = inventory_state(wo, check_parts, state)
     result = scheduling.run_schedule(tasks, {}, state=state)
-    assert result.starts == {"p1-iso-0": 0}
+    assert result.starts.get("p1-iso-0") == 0
+    assert "wo-1-work-0" in result.starts
+    assert "wo-1-restore-0" in result.starts

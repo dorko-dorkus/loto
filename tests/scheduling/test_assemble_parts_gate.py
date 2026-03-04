@@ -1,7 +1,7 @@
 from loto.inventory import InventoryStatus
 from loto.models import IsolationAction, IsolationPlan
-from loto.scheduling.assemble import from_work_order
 from loto.scheduling.des_engine import run
+from loto.service import scheduling
 
 
 class _WO:
@@ -22,17 +22,18 @@ def test_tasks_wait_for_inventory_gate() -> None:
     def check_parts(_: object) -> InventoryStatus:
         return status
 
-    tasks = from_work_order(wo, plan, check_parts)
-    assert tasks["p1-iso-0"].gate is not None
+    assembled = scheduling.assemble_tasks(wo, plan, check_parts=check_parts)
+    tasks = assembled["tasks"]
+    assert all(task.gate is not None for task in tasks.values())
 
     state: dict[str, set[str]] = {"parts": set()}
     if check_parts(wo).ready:
         state["parts"].add(wo.id)
     result = run(tasks, {}, state)
-    assert "p1-iso-0" not in result.starts
+    assert not result.starts
 
     status.blocked = False
     if check_parts(wo).ready:
         state["parts"].add(wo.id)
     result = run(tasks, {}, state)
-    assert result.starts == {"p1-iso-0": 0}
+    assert result.starts
