@@ -121,7 +121,7 @@ def apply_duration_variability(
     normalized_ratio = max(0.0, float(spread_ratio))
     wrapped: dict[str, Task] = {}
     for task_id, task in tasks.items():
-        if task.distribution is not None and task.base_duration is not None:
+        if task.distribution is not None:
             wrapped[task_id] = task
             continue
 

@@ -11,8 +11,9 @@ from ..inventory import InventoryStatus
 from ..models import IsolationPlan
 from .des_engine import Task as SchedulerTask
 from .task_model import (
-    DurationSpec,
+    DeterministicDurationSpec,
     PlanningTask,
+    duration_spec_from_baseline_variability,
     ensure_unique_task_ids,
     to_scheduler_task,
 )
@@ -60,9 +61,9 @@ def build_isolation_tasks(
                 kind="isolation",
                 name=f"isolation-{idx}",
                 resources={default_resource_bucket: 1},
-                duration=DurationSpec(
-                    baseline_min=duration_min,
-                    variability_ratio=duration_variability_ratio,
+                duration=duration_spec_from_baseline_variability(
+                    duration_min,
+                    duration_variability_ratio,
                 ),
                 depends_on=dependencies,
                 meta={
@@ -137,9 +138,9 @@ def build_work_tasks(
                 kind="work",
                 name=name,
                 resources={default_resource_bucket: 1},
-                duration=DurationSpec(
-                    baseline_min=duration_min,
-                    variability_ratio=duration_variability_ratio,
+                duration=duration_spec_from_baseline_variability(
+                    duration_min,
+                    duration_variability_ratio,
                 ),
                 meta={"work_item_index": idx},
             )
@@ -152,9 +153,9 @@ def build_work_tasks(
                 kind="work",
                 name=DEFAULT_WORK_TASK_NAME,
                 resources={default_resource_bucket: 1},
-                duration=DurationSpec(
-                    baseline_min=max(1, baseline_duration_min),
-                    variability_ratio=duration_variability_ratio,
+                duration=duration_spec_from_baseline_variability(
+                    max(1, baseline_duration_min),
+                    duration_variability_ratio,
                 ),
                 meta={"default_work_task": True},
             )
@@ -189,9 +190,9 @@ def build_restoration_tasks(
                 kind="restoration",
                 name=f"restoration-{idx}",
                 resources={default_resource_bucket: 1},
-                duration=DurationSpec(
-                    baseline_min=duration_min,
-                    variability_ratio=duration_variability_ratio,
+                duration=duration_spec_from_baseline_variability(
+                    duration_min,
+                    duration_variability_ratio,
                 ),
                 meta={
                     "restoration_action_index": len(plan.actions) - idx - 1,
@@ -290,9 +291,7 @@ def build_job_dag(
         kind="milestone",
         name="LOTO complete",
         resources={},
-        duration=DurationSpec(
-            baseline_min=MILESTONE_DURATION_MIN, variability_ratio=0.0
-        ),
+        duration=DeterministicDurationSpec(minutes=MILESTONE_DURATION_MIN),
         depends_on=[task.task_id for task in isolation_tasks],
         meta={"milestone": LOTO_COMPLETE_TASK_ID},
     )
@@ -301,9 +300,7 @@ def build_job_dag(
         kind="milestone",
         name="Work complete",
         resources={},
-        duration=DurationSpec(
-            baseline_min=MILESTONE_DURATION_MIN, variability_ratio=0.0
-        ),
+        duration=DeterministicDurationSpec(minutes=MILESTONE_DURATION_MIN),
         depends_on=[task.task_id for task in work_tasks],
         meta={"milestone": WORK_COMPLETE_TASK_ID},
     )

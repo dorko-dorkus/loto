@@ -12,7 +12,7 @@ from loto.impact import ImpactResult
 from loto.integrations.stores_adapter import DemoStoresAdapter
 from loto.inventory import InventoryStatus, Reservation
 from loto.models import IsolationAction, IsolationPlan
-from loto.scheduling.des_engine import Task
+from loto.scheduling.des_engine import DurationDistribution, Task
 from loto.service.blueprints import Provenance
 from loto.service.scheduling import apply_duration_variability, monte_carlo_schedule
 from tests.job_utils import wait_for_job
@@ -454,6 +454,25 @@ def test_duration_wrapper_preserves_existing_callable_tasks() -> None:
     assert wrapped["callable"] is tasks["callable"]
     assert wrapped["fixed"].distribution is not None
     assert wrapped["fixed"].base_duration == 5
+
+
+def test_duration_wrapper_preserves_existing_distribution_without_base_duration() -> (
+    None
+):
+    importlib.reload(main)
+
+    tasks = {
+        "explicit": Task(
+            duration=5,
+            distribution=DurationDistribution(
+                kind="triangular", low=0.7, mode=1.0, high=1.3
+            ),
+        )
+    }
+
+    wrapped = apply_duration_variability(tasks)
+
+    assert wrapped["explicit"] is tasks["explicit"]
 
 
 def test_plan_actions_from_task_meta_prefers_action_index_order() -> None:

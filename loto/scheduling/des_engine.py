@@ -15,6 +15,7 @@ class DurationDistribution:
 
     kind: str = "fixed"
     low: float = 1.0
+    mode: float | None = None
     high: float = 1.0
 
 
@@ -73,6 +74,18 @@ def _duration(task: Task, rng: random.Random) -> int:
             sampled = task.base_duration * rng.uniform(
                 task.distribution.low,
                 task.distribution.high,
+            )
+            return max(1, int(round(sampled)))
+        if task.distribution.kind == "triangular":
+            mode = (
+                task.distribution.mode
+                if task.distribution.mode is not None
+                else (task.distribution.low + task.distribution.high) / 2
+            )
+            sampled = task.base_duration * rng.triangular(
+                task.distribution.low,
+                task.distribution.high,
+                mode,
             )
             return max(1, int(round(sampled)))
         raise ValueError(f"unsupported distribution kind: {task.distribution.kind}")

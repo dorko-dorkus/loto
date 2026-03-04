@@ -11,6 +11,7 @@ This module provides two layers:
 from __future__ import annotations
 
 import math
+import random
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Literal, Mapping
 
@@ -236,14 +237,40 @@ def simulate_input_model(sim_input: SimulationInput) -> SimulationSummary:
             calendar = sim_input.calendars.get(task.calendar, CalendarSpec())
             if calendar.kind != "always_on":
                 raise ValueError(f"unsupported calendar kind: {calendar.kind}")
-            sampled_tasks[task_id] = Task(
-                duration=max(1, int(task.base_duration)),
-                base_duration=task.base_duration,
-                distribution=task.distribution,
-                predecessors=task.predecessors,
-                resources=task.resources,
-                calendar=lambda _t: True,
-            )
+            if task.distribution.kind == "triangular":
+                low = task.base_duration * task.distribution.low
+                mode_ratio = (
+                    task.distribution.mode
+                    if task.distribution.mode is not None
+                    else (task.distribution.low + task.distribution.high) / 2
+                )
+                mode = task.base_duration * mode_ratio
+                high = task.base_duration * task.distribution.high
+
+                def triangular_sampler(
+                    rng: random.Random,
+                    minimum: float = low,
+                    most_likely: float = mode,
+                    maximum: float = high,
+                ) -> int:
+                    sampled = rng.triangular(minimum, maximum, most_likely)
+                    return max(1, int(round(sampled)))
+
+                sampled_tasks[task_id] = Task(
+                    duration=triangular_sampler,
+                    predecessors=task.predecessors,
+                    resources=task.resources,
+                    calendar=lambda _t: True,
+                )
+            else:
+                sampled_tasks[task_id] = Task(
+                    duration=max(1, int(task.base_duration)),
+                    base_duration=task.base_duration,
+                    distribution=task.distribution,
+                    predecessors=task.predecessors,
+                    resources=task.resources,
+                    calendar=lambda _t: True,
+                )
 
         result = run(
             sampled_tasks,
