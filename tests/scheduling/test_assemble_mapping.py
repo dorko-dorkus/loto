@@ -5,6 +5,7 @@ from loto.scheduling.assemble import (
     DEFAULT_BASELINE_DURATION_MIN,
     DEFAULT_RESOURCE_BUCKET,
     LOTO_COMPLETE_TASK_ID,
+    RETURN_TO_SERVICE_COMPLETE_TASK_ID,
     WORK_COMPLETE_TASK_ID,
     build_isolation_tasks,
     build_job_dag,
@@ -138,7 +139,7 @@ def test_build_job_dag_orders_phases() -> None:
 
     assert dag[0].kind == "isolation"
     assert any(task.kind == "work" for task in dag)
-    assert dag[-1].kind == "restoration"
+    assert dag[-1].task_id == RETURN_TO_SERVICE_COMPLETE_TASK_ID
     first_work = next(task for task in dag if task.kind == "work")
     assert LOTO_COMPLETE_TASK_ID in first_work.depends_on
 
@@ -156,6 +157,7 @@ def test_build_job_dag_includes_milestones_and_phase_dependencies() -> None:
     by_id = {task.task_id: task for task in dag}
     loto_complete = by_id[LOTO_COMPLETE_TASK_ID]
     work_complete = by_id[WORK_COMPLETE_TASK_ID]
+    return_to_service_complete = by_id[RETURN_TO_SERVICE_COMPLETE_TASK_ID]
 
     assert loto_complete.kind == "milestone"
     assert loto_complete.resources == {}
@@ -171,6 +173,9 @@ def test_build_job_dag_includes_milestones_and_phase_dependencies() -> None:
     assert work_complete.kind == "milestone"
     assert work_complete.depends_on == [task.task_id for task in work_tasks]
     assert all(WORK_COMPLETE_TASK_ID in task.depends_on for task in restoration_tasks)
+    assert return_to_service_complete.depends_on == [
+        task.task_id for task in restoration_tasks
+    ]
 
 
 def test_mapping_with_variability_uses_triangular_duration_spec_and_sampler() -> None:
