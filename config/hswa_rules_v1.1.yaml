@@ -8,6 +8,44 @@ policy:
   permit_categories: [general]
   ddbb_threshold_kpag: 50
   max_hat_bias_multiplier: 1.1
+  isolation_policy_matrix:
+    action_baselines:
+      non_intrusive:
+        applies_to: [functional_test, inspection_external]
+        required_actions: [verify_boundary, controlled_startup_or_shutdown]
+      local_exposure_possible:
+        applies_to: [instrument_calibration, external_maintenance]
+        required_actions: [local_min_cut_preferred, local_depressurize, prove_zero]
+      high_consequence:
+        applies_to: [intrusive_mech, inspection_internal_confined, hot_work]
+        required_actions: [block, depressurize, prove_zero]
+    hazard_action_rules:
+      - hazard_class: steam_pressure
+        required_actions: [block, depressurize, prove_zero]
+        notes: pressure-containing systems require positive isolation with zero-energy proof
+      - hazard_class: rotating
+        required_actions: [stop_motion, lock_rotation, prove_zero_motion]
+        notes: mechanical movement hazards require lock and residual-motion verification
+      - hazard_class: electrical
+        required_actions: [isolate_supply, lockout_tagout, test_dead]
+        notes: electrical hazards require dead testing before work starts
+      - hazard_class: flammable_toxic
+        required_actions: [isolate_source, purge_or_ventilate, gas_test_clearance]
+        notes: flammable or toxic atmospheres require source isolation and atmospheric proof
+    work_hazard_overrides:
+      - work_category: external_maintenance
+        hazard_class: steam_pressure
+        required_actions:
+          - local_min_cut_preferred
+          - local_depressurize
+          - prove_zero
+          - ddbb_conditional_by_policy
+        notes: local isolation is preferred where feasible; DDBB applies when policy threshold or configuration requires it
+      - work_category: intrusive_mech
+        hazard_class: steam_pressure
+        required_actions: [block, depressurize, prove_zero]
+        unconditional: true
+        notes: intrusive break containment work always requires block + depressurize + prove zero
 domain_rules:
   - name: isolation hierarchy
     expression: prefer_elimination_substitution
