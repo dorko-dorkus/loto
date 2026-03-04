@@ -434,3 +434,109 @@ def test_pre_applied_permit_isolation_reduces_schedule_workload_and_makespan(
         "Expected concurrent permit benefit: pre-applied permit isolations should improve "
         f"deterministic p50 makespan proxy (baseline={base_makespan}, with_permit={permit_makespan})."
     )
+
+
+def test_plan_and_evaluate_canonicalizes_policy_context_for_planner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+
+    line_df = pd.DataFrame(
+        [
+            {"domain": "steam", "from_tag": "S", "to_tag": "V"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [{"domain": "steam", "tag": "V", "fail_state": "FC", "kind": "MV"}]
+    )
+    drain_df = pd.DataFrame([{"domain": "steam", "tag": "D", "kind": "drain"}])
+    source_df = pd.DataFrame([{"domain": "steam", "tag": "S", "kind": "source"}])
+
+    captured: dict[str, object] = {}
+
+    from loto.models import IsolationPlan
+
+    def fake_compute(self, graphs, asset_tag, rule_pack, config=None):  # type: ignore[no-untyped-def]
+        captured.update(config or {})
+        return IsolationPlan(
+            plan_id=asset_tag, actions=[], verifications=[], hazards=[], controls=[]
+        )
+
+    monkeypatch.setattr(
+        "loto.service.blueprints.IsolationPlanner.compute", fake_compute
+    )
+
+    plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="DEMO_ASSET_1",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"DEMO_ASSET_1": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+        work_type=" External-Maintenance ",
+        hazard_class=[" Pressure ", "CHEMICAL"],
+        exposure_mode=" RELEASE-POSSIBLE ",
+    )
+
+    assert captured["work_type"] == "external_maintenance"
+    assert captured["hazard_class"] == ["pressure", "chemical"]
+    assert captured["exposure_mode"] == "release_possible"
+
+
+def test_plan_and_evaluate_defaults_empty_policy_context_for_planner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "loto.service.blueprints.validate_fk_integrity", lambda *a, **k: None
+    )
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+
+    line_df = pd.DataFrame(
+        [
+            {"domain": "steam", "from_tag": "S", "to_tag": "V"},
+            {"domain": "steam", "from_tag": "V", "to_tag": "DEMO_ASSET_1"},
+        ]
+    )
+    valve_df = pd.DataFrame(
+        [{"domain": "steam", "tag": "V", "fail_state": "FC", "kind": "MV"}]
+    )
+    drain_df = pd.DataFrame([{"domain": "steam", "tag": "D", "kind": "drain"}])
+    source_df = pd.DataFrame([{"domain": "steam", "tag": "S", "kind": "source"}])
+
+    captured: dict[str, object] = {}
+    from loto.models import IsolationPlan
+
+    def fake_compute(self, graphs, asset_tag, rule_pack, config=None):  # type: ignore[no-untyped-def]
+        captured.update(config or {})
+        return IsolationPlan(
+            plan_id=asset_tag, actions=[], verifications=[], hazards=[], controls=[]
+        )
+
+    monkeypatch.setattr(
+        "loto.service.blueprints.IsolationPlanner.compute", fake_compute
+    )
+
+    plan_and_evaluate(
+        io.StringIO(line_df.to_csv(index=False)),
+        io.StringIO(valve_df.to_csv(index=False)),
+        io.StringIO(drain_df.to_csv(index=False)),
+        io.StringIO(source_df.to_csv(index=False)),
+        asset_tag="DEMO_ASSET_1",
+        rule_pack=RulePack(risk_policies=None),
+        stimuli=[],
+        asset_units={"DEMO_ASSET_1": "U1"},
+        unit_data={"U1": {"rated": 5.0, "scheme": "SPOF"}},  # type: ignore[dict-item]
+        unit_areas={"U1": "Area1"},
+    )
+
+    assert captured["work_type"] is None
+    assert captured["hazard_class"] == []
+    assert captured["exposure_mode"] is None
