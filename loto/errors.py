@@ -91,6 +91,23 @@ class AssetTagNotFoundError(ValidationError):
         super().__init__(self.message)
 
 
+class UnisolatablePathError(ValidationError):
+    """Raised when a target cannot be isolated with available cut points."""
+
+    code = "UNISOLATABLE_PATH"
+
+    def __init__(
+        self,
+        target_identifier: str,
+        reason: str,
+        hint: str | None = None,
+    ) -> None:
+        self.target_identifier = target_identifier
+        self.reason = reason
+        self.public_hint = hint
+        super().__init__(f"unable to isolate target '{target_identifier}': {reason}")
+
+
 class ImportError(LotoError):  # noqa: A001 - intended name clash with builtin
     """Importing external data failed."""
 
@@ -119,6 +136,7 @@ __all__ = [
     "RenderError",
     "ValidationError",
     "AssetTagNotFoundError",
+    "UnisolatablePathError",
     "ImportError",
     "GenerationError",
 ]

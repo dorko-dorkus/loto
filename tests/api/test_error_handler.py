@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from apps.api.main import app
 from loto.errors import AssetTagNotFoundError, GenerationError
 from loto.errors import ImportError as LotoImportError
-from loto.errors import ValidationError
+from loto.errors import UnisolatablePathError, ValidationError
 
 
 @app.get("/test/validation")
@@ -14,6 +14,15 @@ def _raise_validation() -> None:  # pragma: no cover - endpoint for testing
 @app.get("/test/asset-tag-not-found")
 def _raise_asset_tag_not_found() -> None:  # pragma: no cover - endpoint for testing
     raise AssetTagNotFoundError("UA-404", hint="graph contains 5 nodes")
+
+
+@app.get("/test/unisolatable")
+def _raise_unisolatable() -> None:  # pragma: no cover - endpoint for testing
+    raise UnisolatablePathError(
+        target_identifier="UA-500",
+        reason="no isolation points on any source→target path",
+        hint="add an inline valve on each source-to-target path",
+    )
 
 
 @app.get("/test/import")
@@ -56,3 +65,16 @@ def test_generation_error_handler() -> None:
     res = client.get("/test/generation")
     assert res.status_code == 500
     assert res.json() == {"code": "GENERATION_ERROR", "message": "cannot generate"}
+
+
+def test_unisolatable_error_handler() -> None:
+    client = TestClient(app)
+    res = client.get("/test/unisolatable")
+    assert res.status_code == 422
+    assert res.json() == {
+        "code": "UNISOLATABLE_PATH",
+        "message": "unable to isolate target 'UA-500': no isolation points on any source→target path",
+        "target": "UA-500",
+        "reason": "no isolation points on any source→target path",
+        "hint": "add an inline valve on each source-to-target path",
+    }

@@ -1,6 +1,7 @@
 import networkx as nx
 import pytest
 
+from loto.errors import UnisolatablePathError
 from loto.isolation_planner import IsolationPlanner
 from loto.rule_engine import RulePack  # type: ignore[attr-defined]
 
@@ -111,3 +112,28 @@ def test_global_cut_smaller_than_union(monkeypatch: pytest.MonkeyPatch) -> None:
     for s in sources:
         for t in targets:
             assert not nx.has_path(g_cut, s, t)
+
+
+def test_unisolatable_graph_raises_domain_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PLANNER_NODE_SPLIT", "0")
+    g = nx.MultiDiGraph()
+    g.add_node("S", is_source=True)
+    g.add_node("mid")
+    g.add_node("asset", tag="asset")
+
+    # No edge on the source->target path is marked as an isolation point.
+    g.add_edge("S", "mid")
+    g.add_edge("mid", "asset")
+
+    planner = IsolationPlanner()
+    pack = RulePack(risk_policies=None)
+
+    with pytest.raises(UnisolatablePathError) as exc_info:
+        planner.compute({"process": g}, asset_tag="asset", rule_pack=pack)
+
+    err = exc_info.value
+    assert err.code == "UNISOLATABLE_PATH"
+    assert err.target_identifier == "ASSET"
+    assert err.reason == "no isolation points on any source→target path"
