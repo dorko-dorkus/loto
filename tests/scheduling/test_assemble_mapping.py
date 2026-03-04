@@ -1,15 +1,20 @@
+import pytest
+
 from loto.models import IsolationAction, IsolationPlan
 from loto.scheduling.assemble import (
     DEFAULT_BASELINE_DURATION_MIN,
     DEFAULT_RESOURCE_BUCKET,
+    LOTO_COMPLETE_TASK_ID,
+    WORK_COMPLETE_TASK_ID,
     build_isolation_tasks,
     build_job_dag,
     build_restoration_tasks,
     build_work_tasks,
     map_plan_tasks,
     planning_to_scheduler_tasks,
+    validate_dag_acyclic,
 )
-from loto.scheduling.task_model import PlanningTask
+from loto.scheduling.task_model import DurationSpec, PlanningTask
 
 
 class _WO:
@@ -31,30 +36,6 @@ def _plan() -> IsolationPlan:
     )
 
 
-def _is_acyclic(tasks: list[PlanningTask]) -> bool:
-    ids = {task.task_id for task in tasks}
-    indegree: dict[str, int] = {task.task_id: 0 for task in tasks}
-    graph: dict[str, list[str]] = {task.task_id: [] for task in tasks}
-
-    for task in tasks:
-        for dep in task.depends_on:
-            if dep in ids:
-                graph[dep].append(task.task_id)
-                indegree[task.task_id] += 1
-
-    queue: list[str] = [tid for tid, deg in indegree.items() if deg == 0]
-    visited = 0
-    while queue:
-        node = queue.pop(0)
-        visited += 1
-        for nxt in graph[node]:
-            indegree[nxt] -= 1
-            if indegree[nxt] == 0:
-                queue.append(nxt)
-
-    return visited == len(tasks)
-
-
 def test_mapping_has_one_task_per_action() -> None:
     plan = _plan()
     tasks = map_plan_tasks(plan)
@@ -72,7 +53,31 @@ def test_mapping_populates_resources_on_all_tasks() -> None:
 def test_mapping_dependencies_are_acyclic() -> None:
     dag = build_job_dag(_WO("wo-1"), _plan())
 
-    assert _is_acyclic(dag)
+    validate_dag_acyclic(dag)
+
+
+def test_validate_dag_acyclic_raises_for_cycle() -> None:
+    tasks = [
+        PlanningTask(
+            task_id="a",
+            kind="work",
+            name="a",
+            resources={"Mechanical": 1},
+            duration=DurationSpec(baseline_min=1),
+            depends_on=["b"],
+        ),
+        PlanningTask(
+            task_id="b",
+            kind="work",
+            name="b",
+            resources={"Mechanical": 1},
+            duration=DurationSpec(baseline_min=1),
+            depends_on=["a"],
+        ),
+    ]
+
+    with pytest.raises(ValueError, match="contains a cycle"):
+        validate_dag_acyclic(tasks)
 
 
 def test_mapping_is_deterministic_for_same_input() -> None:
@@ -129,4 +134,33 @@ def test_build_job_dag_orders_phases() -> None:
     assert any(task.kind == "work" for task in dag)
     assert dag[-1].kind == "restoration"
     first_work = next(task for task in dag if task.kind == "work")
-    assert first_work.depends_on == ["plan-1-iso-2"]
+    assert LOTO_COMPLETE_TASK_ID in first_work.depends_on
+
+
+def test_build_job_dag_includes_milestones_and_phase_dependencies() -> None:
+    wo = _WO(
+        "wo-10",
+        tasks=[
+            {"description": "replace", "duration_s": 120},
+            {"description": "inspect", "duration_s": 180},
+        ],
+    )
+    dag = build_job_dag(wo, _plan())
+
+    by_id = {task.task_id: task for task in dag}
+    loto_complete = by_id[LOTO_COMPLETE_TASK_ID]
+    work_complete = by_id[WORK_COMPLETE_TASK_ID]
+
+    assert loto_complete.kind == "milestone"
+    assert loto_complete.resources == {}
+    assert loto_complete.duration.baseline_min == 1
+    assert loto_complete.depends_on == [
+        task.task_id for task in dag if task.kind == "isolation"
+    ]
+
+    work_tasks = [task for task in dag if task.kind == "work"]
+    restoration_tasks = [task for task in dag if task.kind == "restoration"]
+    assert all(LOTO_COMPLETE_TASK_ID in task.depends_on for task in work_tasks)
+    assert work_complete.kind == "milestone"
+    assert work_complete.depends_on == [task.task_id for task in work_tasks]
+    assert all(WORK_COMPLETE_TASK_ID in task.depends_on for task in restoration_tasks)
