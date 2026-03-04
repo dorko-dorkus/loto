@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import os
 from collections import deque
 from collections.abc import Callable, Iterable
 from typing import cast
@@ -13,6 +14,7 @@ from .des_engine import Task as SchedulerTask
 from .task_model import (
     DeterministicDurationSpec,
     PlanningTask,
+    TriangularDurationSpec,
     duration_spec_from_baseline_variability,
     ensure_unique_task_ids,
     to_scheduler_task,
@@ -23,7 +25,29 @@ InventoryFn = Callable[[object], InventoryStatus]
 DEFAULT_BASELINE_DURATION_MIN = 20
 DEFAULT_RESOURCE_BUCKET = "Mechanical"
 DEFAULT_DURATION_VARIABILITY_RATIO = 0.15
-DEFAULT_WORK_TASK_NAME = "work"
+DEFAULT_WORK_FALLBACK_RESOURCE_BUCKET = os.getenv(
+    "LOTO_WORK_FALLBACK_RESOURCE_BUCKET", "mech"
+)
+DEFAULT_WORK_FALLBACK_RESOURCE_COUNT = int(
+    os.getenv("LOTO_WORK_FALLBACK_RESOURCE_COUNT", "1")
+)
+DEFAULT_WORK_FALLBACK_DURATION_MIN = int(
+    os.getenv("LOTO_WORK_FALLBACK_DURATION_MIN", "30")
+)
+DEFAULT_WORK_FALLBACK_DURATION_MODE_MIN = int(
+    os.getenv("LOTO_WORK_FALLBACK_DURATION_MODE_MIN", "120")
+)
+DEFAULT_WORK_FALLBACK_DURATION_MAX_MIN = int(
+    os.getenv("LOTO_WORK_FALLBACK_DURATION_MAX_MIN", "360")
+)
+TRADE_RESOURCE_MAP: dict[str, dict[str, int]] = {
+    "mech": {"mech": 1},
+    "mechanical": {"mech": 1},
+    "elec": {"elec": 1},
+    "electrical": {"elec": 1},
+    "instr": {"instr": 1},
+    "instrument": {"instr": 1},
+}
 LOTO_COMPLETE_TASK_ID = "LOTO_COMPLETE"
 WORK_COMPLETE_TASK_ID = "WORK_COMPLETE"
 RETURN_TO_SERVICE_COMPLETE_TASK_ID = "RETURN_TO_SERVICE_COMPLETE"
@@ -82,15 +106,17 @@ def build_isolation_tasks(
 
 
 def _extract_work_steps(work_order: object) -> list[object]:
-    for attr in ("work_tasks", "tasks", "operations", "work", "work_details"):
-        value = getattr(work_order, attr, None)
+    for field in (
+        "job_steps",
+        "work_tasks",
+        "tasks",
+        "operations",
+        "work",
+        "work_details",
+    ):
+        value = _work_order_field(work_order, field)
         if isinstance(value, list):
             return value
-    if isinstance(work_order, dict):
-        for key in ("work_tasks", "tasks", "operations", "work", "work_details"):
-            value = work_order.get(key)
-            if isinstance(value, list):
-                return value
     return []
 
 
@@ -104,6 +130,27 @@ def _work_item_field(item: object, *names: str) -> object | None:
         if hasattr(item, name):
             return cast(object, getattr(item, name))
     return None
+
+
+def _work_order_field(work_order: object, *names: str) -> object | None:
+    if isinstance(work_order, dict):
+        for name in names:
+            if name in work_order:
+                return cast(object, work_order[name])
+        return None
+    for name in names:
+        if hasattr(work_order, name):
+            return cast(object, getattr(work_order, name))
+    return None
+
+
+def _trade_resources(work_order: object) -> dict[str, int]:
+    trade = _work_order_field(work_order, "trade")
+    if isinstance(trade, str):
+        mapped = TRADE_RESOURCE_MAP.get(trade.strip().lower())
+        if mapped is not None:
+            return dict(mapped)
+    return {DEFAULT_WORK_FALLBACK_RESOURCE_BUCKET: DEFAULT_WORK_FALLBACK_RESOURCE_COUNT}
 
 
 def build_work_tasks(
@@ -148,15 +195,17 @@ def build_work_tasks(
         )
 
     if not tasks:
+        fallback_name = _work_order_field(work_order, "description")
         tasks = [
             PlanningTask(
                 task_id=f"{prefix}-work-0",
                 kind="work",
-                name=DEFAULT_WORK_TASK_NAME,
-                resources={default_resource_bucket: 1},
-                duration=duration_spec_from_baseline_variability(
-                    max(1, baseline_duration_min),
-                    duration_variability_ratio,
+                name=str(fallback_name) if fallback_name else str(prefix),
+                resources=_trade_resources(work_order),
+                duration=TriangularDurationSpec(
+                    min=DEFAULT_WORK_FALLBACK_DURATION_MIN,
+                    mode=DEFAULT_WORK_FALLBACK_DURATION_MODE_MIN,
+                    max=DEFAULT_WORK_FALLBACK_DURATION_MAX_MIN,
                 ),
                 meta={"default_work_task": True},
             )

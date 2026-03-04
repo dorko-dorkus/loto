@@ -29,6 +29,9 @@ class WorkOrder:
 
     id: str
     reservations: list[Reservation]
+    description: str | None = None
+    trade: str | None = None
+    job_steps: list[dict[str, Any]] | None = None
 
 
 @dataclass
