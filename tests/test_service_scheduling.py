@@ -2,7 +2,7 @@ from collections.abc import Mapping
 
 from loto.inventory import InventoryStatus, Reservation
 from loto.models import IsolationAction, IsolationPlan
-from loto.scheduling.des_engine import Task
+from loto.scheduling.des_engine import DurationDistribution, Task
 from loto.service import scheduling
 
 
@@ -88,3 +88,51 @@ def test_assemble_tasks_supports_optional_ddbb_verification_hook() -> None:
     assert "Branch A DDBB cert" in assembled["conditional"]["ddbb_candidates"]
     assert assembled["conditional"]["applied_verification_tasks"] == ["p1-verify"]
     assert "p1-verify" in assembled["tasks"]
+
+
+def test_monte_carlo_two_isolation_plan_percentiles_ordered_with_seed() -> None:
+    wo = _WO("wo-2")
+    plan = IsolationPlan(
+        plan_id="SH_2",
+        actions=[
+            IsolationAction(component_id="c1", method="lock", duration_s=1200),
+            IsolationAction(component_id="c2", method="lock", duration_s=1800),
+        ],
+    )
+
+    assembled = scheduling.assemble_tasks(wo, plan, duration_variability_ratio=0.2)
+    result = scheduling.monte_carlo_schedule(assembled["tasks"], {}, runs=200, seed=42)
+
+    assert result.makespan_percentiles["P10"] < result.makespan_percentiles["P50"]
+    assert result.makespan_percentiles["P50"] < result.makespan_percentiles["P90"]
+
+
+def test_monte_carlo_deterministic_distribution_can_collapse_percentiles() -> None:
+    wo = _WO("wo-3")
+    plan = IsolationPlan(
+        plan_id="SH_2",
+        actions=[
+            IsolationAction(component_id="c1", method="lock", duration_s=1200),
+            IsolationAction(component_id="c2", method="lock", duration_s=1800),
+        ],
+    )
+
+    assembled = scheduling.assemble_tasks(wo, plan, duration_variability_ratio=0.0)
+    fixed_tasks = {
+        task_id: Task(
+            duration=task.base_duration
+            or (task.duration if isinstance(task.duration, int) else 1),
+            predecessors=task.predecessors,
+            resources=task.resources,
+            calendar=task.calendar,
+            gate=task.gate,
+            base_duration=task.base_duration,
+            distribution=DurationDistribution(kind="fixed"),
+        )
+        for task_id, task in assembled["tasks"].items()
+    }
+
+    result = scheduling.monte_carlo_schedule(fixed_tasks, {}, runs=20, seed=7)
+
+    assert result.makespan_percentiles["P10"] == result.makespan_percentiles["P50"]
+    assert result.makespan_percentiles["P50"] == result.makespan_percentiles["P90"]

@@ -11,11 +11,10 @@ This module provides two layers:
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Literal, Mapping
 
-from .des_engine import RunResult, Task, run
+from .des_engine import DurationDistribution, RunResult, Task, run
 
 
 @dataclass
@@ -36,15 +35,6 @@ class CalendarSpec:
     """
 
     kind: Literal["always_on"] = "always_on"
-
-
-@dataclass(frozen=True)
-class DurationDistribution:
-    """Task duration sampling distribution."""
-
-    kind: Literal["fixed", "uniform"] = "fixed"
-    low: float = 1.0
-    high: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -183,7 +173,7 @@ def simulate(
     resource_caps: Mapping[str, int],
     runs: int,
     state: Mapping[str, object] | None = None,
-    seed: int = 0,
+    seed: int | None = 0,
 ) -> MonteCarloResult:
     """Run *runs* Monte Carlo simulations of the scheduler.
 
@@ -205,8 +195,9 @@ def simulate(
     makespans: list[int] = []
     crit_counts: Dict[str, int] = {tid: 0 for tid in tasks}
 
+    base_seed = 0 if seed is None else seed
     for i in range(runs):
-        result = run(tasks, resource_caps, state=state, seed=seed + i)
+        result = run(tasks, resource_caps, state=state, seed=base_seed + i)
         for tid, end in result.ends.items():
             end_samples[tid].append(end)
         makespan = max(result.ends.values()) if result.ends else 0
@@ -229,17 +220,6 @@ def simulate(
     )
 
 
-def _sample_duration(
-    base_duration: int, distribution: DurationDistribution, rng: random.Random
-) -> int:
-    if distribution.kind == "fixed":
-        return max(1, int(base_duration))
-    if distribution.kind == "uniform":
-        sampled = base_duration * rng.uniform(distribution.low, distribution.high)
-        return max(1, int(round(sampled)))
-    raise ValueError(f"unsupported distribution kind: {distribution.kind}")
-
-
 def simulate_input_model(sim_input: SimulationInput) -> SimulationSummary:
     """Run Monte Carlo using the explicit simulation-input model."""
 
@@ -251,14 +231,15 @@ def simulate_input_model(sim_input: SimulationInput) -> SimulationSummary:
     run_metrics: list[RunMetrics] = []
     base_seed = sim_input.run_config.seed
     for run_idx in range(sim_input.run_config.N):
-        rng = random.Random(base_seed + run_idx)
         sampled_tasks: dict[str, Task] = {}
         for task_id, task in sim_input.tasks.items():
             calendar = sim_input.calendars.get(task.calendar, CalendarSpec())
             if calendar.kind != "always_on":
                 raise ValueError(f"unsupported calendar kind: {calendar.kind}")
             sampled_tasks[task_id] = Task(
-                duration=_sample_duration(task.base_duration, task.distribution, rng),
+                duration=max(1, int(task.base_duration)),
+                base_duration=task.base_duration,
+                distribution=task.distribution,
                 predecessors=task.predecessors,
                 resources=task.resources,
                 calendar=lambda _t: True,

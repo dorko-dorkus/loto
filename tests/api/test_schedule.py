@@ -14,7 +14,7 @@ from loto.inventory import InventoryStatus, Reservation
 from loto.models import IsolationAction, IsolationPlan
 from loto.scheduling.des_engine import Task
 from loto.service.blueprints import Provenance
-from loto.service.scheduling import monte_carlo_schedule
+from loto.service.scheduling import apply_duration_variability, monte_carlo_schedule
 from tests.job_utils import wait_for_job
 
 
@@ -413,8 +413,8 @@ def test_fixed_durations_are_seeded_and_spread_under_resource_constraints(
 ) -> None:
     importlib.reload(main)
 
-    wrapped = main._with_seeded_duration_variability(constrained_duration_tasks)
-    assert all(callable(task.duration) for task in wrapped.values())
+    wrapped = apply_duration_variability(constrained_duration_tasks)
+    assert all(task.distribution is not None for task in wrapped.values())
 
     mc_a = monte_carlo_schedule(wrapped, {"crew": 1}, runs=300, seed=123)
     mc_b = monte_carlo_schedule(wrapped, {"crew": 1}, runs=300, seed=123)
@@ -435,7 +435,8 @@ def test_duration_wrapper_preserves_existing_callable_tasks() -> None:
         "fixed": Task(duration=5),
     }
 
-    wrapped = main._with_seeded_duration_variability(tasks)
+    wrapped = apply_duration_variability(tasks)
 
     assert wrapped["callable"] is tasks["callable"]
-    assert callable(wrapped["fixed"].duration)
+    assert wrapped["fixed"].distribution is not None
+    assert wrapped["fixed"].base_duration == 5
