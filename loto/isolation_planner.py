@@ -16,14 +16,21 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Mapping, Set, Tuple
+from typing import Any, Dict, List, Mapping, Sequence, Set, Tuple
 
 import networkx as nx
 
 from loto.integrations import get_hats_adapter
 
 from .errors import AssetTagNotFoundError, UnisolatablePathError
-from .models import IsolationAction, IsolationPlan, RulePack
+from .models import (
+    ExposureMode,
+    IsolationAction,
+    IsolationPlan,
+    RequiredActions,
+    RulePack,
+    WorkType,
+)
 
 
 def _env_float(name: str, default: float) -> float:
@@ -105,6 +112,75 @@ class VerificationGate:
 class IsolationPlanner:
     """Compute isolation plans from domain graphs and rule packs."""
 
+    @staticmethod
+    def _resolve_required_actions(
+        *,
+        rule_pack: RulePack,
+        work_type: str | None,
+        hazard_classes: Sequence[str],
+        exposure_mode: str | None,
+    ) -> RequiredActions:
+        """Resolve policy requirements for the planning request context."""
+
+        if not work_type and not hazard_classes and not exposure_mode:
+            return RequiredActions(block_sources=True, prove_zero=True)
+
+        matrix = rule_pack.effective_isolation_policy_matrix()
+        resolved_work_type = (
+            WorkType(work_type) if work_type else WorkType.INTRUSIVE_MECH
+        )
+
+        hazard_list = [h for h in hazard_classes if h]
+        if not hazard_list:
+            hazard_list = ["pressure"]
+
+        resolved_exposure = ExposureMode(exposure_mode) if exposure_mode else None
+
+        aggregated = RequiredActions(
+            block_sources=False,
+            depressurize_to_sink=False,
+            drain_to_sink=False,
+            prove_zero=False,
+            add_barriers=False,
+            require_ddbb=False,
+        )
+        for hazard in hazard_list:
+            entry = getattr(matrix[resolved_work_type], hazard)
+            row = entry.default
+            if (
+                resolved_exposure is not None
+                and resolved_exposure in entry.exposure_overrides
+            ):
+                row = entry.exposure_overrides[resolved_exposure]
+            aggregated.block_sources = aggregated.block_sources or row.block_sources
+            aggregated.depressurize_to_sink = (
+                aggregated.depressurize_to_sink or row.depressurize_to_sink
+            )
+            aggregated.drain_to_sink = aggregated.drain_to_sink or row.drain_to_sink
+            aggregated.prove_zero = aggregated.prove_zero or row.prove_zero
+            aggregated.add_barriers = aggregated.add_barriers or row.add_barriers
+            aggregated.require_ddbb = aggregated.require_ddbb or row.require_ddbb
+        return aggregated
+
+    @staticmethod
+    def _edge_distance_to_targets(
+        graph: nx.MultiDiGraph,
+        targets: Sequence[str],
+        edge: Tuple[str, str],
+    ) -> float:
+        """Return shortest distance from edge downstream node to any target."""
+
+        _, downstream = edge
+        best = float("inf")
+        for target in targets:
+            try:
+                distance = nx.shortest_path_length(graph, downstream, target)
+            except nx.NetworkXNoPath:
+                continue
+            if distance < best:
+                best = float(distance)
+        return best
+
     def compute(
         self,
         graphs: Dict[str, nx.MultiDiGraph],
@@ -168,6 +244,25 @@ class IsolationPlanner:
         plan: Dict[str, List[Tuple[str, str]]] = {}
 
         cfg = dict(config or {})
+        work_type = str(cfg.get("work_type") or "").strip().lower() or None
+        raw_hazard = cfg.get("hazard_class")
+        if isinstance(raw_hazard, str):
+            hazard_classes = [raw_hazard.strip().lower()] if raw_hazard.strip() else []
+        elif isinstance(raw_hazard, Sequence):
+            hazard_classes = [
+                str(item).strip().lower() for item in raw_hazard if str(item).strip()
+            ]
+        else:
+            hazard_classes = []
+        exposure_mode = str(cfg.get("exposure_mode") or "").strip().lower() or None
+
+        required_actions = self._resolve_required_actions(
+            rule_pack=rule_pack,
+            work_type=work_type,
+            hazard_classes=hazard_classes,
+            exposure_mode=exposure_mode,
+        )
+
         primary_craft = cfg.get("primary_craft") or ""
         site = cfg.get("site") or ""
         window_start = cfg.get("window_start") or datetime.utcnow()
@@ -197,6 +292,7 @@ class IsolationPlanner:
 
             # Build weighted graph for min-cut computations
             weighted = nx.DiGraph()
+            targets_set = set(targets)
             for u, v, data in graph.edges(data=True):
                 if data.get("is_isolation_point"):
                     op_cost = (
@@ -226,6 +322,15 @@ class IsolationPlanner:
                         base = 1.0
                     mult = 1 + min(cbt, CB_MAX) / CB_SCALE
                     cap = base * mult + ZETA * reset_time * (1 + cbt / RST_SCALE)
+                    if (
+                        work_type == WorkType.EXTERNAL_MAINTENANCE.value
+                        and not required_actions.require_ddbb
+                    ):
+                        edge_dist = self._edge_distance_to_targets(
+                            graph, list(targets_set), (u, v)
+                        )
+                        if edge_dist != float("inf"):
+                            cap *= 1 + (0.2 * edge_dist)
                 else:
                     cap = float("inf")
                 if weighted.has_edge(u, v):
@@ -270,19 +375,10 @@ class IsolationPlanner:
 
             plan[domain] = list(cut_edges)
 
-        actions: List[IsolationAction] = []
-        for domain, edges in plan.items():
-            for u, v in edges:
-                actions.append(
-                    IsolationAction(
-                        component_id=f"{domain}:{u}->{v}",
-                        method="lock",
-                        duration_s=0.0,
-                    )
-                )
         verifications: List[str] = []
-        hazards: List[str] = []
+        hazards = [f"hazard_class:{hazard}" for hazard in hazard_classes]
         controls: List[str] = []
+        actions: List[IsolationAction] = []
 
         def shortest_open_path(g: nx.MultiDiGraph) -> List[str] | None:
             """Return shortest path from any source to the target using open edges."""
@@ -312,6 +408,16 @@ class IsolationPlanner:
             return best
 
         for domain, edges in plan.items():
+            if required_actions.block_sources:
+                for u, v in edges:
+                    actions.append(
+                        IsolationAction(
+                            component_id=f"{domain}:{u}->{v}",
+                            method="lock",
+                            duration_s=0.0,
+                        )
+                    )
+
             if not edges:
                 continue
             branch_graph = nx.Graph()
@@ -324,10 +430,25 @@ class IsolationPlanner:
                 for n, d in work_graphs[domain].nodes(data=True)
                 if str(d.get("tag", "")).strip().upper() == normalized_tag
             ]
+            domain_ddbb_found = False
             for component in nx.connected_components(branch_graph):
                 branch_label = f"{domain}:{'-'.join(sorted(component))}"
-                verifications.append(f"{branch_label} PT=0")
-                verifications.append(f"{branch_label} no-movement")
+                if required_actions.prove_zero:
+                    verifications.append(f"{branch_label} PT=0")
+                    verifications.append(f"{branch_label} no-movement")
+
+                if required_actions.depressurize_to_sink:
+                    verifications.append(
+                        f"{branch_label} depressurize_to_sink verified"
+                    )
+                    controls.append(
+                        f"{branch_label} pressure relief routed to safe sink"
+                    )
+                if required_actions.drain_to_sink:
+                    verifications.append(f"{branch_label} drain_to_sink verified")
+                    controls.append(f"{branch_label} fluids drained to designated sink")
+                if required_actions.add_barriers:
+                    controls.append(f"{branch_label} temporary barriers installed")
 
                 ddbb_found = False
                 for node in component:
@@ -408,9 +529,16 @@ class IsolationPlanner:
                                 set_state(g, ui, "closed")
                                 set_state(g, di, "closed")
                                 set_state(g, bleed, "open", bleed_only=True)
-                                if shortest_open_path(g) is not None:
+                                if (
+                                    required_actions.block_sources
+                                    and shortest_open_path(g) is not None
+                                ):
                                     continue
-                                if not can_reach_safe_sink(g, bleed[0]):
+                                sink_ok = can_reach_safe_sink(g, bleed[0])
+                                if (
+                                    required_actions.depressurize_to_sink
+                                    or required_actions.drain_to_sink
+                                ) and not sink_ok:
                                     continue
                                 redundant = False
                                 g_up = g.copy()
@@ -428,6 +556,7 @@ class IsolationPlanner:
                                         f"{branch_label} redundant DDBB path"
                                     )
                                 ddbb_found = True
+                                domain_ddbb_found = True
                                 break
                             if ddbb_found:
                                 break
@@ -435,8 +564,20 @@ class IsolationPlanner:
                             break
                     if ddbb_found:
                         break
-            if ddbb_found:
-                continue
+            if required_actions.require_ddbb and not domain_ddbb_found:
+                raise UnisolatablePathError(
+                    target_identifier=normalized_tag,
+                    reason="mandatory DDBB branch unavailable",
+                    hint=(
+                        "policy requires a double-block-and-bleed branch with a "
+                        "reachable safe sink"
+                    ),
+                )
+
+        if required_actions.depressurize_to_sink:
+            verifications.append("path-check: depressurization path to safe sink")
+        if required_actions.drain_to_sink:
+            verifications.append("path-check: drain path to safe sink")
 
         return IsolationPlan(
             plan_id=asset_tag,

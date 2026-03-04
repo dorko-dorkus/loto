@@ -209,8 +209,16 @@ def plan_and_evaluate(
 
     planner = IsolationPlanner()
     start = time.perf_counter()
+    planner_config = dict(config or {})
+    planner_config.update(
+        {
+            "work_type": canonical_work_type,
+            "hazard_class": canonical_hazard_class,
+            "exposure_mode": canonical_exposure_mode,
+        }
+    )
     plan = planner.compute(
-        graphs_pre, asset_tag=asset_tag, rule_pack=rule_pack, config=config
+        graphs_pre, asset_tag=asset_tag, rule_pack=rule_pack, config=planner_config
     )
     duration = time.perf_counter() - start
     logger.info("plan_generated", duration=duration)
