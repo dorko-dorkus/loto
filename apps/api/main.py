@@ -790,6 +790,9 @@ def _generate_blueprint(
             payload.workorder_id,
             strict_pre_applied_isolations=strict_pre_applied_isolations,
             state=STATE,
+            work_type=payload.work_type,
+            hazard_class=payload.hazard_class,
+            exposure_mode=payload.exposure_mode,
         )
         plans_generated_total.inc()
     except Exception:

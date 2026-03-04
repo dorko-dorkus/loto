@@ -1,20 +1,62 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class BlueprintRequest(BaseModel):
     """Request body for the /blueprint endpoint."""
 
     workorder_id: str = Field(..., description="Identifier of the work order")
+    work_type: str | None = Field(
+        None,
+        description="Optional work type used to tune planning policy",
+    )
+    hazard_class: str | list[str] | None = Field(
+        None,
+        description="Optional hazard class (or classes) for planning policy",
+    )
+    exposure_mode: str | None = Field(
+        None,
+        description="Optional exposure mode override; inferred when omitted",
+    )
 
     model_config = ConfigDict(
         extra="forbid",
-        json_schema_extra={"example": {"workorder_id": "WO-1001"}},
+        json_schema_extra={
+            "example": {
+                "workorder_id": "WO-1001",
+                "work_type": "intrusive_mech",
+                "hazard_class": ["pressure", "chemical"],
+                "exposure_mode": "release_possible",
+            }
+        },
     )
+
+    @field_validator("work_type", mode="before")
+    @classmethod
+    def normalize_work_type(cls, value: Any) -> str | None:
+        from loto.normalization import canonicalize_work_type
+
+        return cast(str | None, canonicalize_work_type(value))
+
+    @field_validator("hazard_class", mode="before")
+    @classmethod
+    def normalize_hazard_class(cls, value: Any) -> str | list[str] | None:
+        from loto.normalization import canonicalize_hazard_class
+
+        if isinstance(value, list):
+            return [canonicalize_hazard_class(item) for item in value]
+        return cast(str | list[str] | None, canonicalize_hazard_class(value))
+
+    @field_validator("exposure_mode", mode="before")
+    @classmethod
+    def normalize_exposure_mode(cls, value: Any) -> str | None:
+        from loto.normalization import canonicalize_exposure_mode
+
+        return cast(str | None, canonicalize_exposure_mode(value))
 
 
 class Step(BaseModel):
