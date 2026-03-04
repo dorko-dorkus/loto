@@ -8,6 +8,7 @@ basic metadata/units for numeric values.
 from __future__ import annotations
 
 import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -55,6 +56,122 @@ class RiskPolicies(BaseModel):
 
     class Config:
         extra = "forbid"
+
+
+class WorkType(str, Enum):
+    """Supported work types for isolation policy decisions."""
+
+    FUNCTIONAL_TEST = "functional_test"
+    INSTRUMENT_CALIBRATION = "instrument_calibration"
+    EXTERNAL_MAINTENANCE = "external_maintenance"
+    INSPECTION_EXTERNAL = "inspection_external"
+    INSPECTION_INTERNAL_CONFINED = "inspection_internal_confined"
+    INTRUSIVE_MECH = "intrusive_mech"
+    HOT_WORK = "hot_work"
+
+
+class ExposureMode(str, Enum):
+    """Override mode describing expected exposure potential."""
+
+    NONE = "none"
+    THERMAL_ONLY = "thermal_only"
+    RELEASE_POSSIBLE = "release_possible"
+    IGNITION_POSSIBLE = "ignition_possible"
+
+
+class RequiredActions(BaseModel):
+    """Set of controls required for a specific work/hazard scenario."""
+
+    block_sources: bool = Field(
+        default=True,
+        description="Whether all driving energy/material sources must be blocked",
+    )
+    depressurize_to_sink: bool = Field(
+        default=False,
+        description="Whether pressure shall be relieved to a designated safe sink",
+    )
+    drain_to_sink: bool = Field(
+        default=False,
+        description="Whether fluids shall be drained to a designated safe sink",
+    )
+    prove_zero: bool = Field(
+        default=True,
+        description="Whether zero energy/material state must be verified",
+    )
+    add_barriers: bool = Field(
+        default=False,
+        description="Whether additional barriers/segregation controls are required",
+    )
+    require_ddbb: bool = Field(
+        default=False,
+        description="Whether double block and bleed verification is required",
+    )
+
+    class Config:
+        extra = "forbid"
+
+
+class IsolationPolicyEntry(BaseModel):
+    """Default and exposure-specific required actions for a policy case."""
+
+    default: RequiredActions = Field(
+        default_factory=RequiredActions,
+        description="Required actions applied when no exposure override is provided",
+    )
+    exposure_overrides: Dict[ExposureMode, RequiredActions] = Field(
+        default_factory=dict,
+        description="Optional required-action overrides by exposure mode",
+    )
+
+    class Config:
+        extra = "forbid"
+
+
+class IsolationPolicyWorkTypeMatrix(BaseModel):
+    """Hazard-class policy entries for one work type."""
+
+    pressure: IsolationPolicyEntry = Field(default_factory=IsolationPolicyEntry)
+    temperature: IsolationPolicyEntry = Field(default_factory=IsolationPolicyEntry)
+    electrical: IsolationPolicyEntry = Field(default_factory=IsolationPolicyEntry)
+    chemical: IsolationPolicyEntry = Field(default_factory=IsolationPolicyEntry)
+    mechanical: IsolationPolicyEntry = Field(default_factory=IsolationPolicyEntry)
+
+    class Config:
+        extra = "forbid"
+
+
+def _default_isolation_policy_matrix() -> Dict[WorkType, IsolationPolicyWorkTypeMatrix]:
+    """Return safe default matrix preserving pre-policy intrusive behavior."""
+
+    matrix = {work_type: IsolationPolicyWorkTypeMatrix() for work_type in WorkType}
+    matrix[WorkType.INTRUSIVE_MECH] = IsolationPolicyWorkTypeMatrix(
+        pressure=IsolationPolicyEntry(
+            default=RequiredActions(
+                block_sources=True,
+                depressurize_to_sink=True,
+                prove_zero=True,
+                require_ddbb=True,
+            )
+        ),
+        chemical=IsolationPolicyEntry(
+            default=RequiredActions(
+                block_sources=True,
+                drain_to_sink=True,
+                prove_zero=True,
+                require_ddbb=True,
+            )
+        ),
+        mechanical=IsolationPolicyEntry(
+            default=RequiredActions(block_sources=True, prove_zero=True)
+        ),
+        temperature=IsolationPolicyEntry(
+            default=RequiredActions(block_sources=True, prove_zero=True)
+        ),
+        electrical=IsolationPolicyEntry(
+            default=RequiredActions(block_sources=True, prove_zero=True)
+        ),
+    )
+    return matrix
 
 
 class Node(BaseModel):
@@ -240,9 +357,25 @@ class RulePack(BaseModel):
     risk_policies: Optional[RiskPolicies] = Field(
         None, description="Associated risk policies"
     )
+    isolation_policy_matrix: Optional[
+        Dict[WorkType, IsolationPolicyWorkTypeMatrix]
+    ] = Field(
+        default=None,
+        description=(
+            "Optional policy matrix keyed by work type and hazard class with "
+            "exposure overrides"
+        ),
+    )
     review: Optional[List[RulePackReview]] = Field(
         default=None, description="Review history for the rule pack"
     )
+
+    def effective_isolation_policy_matrix(
+        self,
+    ) -> Dict[WorkType, IsolationPolicyWorkTypeMatrix]:
+        """Return configured policy matrix, or safe defaults when omitted."""
+
+        return self.isolation_policy_matrix or _default_isolation_policy_matrix()
 
     class Config:
         extra = "forbid"
