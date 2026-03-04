@@ -49,7 +49,7 @@ from starlette.datastructures import MutableHeaders
 from loto.config import validate_env_vars
 from loto.errors import AssetTagNotFoundError, GenerationError
 from loto.errors import ImportError as LotoImportError
-from loto.errors import LotoError, ValidationError
+from loto.errors import LotoError, UnisolatablePathError, ValidationError
 from loto.impact_config import load_impact_config
 from loto.integrations import get_hats_adapter, get_permit_adapter
 from loto.inventory import (
@@ -472,6 +472,7 @@ async def _handle_loto_error(request: Request, exc: LotoError) -> None:
     status_map = {
         ValidationError: status.HTTP_400_BAD_REQUEST,
         AssetTagNotFoundError: status.HTTP_400_BAD_REQUEST,
+        UnisolatablePathError: status.HTTP_422_UNPROCESSABLE_ENTITY,
         LotoImportError: status.HTTP_500_INTERNAL_SERVER_ERROR,
         GenerationError: status.HTTP_500_INTERNAL_SERVER_ERROR,
     }
@@ -479,6 +480,11 @@ async def _handle_loto_error(request: Request, exc: LotoError) -> None:
     detail = {"code": exc.code, "message": exc.hint}
     if isinstance(exc, AssetTagNotFoundError) and exc.public_hint:
         detail["hint"] = exc.public_hint
+    if isinstance(exc, UnisolatablePathError):
+        detail["target"] = exc.target_identifier
+        detail["reason"] = exc.reason
+        if exc.public_hint:
+            detail["hint"] = exc.public_hint
     raise HTTPException(status_code=status_code, detail=detail)
 
 
@@ -835,6 +841,11 @@ def _blueprint_worker(
             detail = {"code": exc.code, "message": exc.hint}
             if isinstance(exc, AssetTagNotFoundError) and exc.public_hint:
                 detail["hint"] = exc.public_hint
+            if isinstance(exc, UnisolatablePathError):
+                detail["target"] = exc.target_identifier
+                detail["reason"] = exc.reason
+                if exc.public_hint:
+                    detail["hint"] = exc.public_hint
             job.result = detail
             job.error = detail
         else:
@@ -1088,6 +1099,11 @@ def _schedule_worker(
             detail = {"code": exc.code, "message": exc.hint}
             if isinstance(exc, AssetTagNotFoundError) and exc.public_hint:
                 detail["hint"] = exc.public_hint
+            if isinstance(exc, UnisolatablePathError):
+                detail["target"] = exc.target_identifier
+                detail["reason"] = exc.reason
+                if exc.public_hint:
+                    detail["hint"] = exc.public_hint
             job.result = detail
             job.error = detail
         else:

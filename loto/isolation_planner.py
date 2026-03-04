@@ -22,7 +22,7 @@ import networkx as nx
 
 from loto.integrations import get_hats_adapter
 
-from .errors import AssetTagNotFoundError
+from .errors import AssetTagNotFoundError, UnisolatablePathError
 from .models import IsolationAction, IsolationPlan, RulePack
 
 
@@ -242,9 +242,19 @@ class IsolationPlanner:
             for t in targets:
                 weighted.add_edge(t, super_sink, capacity=float("inf"))
 
-            _, (reachable, non_reachable) = nx.minimum_cut(
-                weighted, super_source, super_sink, capacity="capacity"
-            )
+            try:
+                _, (reachable, non_reachable) = nx.minimum_cut(
+                    weighted, super_source, super_sink, capacity="capacity"
+                )
+            except nx.NetworkXUnbounded as exc:
+                raise UnisolatablePathError(
+                    target_identifier=normalized_tag,
+                    reason="no isolation points on any source→target path",
+                    hint=(
+                        "add at least one inline isolation point (for example, "
+                        "a valve) on each source-to-target path"
+                    ),
+                ) from exc
 
             cut_edges: Set[Tuple[str, str]] = set()
             for u in reachable:
