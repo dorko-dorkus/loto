@@ -42,6 +42,7 @@ dev = [
     "types-PyYAML",
     "types-requests",
     "fastapi-oidc",
+    "sqlalchemy",
 ]
 
 [tool.black]
