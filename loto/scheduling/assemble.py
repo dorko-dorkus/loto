@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable
-from dataclasses import dataclass, field
 
 from ..inventory import InventoryStatus
 from ..models import IsolationPlan
 from . import gates
-from .des_engine import DurationDistribution
 from .des_engine import Task as SchedulerTask
+from .task_model import (
+    DurationSpec,
+    PlanningTask,
+    ensure_unique_task_ids,
+    to_scheduler_task,
+)
 
 InventoryFn = Callable[[object], InventoryStatus]
 
@@ -19,53 +23,59 @@ DEFAULT_RESOURCE_BUCKET = "Mechanical"
 DEFAULT_DURATION_VARIABILITY_RATIO = 0.15
 
 
-@dataclass(frozen=True)
-class MappedTask:
-    """Domain scheduling task mapped from an isolation action."""
-
-    id: str
-    action_ref: str
-    baseline_duration_min: int
-    resources: tuple[str, ...] = (DEFAULT_RESOURCE_BUCKET,)
-    dependencies: tuple[str, ...] = ()
-    metadata: dict[str, object] = field(default_factory=dict)
-
-
 def map_plan_tasks(
     plan: IsolationPlan,
     *,
     baseline_duration_min: int = DEFAULT_BASELINE_DURATION_MIN,
     default_resource_bucket: str = DEFAULT_RESOURCE_BUCKET,
     duration_variability_ratio: float = DEFAULT_DURATION_VARIABILITY_RATIO,
-) -> list[MappedTask]:
-    """Map each isolation action in ``plan`` to a deterministic domain task."""
+) -> list[PlanningTask]:
+    """Map each isolation action in ``plan`` to a deterministic planning task."""
 
-    mapped: list[MappedTask] = []
+    mapped: list[PlanningTask] = []
     previous_id: str | None = None
     for idx, action in enumerate(plan.actions):
-        task_id = f"{plan.plan_id}-{idx}"
-        dependencies = (previous_id,) if previous_id is not None else ()
+        task_id = f"{plan.plan_id}-iso-{idx}"
+        dependencies = [previous_id] if previous_id is not None else []
         duration_min = (
             int(math.ceil(action.duration_s / 60))
             if action.duration_s is not None
             else baseline_duration_min
         )
         mapped.append(
-            MappedTask(
-                id=task_id,
-                action_ref=f"{action.method}:{action.component_id}",
-                baseline_duration_min=max(1, duration_min),
-                resources=(default_resource_bucket,),
-                dependencies=dependencies,
-                metadata={
+            PlanningTask(
+                task_id=task_id,
+                kind="isolation",
+                name=f"{action.method}:{action.component_id}",
+                resources={default_resource_bucket: 1},
+                duration=DurationSpec(
+                    baseline_min=max(1, duration_min),
+                    variability_ratio=duration_variability_ratio,
+                ),
+                depends_on=dependencies,
+                meta={
                     "action_index": idx,
-                    "duration_variability_ratio": duration_variability_ratio,
+                    "action_method": action.method,
+                    "component_id": action.component_id,
                 },
             )
         )
         previous_id = task_id
 
+    ensure_unique_task_ids(mapped)
     return mapped
+
+
+def planning_to_scheduler_tasks(
+    tasks: list[PlanningTask], *, include_resources: bool = False
+) -> dict[str, SchedulerTask]:
+    """Convert planning-layer tasks into runtime scheduler tasks."""
+
+    ensure_unique_task_ids(tasks)
+    return {
+        task.task_id: to_scheduler_task(task, include_resources=include_resources)
+        for task in tasks
+    }
 
 
 def from_work_order(
@@ -81,41 +91,12 @@ def from_work_order(
     :class:`Task`.  When ``check_parts`` is provided and indicates that parts
     are missing, a :func:`gates.parts_available` predicate is attached to each
     task so execution will wait for parts to arrive.
-
-    Parameters
-    ----------
-    work_order:
-        Object exposing an ``id`` attribute identifying the work order.
-    plan:
-        Isolation plan describing ordered actions.
-    check_parts:
-        Optional callable returning an :class:`~loto.inventory.InventoryStatus`
-        for ``work_order``.
-
-    Returns
-    -------
-    dict[str, SchedulerTask]
-        Mapping of task identifier to scheduler :class:`~loto.scheduling.des_engine.Task`.
     """
 
-    tasks: dict[str, SchedulerTask] = {}
-    for item in map_plan_tasks(
+    planning_tasks = map_plan_tasks(
         plan, duration_variability_ratio=duration_variability_ratio
-    ):
-        ratio_value = item.metadata.get("duration_variability_ratio", 0.0)
-        variability = (
-            float(ratio_value) if isinstance(ratio_value, (int, float)) else 0.0
-        )
-        tasks[item.id] = SchedulerTask(
-            duration=item.baseline_duration_min,
-            predecessors=item.dependencies,
-            base_duration=item.baseline_duration_min,
-            distribution=DurationDistribution(
-                kind="uniform" if variability > 0 else "fixed",
-                low=max(0.0, 1.0 - variability),
-                high=max(1.0 - variability, 1.0 + variability),
-            ),
-        )
+    )
+    tasks = planning_to_scheduler_tasks(planning_tasks)
 
     if check_parts:
         status = check_parts(work_order)

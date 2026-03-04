@@ -10,7 +10,7 @@ class _WO:
         self.reservations: list[object] = []
 
 
-def test_tasks_wait_for_inventory_gate():
+def test_tasks_wait_for_inventory_gate() -> None:
     wo = _WO("wo-1")
     plan = IsolationPlan(
         plan_id="p1",
@@ -23,16 +23,16 @@ def test_tasks_wait_for_inventory_gate():
         return status
 
     tasks = from_work_order(wo, plan, check_parts)
-    assert tasks["p1-0"].gate is not None
+    assert tasks["p1-iso-0"].gate is not None
 
-    state = {"parts": set()}
+    state: dict[str, set[str]] = {"parts": set()}
     if check_parts(wo).ready:
         state["parts"].add(wo.id)
     result = run(tasks, {}, state)
-    assert "p1-0" not in result.starts
+    assert "p1-iso-0" not in result.starts
 
     status.blocked = False
     if check_parts(wo).ready:
         state["parts"].add(wo.id)
     result = run(tasks, {}, state)
-    assert result.starts == {"p1-0": 0}
+    assert result.starts == {"p1-iso-0": 0}

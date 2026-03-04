@@ -2,9 +2,10 @@ from loto.models import IsolationAction, IsolationPlan
 from loto.scheduling.assemble import (
     DEFAULT_BASELINE_DURATION_MIN,
     DEFAULT_RESOURCE_BUCKET,
-    MappedTask,
     map_plan_tasks,
+    planning_to_scheduler_tasks,
 )
+from loto.scheduling.task_model import PlanningTask
 
 
 def _plan() -> IsolationPlan:
@@ -18,16 +19,16 @@ def _plan() -> IsolationPlan:
     )
 
 
-def _is_acyclic(tasks: list[MappedTask]) -> bool:
-    ids = {task.id for task in tasks}
-    indegree: dict[str, int] = {task.id: 0 for task in tasks}
-    graph: dict[str, list[str]] = {task.id: [] for task in tasks}
+def _is_acyclic(tasks: list[PlanningTask]) -> bool:
+    ids = {task.task_id for task in tasks}
+    indegree: dict[str, int] = {task.task_id: 0 for task in tasks}
+    graph: dict[str, list[str]] = {task.task_id: [] for task in tasks}
 
     for task in tasks:
-        for dep in task.dependencies:
+        for dep in task.depends_on:
             if dep in ids:
-                graph[dep].append(task.id)
-                indegree[task.id] += 1
+                graph[dep].append(task.task_id)
+                indegree[task.task_id] += 1
 
     queue: list[str] = [tid for tid, deg in indegree.items() if deg == 0]
     visited = 0
@@ -53,7 +54,7 @@ def test_mapping_populates_resources_on_all_tasks() -> None:
     tasks = map_plan_tasks(_plan())
 
     assert all(task.resources for task in tasks)
-    assert all(task.resources == (DEFAULT_RESOURCE_BUCKET,) for task in tasks)
+    assert all(task.resources == {DEFAULT_RESOURCE_BUCKET: 1} for task in tasks)
 
 
 def test_mapping_dependencies_are_acyclic() -> None:
@@ -69,5 +70,13 @@ def test_mapping_is_deterministic_for_same_input() -> None:
     second = map_plan_tasks(plan)
 
     assert first == second
-    assert first[0].baseline_duration_min == DEFAULT_BASELINE_DURATION_MIN
-    assert first[1].baseline_duration_min == 30
+    assert first[0].duration.baseline_min == DEFAULT_BASELINE_DURATION_MIN
+    assert first[1].duration.baseline_min == 30
+    assert first[0].task_id == "plan-1-iso-0"
+
+
+def test_planning_tasks_map_to_scheduler_tasks() -> None:
+    scheduler_tasks = planning_to_scheduler_tasks(map_plan_tasks(_plan()))
+
+    assert set(scheduler_tasks) == {"plan-1-iso-0", "plan-1-iso-1", "plan-1-iso-2"}
+    assert scheduler_tasks["plan-1-iso-1"].predecessors == ("plan-1-iso-0",)
