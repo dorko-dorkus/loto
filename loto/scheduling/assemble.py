@@ -9,12 +9,14 @@ from dataclasses import dataclass, field
 from ..inventory import InventoryStatus
 from ..models import IsolationPlan
 from . import gates
+from .des_engine import DurationDistribution
 from .des_engine import Task as SchedulerTask
 
 InventoryFn = Callable[[object], InventoryStatus]
 
 DEFAULT_BASELINE_DURATION_MIN = 20
 DEFAULT_RESOURCE_BUCKET = "Mechanical"
+DEFAULT_DURATION_VARIABILITY_RATIO = 0.15
 
 
 @dataclass(frozen=True)
@@ -34,6 +36,7 @@ def map_plan_tasks(
     *,
     baseline_duration_min: int = DEFAULT_BASELINE_DURATION_MIN,
     default_resource_bucket: str = DEFAULT_RESOURCE_BUCKET,
+    duration_variability_ratio: float = DEFAULT_DURATION_VARIABILITY_RATIO,
 ) -> list[MappedTask]:
     """Map each isolation action in ``plan`` to a deterministic domain task."""
 
@@ -54,7 +57,10 @@ def map_plan_tasks(
                 baseline_duration_min=max(1, duration_min),
                 resources=(default_resource_bucket,),
                 dependencies=dependencies,
-                metadata={"action_index": idx},
+                metadata={
+                    "action_index": idx,
+                    "duration_variability_ratio": duration_variability_ratio,
+                },
             )
         )
         previous_id = task_id
@@ -66,6 +72,8 @@ def from_work_order(
     work_order: object,
     plan: IsolationPlan,
     check_parts: InventoryFn | None = None,
+    *,
+    duration_variability_ratio: float = DEFAULT_DURATION_VARIABILITY_RATIO,
 ) -> dict[str, SchedulerTask]:
     """Return schedulable tasks for ``work_order``.
 
@@ -91,10 +99,22 @@ def from_work_order(
     """
 
     tasks: dict[str, SchedulerTask] = {}
-    for item in map_plan_tasks(plan):
+    for item in map_plan_tasks(
+        plan, duration_variability_ratio=duration_variability_ratio
+    ):
+        ratio_value = item.metadata.get("duration_variability_ratio", 0.0)
+        variability = (
+            float(ratio_value) if isinstance(ratio_value, (int, float)) else 0.0
+        )
         tasks[item.id] = SchedulerTask(
             duration=item.baseline_duration_min,
             predecessors=item.dependencies,
+            base_duration=item.baseline_duration_min,
+            distribution=DurationDistribution(
+                kind="uniform" if variability > 0 else "fixed",
+                low=max(0.0, 1.0 - variability),
+                high=max(1.0 - variability, 1.0 + variability),
+            ),
         )
 
     if check_parts:

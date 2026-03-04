@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import random
 import sqlite3
 import time
 import tomllib
@@ -63,10 +62,9 @@ from loto.loggers import configure_logging, request_id_var, rule_hash_var, seed_
 from loto.materials.jobpack import DEFAULT_LEAD_DAYS, build_jobpack
 from loto.normalization import canonicalize_graph_tag
 from loto.rule_engine import RuleEngine
-from loto.scheduling.des_engine import Task
 from loto.service import assemble_tasks
 from loto.service.blueprints import parse_component_ids
-from loto.service.scheduling import monte_carlo_schedule
+from loto.service.scheduling import apply_duration_variability, monte_carlo_schedule
 
 from .audit import add_record, ensure_audit_table
 from .demo_data import demo_data
@@ -970,7 +968,7 @@ def _generate_schedule(
             },
         )
 
-    sampled_tasks = _with_seeded_duration_variability(assembled["tasks"])
+    sampled_tasks = apply_duration_variability(assembled["tasks"])
 
     mc = monte_carlo_schedule(
         sampled_tasks,
@@ -1039,37 +1037,6 @@ def _generate_schedule(
         rulepack_id=RULE_PACK_ID,
         rulepack_version=RULE_PACK_VERSION,
     )
-
-
-def _with_seeded_duration_variability(
-    tasks: Dict[str, Task], spread_ratio: float = 0.15
-) -> Dict[str, Task]:
-    """Return tasks with fixed durations wrapped as deterministic RNG samplers."""
-
-    wrapped: Dict[str, Task] = {}
-    for task_id, task in tasks.items():
-        if callable(task.duration):
-            wrapped[task_id] = task
-            continue
-
-        base_duration = max(1, int(task.duration))
-        low = max(1, int(round(base_duration * (1.0 - spread_ratio))))
-        high = max(low, int(round(base_duration * (1.0 + spread_ratio))))
-
-        def sampled_duration(
-            rng: random.Random, *, _low: int = low, _high: int = high
-        ) -> int:
-            return rng.randint(_low, _high)
-
-        wrapped[task_id] = Task(
-            duration=sampled_duration,
-            predecessors=task.predecessors,
-            resources=task.resources,
-            calendar=task.calendar,
-            gate=task.gate,
-        )
-
-    return wrapped
 
 
 def _schedule_worker(

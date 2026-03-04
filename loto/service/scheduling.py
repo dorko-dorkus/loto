@@ -8,7 +8,7 @@ from typing import TypedDict
 from ..inventory import InventoryStatus
 from ..models import IsolationPlan
 from ..scheduling import assemble, des_engine, monte_carlo
-from ..scheduling.des_engine import RunResult, Task
+from ..scheduling.des_engine import DurationDistribution, RunResult, Task
 from ..scheduling.monte_carlo import MonteCarloResult
 from .blueprints import validate_fk_integrity
 
@@ -46,6 +46,8 @@ def assemble_tasks(
     plan: IsolationPlan,
     check_parts: assemble.InventoryFn | None = None,
     verification_task_builder: VerificationTaskBuilder | None = None,
+    *,
+    duration_variability_ratio: float = assemble.DEFAULT_DURATION_VARIABILITY_RATIO,
 ) -> AssembledTasks:
     """Return mapped tasks and inventory gate evaluation for a work order."""
     validate_fk_integrity(
@@ -60,6 +62,7 @@ def assemble_tasks(
         work_order,
         plan,
         cached_status if check_parts is not None else None,
+        duration_variability_ratio=duration_variability_ratio,
     )
 
     extra_tasks: Mapping[str, Task] = {}
@@ -98,13 +101,47 @@ def run_schedule(
     return des_engine.run(tasks, resource_caps, state=state, seed=seed)
 
 
+def apply_duration_variability(
+    tasks: Mapping[str, Task], spread_ratio: float = 0.15
+) -> dict[str, Task]:
+    """Return tasks with duration distribution metadata attached."""
+
+    normalized_ratio = max(0.0, float(spread_ratio))
+    wrapped: dict[str, Task] = {}
+    for task_id, task in tasks.items():
+        if task.distribution is not None and task.base_duration is not None:
+            wrapped[task_id] = task
+            continue
+
+        if callable(task.duration):
+            wrapped[task_id] = task
+            continue
+
+        base_duration = max(1, int(task.duration))
+        wrapped[task_id] = Task(
+            duration=base_duration,
+            predecessors=task.predecessors,
+            resources=task.resources,
+            calendar=task.calendar,
+            gate=task.gate,
+            base_duration=base_duration,
+            distribution=DurationDistribution(
+                kind="uniform" if normalized_ratio > 0 else "fixed",
+                low=max(0.0, 1.0 - normalized_ratio),
+                high=max(1.0 - normalized_ratio, 1.0 + normalized_ratio),
+            ),
+        )
+
+    return wrapped
+
+
 def monte_carlo_schedule(
     tasks: Mapping[str, Task],
     resource_caps: Mapping[str, int],
     runs: int,
     *,
     state: Mapping[str, object] | None = None,
-    seed: int = 0,
+    seed: int | None = 0,
 ) -> MonteCarloResult:
     """Run Monte Carlo simulations of the scheduler."""
 

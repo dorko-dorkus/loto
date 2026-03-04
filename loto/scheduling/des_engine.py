@@ -9,6 +9,15 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, Mapping
 
 
+@dataclass(frozen=True)
+class DurationDistribution:
+    """Task-level duration variability model."""
+
+    kind: str = "fixed"
+    low: float = 1.0
+    high: float = 1.0
+
+
 @dataclass
 class Task:
     """Represents a schedulable task.
@@ -30,6 +39,10 @@ class Task:
         Optional predicate that must evaluate to ``True`` for the task to
         start.  Gates receive the global ``state`` mapping supplied to
         :func:`run`.
+    base_duration:
+        Optional deterministic baseline used with ``distribution``.
+    distribution:
+        Optional variability model used for per-run duration sampling.
     """
 
     duration: int | Callable[[random.Random], int]
@@ -37,6 +50,8 @@ class Task:
     resources: Mapping[str, int] = field(default_factory=dict)
     calendar: Callable[[int], bool] | None = None
     gate: Callable[[Mapping[str, Any]], bool] | None = None
+    base_duration: int | None = None
+    distribution: DurationDistribution | None = None
 
 
 @dataclass
@@ -51,6 +66,17 @@ class RunResult:
 
 
 def _duration(task: Task, rng: random.Random) -> int:
+    if task.base_duration is not None and task.distribution is not None:
+        if task.distribution.kind == "fixed":
+            return max(1, int(task.base_duration))
+        if task.distribution.kind == "uniform":
+            sampled = task.base_duration * rng.uniform(
+                task.distribution.low,
+                task.distribution.high,
+            )
+            return max(1, int(round(sampled)))
+        raise ValueError(f"unsupported distribution kind: {task.distribution.kind}")
+
     dur = task.duration
     if callable(dur):
         return int(dur(rng))
