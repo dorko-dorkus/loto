@@ -28,6 +28,8 @@ responses
 pre-commit
 httpx
 fastapi
+fastapi-oidc
+sqlalchemy
 opentelemetry-sdk
 opentelemetry-instrumentation-fastapi
 opentelemetry-instrumentation-requests
