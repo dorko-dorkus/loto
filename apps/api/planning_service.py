@@ -16,7 +16,12 @@ from loto.inventory import (
     check_wo_parts_required,
 )
 from loto.models import IsolationPlan, RulePack
-from loto.normalization import canonicalize_graph_tag
+from loto.normalization import (
+    canonicalize_exposure_mode,
+    canonicalize_graph_tag,
+    canonicalize_hazard_class,
+    canonicalize_work_type,
+)
 from loto.service import plan_and_evaluate
 from loto.service.blueprints import Provenance, inventory_state
 
@@ -81,6 +86,9 @@ def load_work_order_plan(
     *,
     strict_pre_applied_isolations: bool,
     state: Dict[str, object] | None,
+    work_type: str | None = None,
+    hazard_class: str | list[str] | None = None,
+    exposure_mode: str | None = None,
 ) -> tuple[WorkOrderPlanBundle, Dict[str, object]]:
     """Load work-order context and run the shared planner entrypoint."""
 
@@ -149,7 +157,82 @@ def load_work_order_plan(
         impact_cfg.asset_units[asset_tag] = sorted(impact_cfg.unit_data)[0]
 
     permit = get_permit_adapter().fetch_permit(workorder_id) or {}
-    cfg: Dict[str, Any] = {"callback_time_min": permit.get("callback_time_min", 0)}
+    description = str(permit.get("description") or work_order.description or "")
+
+    def infer_work_type() -> str:
+        permit_work_type = canonicalize_work_type(permit.get("work_type"))
+        if isinstance(permit_work_type, str) and permit_work_type:
+            return permit_work_type
+        lowered = description.lower()
+        if "hot" in lowered and "work" in lowered:
+            return "hot_work"
+        if "inspect" in lowered:
+            return "inspection_external"
+        if "calib" in lowered:
+            return "instrument_calibration"
+        return "intrusive_mech"
+
+    def infer_hazard_class() -> list[str]:
+        permit_hazard = permit.get("hazard_class") or permit.get("hazard_classes")
+        raw_values = (
+            permit_hazard if isinstance(permit_hazard, list) else [permit_hazard]
+        )
+        values = [
+            canonicalize_hazard_class(item)
+            for item in raw_values
+            if isinstance(item, str) and item.strip()
+        ]
+        if values:
+            return values
+        lowered = description.lower()
+        inferred: list[str] = []
+        if "pressure" in lowered:
+            inferred.append("pressure")
+        if "elect" in lowered:
+            inferred.append("electrical")
+        if "chem" in lowered:
+            inferred.append("chemical")
+        if "temp" in lowered or "thermal" in lowered:
+            inferred.append("temperature")
+        return inferred or ["mechanical"]
+
+    def infer_exposure_mode(normalized_hazards: list[str]) -> str:
+        permit_exposure = canonicalize_exposure_mode(permit.get("exposure_mode"))
+        if isinstance(permit_exposure, str) and permit_exposure:
+            return permit_exposure
+        lowered = description.lower()
+        if "ignition" in lowered or "spark" in lowered or "hot work" in lowered:
+            return "ignition_possible"
+        if any(h in {"pressure", "chemical"} for h in normalized_hazards):
+            return "release_possible"
+        if any(h == "temperature" for h in normalized_hazards):
+            return "thermal_only"
+        return "none"
+
+    normalized_work_type = canonicalize_work_type(work_type) or infer_work_type()
+    normalized_hazard_class: list[str]
+    if isinstance(hazard_class, list):
+        normalized_hazard_class = [
+            canonicalize_hazard_class(item)
+            for item in hazard_class
+            if isinstance(item, str) and item.strip()
+        ]
+    elif isinstance(hazard_class, str):
+        normalized_hazard_class = [canonicalize_hazard_class(hazard_class)]
+    else:
+        normalized_hazard_class = []
+    if not normalized_hazard_class:
+        normalized_hazard_class = infer_hazard_class()
+    normalized_exposure_mode = canonicalize_exposure_mode(
+        exposure_mode
+    ) or infer_exposure_mode(normalized_hazard_class)
+
+    cfg: Dict[str, Any] = {
+        "callback_time_min": permit.get("callback_time_min", 0),
+        "work_type": normalized_work_type,
+        "hazard_class": normalized_hazard_class,
+        "exposure_mode": normalized_exposure_mode,
+    }
     pre_applied = permit.get("applied_isolations") or []
 
     def check_parts(wo: object) -> InventoryStatus:
@@ -180,6 +263,9 @@ def load_work_order_plan(
             config=cfg,
             pre_applied_isolations=pre_applied,
             strict_pre_applied_isolations=strict_pre_applied_isolations,
+            work_type=normalized_work_type,
+            hazard_class=normalized_hazard_class,
+            exposure_mode=normalized_exposure_mode,
         )
 
     return (

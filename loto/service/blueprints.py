@@ -18,7 +18,13 @@ from ..integrations import MaximoAdapter
 from ..integrations._errors import AdapterRequestError
 from ..isolation_planner import IsolationPlanner
 from ..models import IsolationAction, IsolationPlan, RulePack, SimReport, Stimulus
-from ..normalization import canonicalize_graph_domain, canonicalize_graph_tag
+from ..normalization import (
+    canonicalize_exposure_mode,
+    canonicalize_graph_domain,
+    canonicalize_graph_tag,
+    canonicalize_hazard_class,
+    canonicalize_work_type,
+)
 from ..scheduling import gates
 from ..scheduling.assemble import InventoryFn
 from ..sim_engine import SimEngine
@@ -134,6 +140,9 @@ def plan_and_evaluate(
     seed: int | None = None,
     config: Mapping[str, object] | None = None,
     strict_pre_applied_isolations: bool | None = None,
+    work_type: str | None = None,
+    hazard_class: str | list[str] | None = None,
+    exposure_mode: str | None = None,
 ) -> Tuple[IsolationPlan, SimReport, ImpactResult, Provenance]:
     """Run builder → planner → simulator → impact evaluation pipeline.
 
@@ -178,6 +187,25 @@ def plan_and_evaluate(
         ],
     )
     graphs_pre = SimEngine(seed=seed).apply(pre_plan, graphs)
+
+    canonical_work_type = canonicalize_work_type(work_type)
+    if isinstance(hazard_class, list):
+        canonical_hazard_class = [
+            canonicalize_hazard_class(item)
+            for item in hazard_class
+            if isinstance(item, str) and item.strip()
+        ]
+    elif isinstance(hazard_class, str):
+        canonical_hazard_class = [canonicalize_hazard_class(hazard_class)]
+    else:
+        canonical_hazard_class = []
+    canonical_exposure_mode = canonicalize_exposure_mode(exposure_mode)
+    logger.info(
+        "planning_context",
+        work_type=canonical_work_type,
+        hazard_class=canonical_hazard_class,
+        exposure_mode=canonical_exposure_mode,
+    )
 
     planner = IsolationPlanner()
     start = time.perf_counter()

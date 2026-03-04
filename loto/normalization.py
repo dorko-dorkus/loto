@@ -26,3 +26,27 @@ def canonicalize_graph_domain(value: Any) -> Any:
     if isinstance(value, str):
         return value.strip().replace("-", "_").lower()
     return value
+
+
+def canonicalize_work_type(value: Any) -> Any:
+    """Canonicalize work-type values for policy/config lookups."""
+
+    if isinstance(value, str):
+        return value.strip().replace("-", "_").lower()
+    return value
+
+
+def canonicalize_hazard_class(value: Any) -> Any:
+    """Canonicalize hazard class values for stable downstream matching."""
+
+    if isinstance(value, str):
+        return value.strip().replace("-", "_").lower()
+    return value
+
+
+def canonicalize_exposure_mode(value: Any) -> Any:
+    """Canonicalize exposure mode values for stable policy overrides."""
+
+    if isinstance(value, str):
+        return value.strip().replace("-", "_").lower()
+    return value
